@@ -1,0 +1,19 @@
+name: Release Notes
+on:
+  push:
+    tags:
+      - '**'
+jobs:
+  release-notes:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: npm install -g releasejet
+      - run: releasejet generate --tag "${{ github.ref_name }}" --publish
+        env:
+          RELEASEJET_TOKEN: ${{ secrets.RELEASEJET_TOKEN }}

@@ -1,0 +1,28 @@
+# ReleaseJet Configuration
+# Copy to .releasejet.yml and customize for your project.
+# Or run: releasejet init
+
+# GitLab instance URL
+gitlab:
+  url: https://gitlab.example.com
+
+# Client definitions (omit for single-client repos)
+# clients:
+#   - prefix: mobile
+#     label: MOBILE
+#   - prefix: web
+#     label: WEB
+
+# Category label mappings
+# Key: the label name in GitLab
+# Value: the section heading in release notes
+categories:
+  feature: "New Features"
+  bug: "Bug Fixes"
+  improvement: "Improvements"
+  breaking-change: "Breaking Changes"
+
+# How to handle uncategorized issues
+# "lenient" — include under "Other" with a warning (default)
+# "strict" — fail release generation
+uncategorized: lenient

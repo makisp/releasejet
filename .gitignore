@@ -1,0 +1,11 @@
+node_modules/
+dist/
+*.tsbuildinfo
+*.tgz
+.releasejet.yml
+.env
+.env.*
+.claude/
+.clone/
+docs/
+bash.exe.stackdump
