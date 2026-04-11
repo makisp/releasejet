@@ -67,6 +67,8 @@ describe('resolveProjectInfo', () => {
   });
 
   it('uses GitLab CI environment variables when available', () => {
+    delete process.env.GITHUB_SERVER_URL;
+    delete process.env.GITHUB_REPOSITORY;
     process.env.CI_SERVER_URL = 'https://gitlab.example.com';
     process.env.CI_PROJECT_PATH = 'mpapas/test-project';
 
