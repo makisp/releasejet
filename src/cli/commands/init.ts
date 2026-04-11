@@ -1,4 +1,5 @@
 import type { Command } from 'commander';
+import { withErrorHandler } from '../error-handler.js';
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
@@ -38,9 +39,13 @@ export function registerInitCommand(program: Command): void {
   program
     .command('init')
     .description('Interactive setup for ReleaseJet')
-    .action(async () => {
+    .addHelpText('after', `
+Examples:
+  $ releasejet init    Run the interactive setup wizard
+`)
+    .action(withErrorHandler(async () => {
       await runInit();
-    });
+    }));
 }
 
 export async function runInit(): Promise<void> {
