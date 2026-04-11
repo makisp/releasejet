@@ -13,21 +13,35 @@ import { formatReleaseNotes } from '../../core/formatter.js';
 import { createClient } from '../../providers/factory.js';
 import { resolveToken } from '../auth.js';
 import { promptForUncategorized } from '../prompts.js';
+import { withErrorHandler } from '../error-handler.js';
+import { createLogger } from '../logger.js';
+import ora from 'ora';
 import type { TagInfo, ReleaseNotesData } from '../../types.js';
 
 export function registerGenerateCommand(program: Command): void {
   program
     .command('generate')
     .description('Generate release notes for a tag')
-    .requiredOption('--tag <tag>', 'Git tag to generate release notes for')
-    .option('--publish', 'Publish release', false)
+    .requiredOption('--tag <tag>', 'Git tag (e.g., v1.0.0 or mobile-v1.2.0)')
+    .option('--publish', 'Publish release to provider', false)
     .option('--dry-run', 'Preview without publishing', false)
     .option('--format <format>', 'Output format (markdown|json)', 'markdown')
     .option('--config <path>', 'Config file path', '.releasejet.yml')
     .option('--debug', 'Show debug information', false)
-    .action(async (options) => {
+    .addHelpText('after', `
+Examples:
+  $ releasejet generate --tag v1.0.0                Preview release notes
+  $ releasejet generate --tag mobile-v2.1.0         Multi-client tag
+  $ releasejet generate --tag v1.0.0 --publish      Publish to provider
+  $ releasejet generate --tag v1.0.0 --format json  JSON output
+
+Tag format:
+  Multi-client:  <prefix>-v<semver>  (e.g., mobile-v1.2.0)
+  Single-client: v<semver>           (e.g., v1.2.0)
+`)
+    .action(withErrorHandler(async (options) => {
       await runGenerate(options);
-    });
+    }));
 }
 
 export async function runGenerate(options: {
@@ -38,7 +52,8 @@ export async function runGenerate(options: {
   config: string;
   debug?: boolean;
 }): Promise<void> {
-  const debug = options.debug ? (...args: unknown[]) => console.error('[DEBUG]', ...args) : () => {};
+  const { debug } = createLogger(options.debug ?? false);
+  const spinner = options.debug ? null : ora({ stream: process.stderr });
 
   const config = await loadConfig(options.config);
   debug('Config loaded:', JSON.stringify(config, null, 2));
@@ -55,7 +70,15 @@ export async function runGenerate(options: {
   const currentParsed = parseTag(options.tag);
   debug('Parsed tag:', JSON.stringify(currentParsed));
 
-  const apiTags = await client.listTags(projectPath);
+  let apiTags: Array<{ name: string; createdAt: string }>;
+  try {
+    spinner?.start('Fetching tags...');
+    apiTags = await client.listTags(projectPath);
+    spinner?.succeed(`Fetched ${apiTags.length} tags`);
+  } catch (err) {
+    spinner?.fail('Failed to fetch tags');
+    throw err;
+  }
   debug('All remote tags:', apiTags.map(t => `${t.name} (${t.createdAt})`).join(', '));
 
   const allTags: TagInfo[] = apiTags
@@ -81,14 +104,24 @@ export async function runGenerate(options: {
   debug('Previous tag:', previousTag ? JSON.stringify(previousTag) : 'none (first release)');
   debug('Date range:', previousTag?.createdAt ?? 'beginning', '->', currentTag.createdAt);
 
-  const issues = await collectIssues(
-    client,
-    projectPath,
-    currentTag,
-    previousTag,
-    config,
-    debug,
-  );
+  const sourceLabel = config.source === 'pull_requests' ? 'pull requests' : 'issues';
+  let issues;
+  try {
+    spinner?.start(`Collecting ${sourceLabel}...`);
+    issues = await collectIssues(
+      client,
+      projectPath,
+      currentTag,
+      previousTag,
+      config,
+      debug,
+    );
+    const issueCount = Object.values(issues.categorized).reduce((sum, arr) => sum + arr.length, 0) + issues.uncategorized.length;
+    spinner?.succeed(`Collected ${issueCount} ${sourceLabel}`);
+  } catch (err) {
+    spinner?.fail(`Failed to collect ${sourceLabel}`);
+    throw err;
+  }
 
   // Handle uncategorized issues
   if (issues.uncategorized.length > 0) {
@@ -134,13 +167,19 @@ export async function runGenerate(options: {
       const releaseName = currentParsed.prefix
         ? `${currentParsed.prefix.toUpperCase()} v${currentParsed.version}`
         : `v${currentParsed.version}`;
-      await client.createRelease(projectPath, {
-        tagName: options.tag,
-        name: releaseName,
-        description: markdown,
-        milestones: milestone ? [milestone] : undefined,
-      });
-      console.log(`\n✓ Release published for ${options.tag}`);
+      try {
+        spinner?.start('Publishing release...');
+        await client.createRelease(projectPath, {
+          tagName: options.tag,
+          name: releaseName,
+          description: markdown,
+          milestones: milestone ? [milestone] : undefined,
+        });
+        spinner?.succeed(`Release published for ${options.tag}`);
+      } catch (err) {
+        spinner?.fail('Failed to publish release');
+        throw err;
+      }
     }
   }
 }
