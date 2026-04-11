@@ -140,6 +140,58 @@ Token resolution order:
 | `--config <path>` | Custom config file path |
 | `--debug` | Show debug information |
 
+## Troubleshooting
+
+### "API token not found"
+
+ReleaseJet checks three sources in order: `RELEASEJET_TOKEN` env var, provider-specific env var (`GITLAB_API_TOKEN` or `GITHUB_TOKEN`), and `~/.releasejet/credentials.yml`. Verify your token is set:
+
+```bash
+echo $RELEASEJET_TOKEN
+```
+
+To reconfigure, run `releasejet init`.
+
+### "Tag not found in remote repository"
+
+The tag exists locally but hasn't been pushed. Push it first:
+
+```bash
+git push origin <tag>
+```
+
+### "Invalid tag format"
+
+Tags must match `v<semver>` (e.g., `v1.2.0`) or `<prefix>-v<semver>` (e.g., `mobile-v1.2.0`). Suffixes like `v1.2.0-beta` are supported but the core version must be valid semver.
+
+### Issues missing from release notes
+
+ReleaseJet includes issues closed *between* the previous tag and the current tag (by `closedAt` timestamp, not `updatedAt`). Check that:
+
+- The issue is **closed** (not just merged)
+- The close date falls within the tag window
+- The issue has the correct **client label** (multi-client repos)
+
+Use `--debug` to see the date range and which issues were filtered.
+
+### "Request failed with status 401" or "403"
+
+The API token doesn't have the required permissions. GitLab tokens need `api` scope. GitHub tokens need `repo` scope. Regenerate the token with the correct scope and update it via `releasejet init` or the `RELEASEJET_TOKEN` env var.
+
+### `source: pull_requests` not working
+
+Pull request source is only supported for GitHub. GitLab projects must use `source: issues` (the default).
+
+### Config changes not taking effect
+
+Run with `--debug` to see the loaded config:
+
+```bash
+releasejet generate --tag <tag> --debug
+```
+
+Invalid values (e.g., `uncategorized: "strictt"`) now produce clear error messages instead of being silently ignored.
+
 ## License
 
 MIT
