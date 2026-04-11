@@ -10,7 +10,7 @@ const program = new Command();
 
 program
   .name('releasejet')
-  .description('Automated GitLab release notes generator')
+  .description('Automated release notes generator for GitLab and GitHub')
   .version(__VERSION__);
 
 registerGenerateCommand(program);
