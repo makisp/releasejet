@@ -7,5 +7,6 @@ dist/
 .env.*
 .claude/
 .clone/
+.superpowers/
 docs/
 bash.exe.stackdump
