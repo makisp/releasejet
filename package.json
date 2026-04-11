@@ -2,6 +2,25 @@
   "name": "releasejet",
   "version": "1.0.0",
   "description": "Automated release notes generator for GitLab and GitHub",
+  "license": "MIT",
+  "author": "Mavroudis Papas",
+  "homepage": "https://www.releasejet.dev/",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/makisp/releasejet.git"
+  },
+  "bugs": {
+    "url": "https://github.com/makisp/releasejet/issues"
+  },
+  "keywords": [
+    "release-notes",
+    "changelog",
+    "gitlab",
+    "github",
+    "cli",
+    "automation",
+    "ci-cd"
+  ],
   "type": "module",
   "bin": {
     "releasejet": "./dist/cli.js"
@@ -15,7 +34,8 @@
     "build": "tsup",
     "test": "vitest run",
     "test:watch": "vitest",
-    "dev": "tsx src/cli/index.ts"
+    "dev": "tsx src/cli/index.ts",
+    "prepublishOnly": "npm run test && npm run build"
   },
   "dependencies": {
     "@gitbeaker/rest": "^41.3.0",
