@@ -33,4 +33,7 @@ jobs:
           VERSION="${TAG#v}"
           npm version "$VERSION" --no-git-tag-version --allow-same-version
 
-      - run: npm publish --provenance --access public
+      - name: Publish to npm
+        run: npm publish --provenance --access public
+        env:
+          NODE_AUTH_TOKEN: ""

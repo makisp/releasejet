@@ -1,5 +1,5 @@
 {
-  "name": "releasejet",
+  "name": "@makispps/releasejet",
   "version": "1.0.0",
   "description": "Automated release notes generator for GitLab and GitHub",
   "license": "MIT",
