@@ -99,4 +99,101 @@ provider:
     vi.mocked(readFile).mockRejectedValue(new Error('Permission denied'));
     await expect(loadConfig()).rejects.toThrow('Permission denied');
   });
+
+  it('throws on invalid provider.type', async () => {
+    vi.mocked(readFile).mockResolvedValue(`
+provider:
+  type: githob
+  url: https://github.com
+` as never);
+    await expect(loadConfig()).rejects.toThrow('provider.type');
+    await expect(loadConfig()).rejects.toThrow('githob');
+  });
+
+  it('throws on invalid provider.url', async () => {
+    vi.mocked(readFile).mockResolvedValue(`
+provider:
+  type: github
+  url: ftp://github.com
+` as never);
+    await expect(loadConfig()).rejects.toThrow('provider.url');
+  });
+
+  it('allows empty provider.url', async () => {
+    vi.mocked(readFile).mockResolvedValue(`
+provider:
+  type: github
+` as never);
+    const config = await loadConfig();
+    expect(config.provider.url).toBe('');
+  });
+
+  it('throws on invalid source', async () => {
+    vi.mocked(readFile).mockResolvedValue(`
+provider:
+  type: github
+  url: https://github.com
+source: merge_requests
+` as never);
+    await expect(loadConfig()).rejects.toThrow('source');
+    await expect(loadConfig()).rejects.toThrow('merge_requests');
+  });
+
+  it('throws on invalid uncategorized', async () => {
+    vi.mocked(readFile).mockResolvedValue(`
+provider:
+  type: gitlab
+  url: https://gitlab.example.com
+uncategorized: strictt
+` as never);
+    await expect(loadConfig()).rejects.toThrow('uncategorized');
+    await expect(loadConfig()).rejects.toThrow('strictt');
+  });
+
+  it('throws on client entry missing prefix', async () => {
+    vi.mocked(readFile).mockResolvedValue(`
+provider:
+  type: gitlab
+  url: https://gitlab.example.com
+clients:
+  - label: MOBILE
+` as never);
+    await expect(loadConfig()).rejects.toThrow('clients[0]');
+  });
+
+  it('throws on client entry missing label', async () => {
+    vi.mocked(readFile).mockResolvedValue(`
+provider:
+  type: gitlab
+  url: https://gitlab.example.com
+clients:
+  - prefix: mobile
+` as never);
+    await expect(loadConfig()).rejects.toThrow('clients[0]');
+  });
+
+  it('throws on non-object categories', async () => {
+    vi.mocked(readFile).mockResolvedValue(`
+provider:
+  type: gitlab
+  url: https://gitlab.example.com
+categories:
+  - feature
+  - bug
+` as never);
+    await expect(loadConfig()).rejects.toThrow('categories');
+  });
+
+  it('defaults missing fields without throwing', async () => {
+    vi.mocked(readFile).mockResolvedValue(`
+provider:
+  type: github
+  url: https://github.com
+` as never);
+    const config = await loadConfig();
+    expect(config.source).toBe('issues');
+    expect(config.uncategorized).toBe('lenient');
+    expect(config.clients).toEqual([]);
+    expect(config.categories).toEqual(DEFAULT_CONFIG.categories);
+  });
 });
