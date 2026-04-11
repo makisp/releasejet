@@ -1,3 +1,5 @@
+<img width="480" height="120" alt="lockup-light-1x" src="https://github.com/user-attachments/assets/1fd84e91-86f3-4f62-bad7-8bf4b72b517f" />
+
 # ReleaseJet
 
 Automated release notes generator for GitLab and GitHub. Collects closed issues (or merged pull requests) between Git tags, categorizes them by label, and publishes formatted release notes.
