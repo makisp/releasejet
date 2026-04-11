@@ -58,7 +58,7 @@ describe('runValidate', () => {
     ]);
     const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
 
-    await runValidate({ config: '.releasejet.yml' });
+    await runValidate({ config: '.releasejet.yml', debug: false });
 
     expect(consoleSpy).toHaveBeenCalledWith(
       expect.stringContaining('All open issues are properly labeled'),
@@ -73,7 +73,7 @@ describe('runValidate', () => {
     ]);
     const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
 
-    await runValidate({ config: '.releasejet.yml' });
+    await runValidate({ config: '.releasejet.yml', debug: false });
 
     const allOutput = consoleSpy.mock.calls.map((c) => c[0]).join('\n');
     expect(allOutput).toContain('#1');
@@ -87,7 +87,7 @@ describe('runValidate', () => {
     ]);
     const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
 
-    await runValidate({ config: '.releasejet.yml' });
+    await runValidate({ config: '.releasejet.yml', debug: false });
 
     const allOutput = consoleSpy.mock.calls.map((c) => c[0]).join('\n');
     expect(allOutput).toContain('#2');
@@ -103,7 +103,7 @@ describe('runValidate', () => {
     ]);
     const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
 
-    await runValidate({ config: '.releasejet.yml' });
+    await runValidate({ config: '.releasejet.yml', debug: false });
 
     expect(consoleSpy).toHaveBeenCalledWith(
       expect.stringContaining('All open issues are properly labeled'),
