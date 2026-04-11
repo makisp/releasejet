@@ -8,37 +8,53 @@ import {
   removeCiBlock,
   DEFAULT_TAGS,
 } from '../../core/ci.js';
+import { withErrorHandler } from '../error-handler.js';
+import { createLogger } from '../logger.js';
 
 const CI_FILE = '.gitlab-ci.yml';
 
 export function registerCiCommand(program: Command): void {
   const ci = program
     .command('ci')
-    .description('Manage GitLab CI/CD integration');
+    .description('Manage GitLab CI/CD integration')
+    .addHelpText('after', `
+Examples:
+  $ releasejet ci enable                   Interactive setup
+  $ releasejet ci enable --tags ci,docker  Non-interactive with tags
+  $ releasejet ci disable                  Remove CI configuration
+`);
 
   ci.command('enable')
     .description('Add ReleaseJet CI configuration to .gitlab-ci.yml')
     .option('--tags <tags>', 'Runner tags (comma-separated)')
-    .action(async (options) => {
+    .option('--debug', 'Show debug information', false)
+    .action(withErrorHandler(async (options) => {
       await runCiEnable(options);
-    });
+    }));
 
   ci.command('disable')
     .description('Remove ReleaseJet CI configuration from .gitlab-ci.yml')
-    .action(async () => {
+    .action(withErrorHandler(async () => {
       await runCiDisable();
-    });
+    }));
 }
 
-export async function runCiEnable(options: { tags?: string }): Promise<void> {
+export async function runCiEnable(options: { tags?: string; debug?: boolean }): Promise<void> {
+  const { debug } = createLogger(options.debug ?? false);
+
   let existing = '';
   try {
     existing = await readFile(CI_FILE, 'utf-8');
+    debug('Existing .gitlab-ci.yml found, length:', existing.length);
   } catch (err: unknown) {
     if ((err as NodeJS.ErrnoException).code !== 'ENOENT') throw err;
+    debug('.gitlab-ci.yml not found, will create new file');
   }
 
-  if (hasCiBlock(existing)) {
+  const hasMarkers = hasCiBlock(existing);
+  debug('ReleaseJet markers found:', hasMarkers);
+
+  if (hasMarkers) {
     console.log('ReleaseJet CI is already enabled.');
     return;
   }
@@ -56,6 +72,8 @@ export async function runCiEnable(options: { tags?: string }): Promise<void> {
   }
 
   const block = generateCiBlock(tags);
+  debug('Generated CI block:\n' + block);
+
   const content = appendCiBlock(existing, block);
   await writeFile(CI_FILE, content);
   console.log('✓ ReleaseJet CI configuration added to .gitlab-ci.yml');
