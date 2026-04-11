@@ -10,3 +10,5 @@ dist/
 .superpowers/
 docs/
 bash.exe.stackdump
+.npmrc
+CLAUDE.md
