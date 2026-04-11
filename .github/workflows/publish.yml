@@ -18,7 +18,8 @@ jobs:
         with:
           node-version: 20
           cache: npm
-          registry-url: https://registry.npmjs.org
+
+      - run: npm install -g npm@latest
 
       - run: npm ci
 
@@ -33,5 +34,3 @@ jobs:
           npm version "$VERSION" --no-git-tag-version --allow-same-version
 
       - run: npm publish --provenance --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
