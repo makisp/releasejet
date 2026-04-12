@@ -9,6 +9,7 @@ import { createClient } from '../../providers/factory.js';
 import { resolveToken } from '../auth.js';
 import { withErrorHandler } from '../error-handler.js';
 import { createLogger } from '../logger.js';
+import type { Issue } from '../../types.js';
 import ora from 'ora';
 
 export function registerValidateCommand(program: Command): void {
@@ -60,19 +61,41 @@ export async function runValidate(options: {
   const token = await resolveToken(config.provider.type);
   const client = createClient(config, token);
 
-  let issues;
+  // Fetch issues based on state
+  const fetchStates: Array<'opened' | 'closed'> = state === 'all'
+    ? ['opened', 'closed']
+    : [state as 'opened' | 'closed'];
+
+  let issues: Issue[] = [];
   try {
-    spinner?.start('Fetching open issues...');
-    issues = await client.listIssues(projectPath, {
-      state: 'opened',
-    });
-    spinner?.succeed(`Fetched ${issues.length} open issues`);
+    spinner?.start('Fetching issues...');
+    for (const s of fetchStates) {
+      const batch = await client.listIssues(projectPath, { state: s });
+      issues.push(...batch);
+    }
+    spinner?.succeed(`Fetched ${issues.length} issues`);
   } catch (err) {
     spinner?.fail('Failed to fetch issues');
     throw err;
   }
 
-  debug('Fetched', issues.length, 'open issues');
+  debug('Fetched', issues.length, 'issues');
+
+  // Apply milestone filter (client-side)
+  if (options.milestone) {
+    issues = issues.filter((i) => i.milestone?.title === options.milestone);
+    debug(`After milestone filter "${options.milestone}": ${issues.length} issues`);
+  }
+
+  // Apply recency filter (client-side)
+  if (options.recent !== undefined) {
+    const cutoff = new Date(Date.now() - options.recent * 24 * 60 * 60 * 1000);
+    issues = issues.filter((i) => {
+      const date = i.closedAt ? new Date(i.closedAt) : new Date(); // open issues are "recent"
+      return date >= cutoff;
+    });
+    debug(`After recency filter (${options.recent} days): ${issues.length} issues`);
+  }
 
   const categoryLabels = Object.keys(config.categories);
   const clientLabels = config.clients.map((c) => c.label);
