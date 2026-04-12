@@ -57,13 +57,14 @@ describe('runValidate', () => {
     vi.mocked(mockClient.listIssues).mockResolvedValue([
       { number: 1, title: 'Good issue', labels: ['feature', 'MOBILE'], closedAt: '', webUrl: '', milestone: null },
     ]);
+    vi.mocked(mockClient.listTags).mockResolvedValue([]);
     const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
 
     await runValidate({ config: '.releasejet.yml', debug: false });
 
-    expect(consoleSpy).toHaveBeenCalledWith(
-      expect.stringContaining('All open issues are properly labeled'),
-    );
+    const allOutput = consoleSpy.mock.calls.map((c) => c[0]).join('\n');
+    expect(allOutput).toContain('1 issue properly labeled');
+    expect(allOutput).toContain('0 label problems');
     expect(process.exitCode).not.toBe(1);
     consoleSpy.mockRestore();
   });
@@ -72,6 +73,7 @@ describe('runValidate', () => {
     vi.mocked(mockClient.listIssues).mockResolvedValue([
       { number: 1, title: 'No client', labels: ['feature'], closedAt: '', webUrl: '', milestone: null },
     ]);
+    vi.mocked(mockClient.listTags).mockResolvedValue([]);
     const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
 
     await runValidate({ config: '.releasejet.yml', debug: false });
@@ -86,6 +88,7 @@ describe('runValidate', () => {
     vi.mocked(mockClient.listIssues).mockResolvedValue([
       { number: 2, title: 'No category', labels: ['MOBILE'], closedAt: '', webUrl: '', milestone: null },
     ]);
+    vi.mocked(mockClient.listTags).mockResolvedValue([]);
     const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
 
     await runValidate({ config: '.releasejet.yml', debug: false });
@@ -102,13 +105,14 @@ describe('runValidate', () => {
     vi.mocked(mockClient.listIssues).mockResolvedValue([
       { number: 1, title: 'Has category', labels: ['feature'], closedAt: '', webUrl: '', milestone: null },
     ]);
+    vi.mocked(mockClient.listTags).mockResolvedValue([]);
     const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
 
     await runValidate({ config: '.releasejet.yml', debug: false });
 
-    expect(consoleSpy).toHaveBeenCalledWith(
-      expect.stringContaining('All open issues are properly labeled'),
-    );
+    const allOutput = consoleSpy.mock.calls.map((c) => c[0]).join('\n');
+    expect(allOutput).toContain('1 issue properly labeled');
+    expect(allOutput).toContain('0 label problems');
     consoleSpy.mockRestore();
   });
 
