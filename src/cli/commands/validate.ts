@@ -10,6 +10,8 @@ import { resolveToken } from '../auth.js';
 import { withErrorHandler } from '../error-handler.js';
 import { createLogger } from '../logger.js';
 import type { Issue } from '../../types.js';
+import { validateTag } from '../../core/tag-parser.js';
+import type { TagValidationResult } from '../../core/tag-parser.js';
 import ora from 'ora';
 
 export function registerValidateCommand(program: Command): void {
@@ -60,6 +62,18 @@ export async function runValidate(options: {
 
   const token = await resolveToken(config.provider.type);
   const client = createClient(config, token);
+
+  // --- Tag Format Check ---
+  let tagResults: TagValidationResult[] = [];
+  try {
+    spinner?.start('Fetching tags...');
+    const tags = await client.listTags(projectPath);
+    tagResults = tags.map((t) => validateTag(t.name, config));
+    spinner?.succeed(`Fetched ${tags.length} tags`);
+  } catch (err) {
+    spinner?.fail('Failed to fetch tags');
+    throw err;
+  }
 
   // Fetch issues based on state
   const fetchStates: Array<'opened' | 'closed'> = state === 'all'
@@ -130,15 +144,44 @@ export async function runValidate(options: {
     }
   }
 
-  if (problems.length === 0) {
-    console.log('✓ All open issues are properly labeled.');
-    return;
+  // --- Output ---
+  const validTags = tagResults.filter((t) => t.valid);
+  const invalidTags = tagResults.filter((t) => !t.valid);
+
+  // Tag Format section
+  console.log('Tag Format');
+  if (validTags.length > 0) {
+    console.log(`  \u2713 ${validTags.length} ${validTags.length === 1 ? 'tag' : 'tags'} OK`);
+  }
+  if (invalidTags.length > 0) {
+    console.log(`  \u26a0 ${invalidTags.length} ${invalidTags.length === 1 ? 'tag' : 'tags'} with issues:`);
+    for (const t of invalidTags) {
+      console.log(`    ${t.tag}  \u2014 ${t.reason}`);
+    }
   }
 
-  console.log(`⚠ ${problems.length} issues with missing labels:\n`);
-  for (const p of problems) {
-    console.log(`  #${p.number} - ${p.title}`);
-    console.log(`    Missing: ${p.missing.join(', ')}`);
+  // Issue Labels section
+  const milestoneLabel = options.milestone ? `, milestone: ${options.milestone}` : '';
+  console.log('');
+  console.log(`Issue Labels (${state}${milestoneLabel})`);
+
+  const okCount = issues.length - problems.length;
+  if (okCount > 0) {
+    console.log(`  \u2713 ${okCount} ${okCount === 1 ? 'issue' : 'issues'} properly labeled`);
   }
-  process.exitCode = 1;
+  if (problems.length > 0) {
+    console.log(`  \u26a0 ${problems.length} ${problems.length === 1 ? 'issue' : 'issues'} with missing labels:`);
+    for (const p of problems) {
+      console.log(`    #${p.number} - ${p.title}`);
+      console.log(`      Missing: ${p.missing.join(', ')}`);
+    }
+  }
+
+  // Summary
+  console.log('');
+  console.log(`Summary: ${invalidTags.length} tag ${invalidTags.length === 1 ? 'warning' : 'warnings'}, ${problems.length} label ${problems.length === 1 ? 'problem' : 'problems'}`);
+
+  if (problems.length > 0) {
+    process.exitCode = 1;
+  }
 }

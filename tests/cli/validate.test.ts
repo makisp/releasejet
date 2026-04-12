@@ -47,6 +47,7 @@ describe('runValidate', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    process.exitCode = undefined;
     mockClient = createMockClient();
     vi.mocked(loadConfig).mockResolvedValue(mockConfig);
     vi.mocked(createClient).mockReturnValue(mockClient);
@@ -202,6 +203,124 @@ describe('runValidate', () => {
     const allOutput = consoleSpy.mock.calls.map((c) => c[0]).join('\n');
     expect(allOutput).toContain('#1');
     expect(allOutput).not.toContain('#2');
+    consoleSpy.mockRestore();
+  });
+
+  it('reports tag format warnings in output', async () => {
+    vi.mocked(mockClient.listIssues).mockResolvedValue([]);
+    vi.mocked(mockClient.listTags).mockResolvedValue([
+      { name: 'mobile-v1.0.0', createdAt: '2026-01-01T00:00:00Z' },
+      { name: 'release-2024', createdAt: '2026-01-01T00:00:00Z' },
+      { name: 'mobile-vbad', createdAt: '2026-01-01T00:00:00Z' },
+    ]);
+    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+    await runValidate({ config: '.releasejet.yml' });
+
+    const allOutput = consoleSpy.mock.calls.map((c) => c[0]).join('\n');
+    expect(allOutput).toContain('Tag Format');
+    expect(allOutput).toContain('1 tag OK');
+    expect(allOutput).toContain('2 tags with issues');
+    expect(allOutput).toContain('release-2024');
+    expect(allOutput).toContain('mobile-vbad');
+    consoleSpy.mockRestore();
+  });
+
+  it('shows all tags OK when all tags are valid', async () => {
+    vi.mocked(mockClient.listIssues).mockResolvedValue([]);
+    vi.mocked(mockClient.listTags).mockResolvedValue([
+      { name: 'mobile-v1.0.0', createdAt: '2026-01-01T00:00:00Z' },
+      { name: 'mobile-v1.1.0', createdAt: '2026-02-01T00:00:00Z' },
+    ]);
+    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+    await runValidate({ config: '.releasejet.yml' });
+
+    const allOutput = consoleSpy.mock.calls.map((c) => c[0]).join('\n');
+    expect(allOutput).toContain('2 tags OK');
+    expect(allOutput).not.toContain('tags with issues');
+    consoleSpy.mockRestore();
+  });
+
+  it('tag warnings do not cause exit code 1', async () => {
+    vi.mocked(mockClient.listIssues).mockResolvedValue([]);
+    vi.mocked(mockClient.listTags).mockResolvedValue([
+      { name: 'release-2024', createdAt: '2026-01-01T00:00:00Z' },
+    ]);
+    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+    await runValidate({ config: '.releasejet.yml' });
+
+    expect(process.exitCode).not.toBe(1);
+    consoleSpy.mockRestore();
+  });
+
+  it('shows structured output with both sections and summary', async () => {
+    vi.mocked(mockClient.listIssues).mockResolvedValue([
+      { number: 42, title: 'Add dark mode', labels: ['MOBILE'], closedAt: '', webUrl: '', milestone: null },
+    ]);
+    vi.mocked(mockClient.listTags).mockResolvedValue([
+      { name: 'mobile-v1.0.0', createdAt: '2026-01-01T00:00:00Z' },
+      { name: 'release-2024', createdAt: '2026-01-01T00:00:00Z' },
+    ]);
+    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+    await runValidate({ config: '.releasejet.yml' });
+
+    const allOutput = consoleSpy.mock.calls.map((c) => c[0]).join('\n');
+    expect(allOutput).toContain('Tag Format');
+    expect(allOutput).toContain('1 tag OK');
+    expect(allOutput).toContain('Issue Labels');
+    expect(allOutput).toContain('#42');
+    expect(allOutput).toContain('category label');
+    expect(allOutput).toContain('Summary:');
+    expect(allOutput).toContain('1 tag warning');
+    expect(allOutput).toContain('1 label problem');
+    consoleSpy.mockRestore();
+  });
+
+  it('includes milestone in issue section header when --milestone is used', async () => {
+    vi.mocked(mockClient.listIssues).mockResolvedValue([
+      { number: 1, title: 'Good', labels: ['feature', 'MOBILE'], closedAt: '', webUrl: '', milestone: { title: 'v1.2.0', url: '' } },
+    ]);
+    vi.mocked(mockClient.listTags).mockResolvedValue([]);
+    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+    await runValidate({ config: '.releasejet.yml', milestone: 'v1.2.0' });
+
+    const allOutput = consoleSpy.mock.calls.map((c) => c[0]).join('\n');
+    expect(allOutput).toContain('Issue Labels (opened, milestone: v1.2.0)');
+    consoleSpy.mockRestore();
+  });
+
+  it('exits with code 1 when label problems exist', async () => {
+    vi.mocked(mockClient.listIssues).mockResolvedValue([
+      { number: 1, title: 'Missing labels', labels: [], closedAt: '', webUrl: '', milestone: null },
+    ]);
+    vi.mocked(mockClient.listTags).mockResolvedValue([]);
+    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+    await runValidate({ config: '.releasejet.yml' });
+
+    expect(process.exitCode).toBe(1);
+    consoleSpy.mockRestore();
+  });
+
+  it('shows zero-problem summary when everything is clean', async () => {
+    vi.mocked(mockClient.listIssues).mockResolvedValue([
+      { number: 1, title: 'Good', labels: ['feature', 'MOBILE'], closedAt: '', webUrl: '', milestone: null },
+    ]);
+    vi.mocked(mockClient.listTags).mockResolvedValue([
+      { name: 'mobile-v1.0.0', createdAt: '2026-01-01T00:00:00Z' },
+    ]);
+    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+    await runValidate({ config: '.releasejet.yml' });
+
+    const allOutput = consoleSpy.mock.calls.map((c) => c[0]).join('\n');
+    expect(allOutput).toContain('0 tag warnings');
+    expect(allOutput).toContain('0 label problems');
+    expect(process.exitCode).not.toBe(1);
     consoleSpy.mockRestore();
   });
 });
