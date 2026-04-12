@@ -1,5 +1,5 @@
 import * as semver from 'semver';
-import type { ParsedTag, TagInfo } from '../types.js';
+import type { ParsedTag, TagInfo, ReleaseJetConfig } from '../types.js';
 
 export function parseTag(tag: string): ParsedTag {
   // Multi-client: <prefix>-v<version...>
@@ -47,4 +47,32 @@ export function findPreviousTag(
     });
 
   return candidates[0] ?? null;
+}
+
+export interface TagValidationResult {
+  tag: string;
+  valid: boolean;
+  reason?: string;
+}
+
+export function validateTag(tagName: string, config: ReleaseJetConfig): TagValidationResult {
+  try {
+    const parsed = parseTag(tagName);
+
+    // In multi-client mode, check that the prefix matches a configured client
+    if (config.clients.length > 0 && parsed.prefix !== null) {
+      const knownPrefixes = config.clients.map((c) => c.prefix);
+      if (!knownPrefixes.includes(parsed.prefix)) {
+        return {
+          tag: tagName,
+          valid: false,
+          reason: `unknown prefix "${parsed.prefix}" (expected: ${knownPrefixes.join(', ')})`,
+        };
+      }
+    }
+
+    return { tag: tagName, valid: true };
+  } catch {
+    return { tag: tagName, valid: false, reason: 'does not match expected format' };
+  }
 }
