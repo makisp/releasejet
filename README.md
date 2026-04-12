@@ -126,7 +126,7 @@ Token resolution order:
 | `releasejet init` | Interactive setup wizard |
 | `releasejet generate --tag <tag>` | Generate release notes |
 | `releasejet generate --tag <tag> --publish` | Generate and publish release |
-| `releasejet validate` | Check issues for proper labeling |
+| `releasejet validate` | Check issues and tags for release readiness |
 | `releasejet ci enable` | Add CI configuration to `.gitlab-ci.yml` |
 | `releasejet ci disable` | Remove CI configuration |
 
@@ -137,6 +137,16 @@ Token resolution order:
 | `--publish` | Publish as a release on the provider |
 | `--dry-run` | Preview without publishing |
 | `--format <format>` | Output format: `markdown` (default) or `json` |
+| `--config <path>` | Custom config file path |
+| `--debug` | Show debug information |
+
+### Validate Flags
+
+| Flag | Description |
+|------|-------------|
+| `--milestone <title>` | Only check issues in this milestone |
+| `--state <state>` | Issue state: `opened` (default), `closed`, or `all` |
+| `--recent <days>` | Only check issues updated in last N days |
 | `--config <path>` | Custom config file path |
 | `--debug` | Show debug information |
 
