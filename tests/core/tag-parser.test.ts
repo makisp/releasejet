@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { parseTag, findPreviousTag } from '../../src/core/tag-parser.js';
-import type { TagInfo } from '../../src/types.js';
+import { parseTag, findPreviousTag, validateTag } from '../../src/core/tag-parser.js';
+import type { TagInfo, ReleaseJetConfig } from '../../src/types.js';
 
 describe('parseTag', () => {
   it('parses multi-client tag', () => {
@@ -133,5 +133,73 @@ describe('findPreviousTag', () => {
     const current = mixedTags[2]; // mobile-v0.2.0
     const result = findPreviousTag(mixedTags, current);
     expect(result?.raw).toBe('mobile-v0.1.0');
+  });
+});
+
+describe('validateTag', () => {
+  const singleClientConfig: ReleaseJetConfig = {
+    provider: { type: 'github', url: '' },
+    source: 'issues',
+    clients: [],
+    categories: { feature: 'Features', bug: 'Bug Fixes' },
+    uncategorized: 'lenient',
+  };
+
+  const multiClientConfig: ReleaseJetConfig = {
+    provider: { type: 'github', url: '' },
+    source: 'issues',
+    clients: [
+      { prefix: 'mobile', label: 'MOBILE' },
+      { prefix: 'web', label: 'WEB' },
+    ],
+    categories: { feature: 'Features', bug: 'Bug Fixes' },
+    uncategorized: 'lenient',
+  };
+
+  it('accepts a valid single-client tag', () => {
+    const result = validateTag('v1.2.3', singleClientConfig);
+    expect(result).toEqual({ tag: 'v1.2.3', valid: true });
+  });
+
+  it('accepts a valid multi-client tag with known prefix', () => {
+    const result = validateTag('mobile-v1.0.0', multiClientConfig);
+    expect(result).toEqual({ tag: 'mobile-v1.0.0', valid: true });
+  });
+
+  it('accepts a tag with a semver suffix', () => {
+    const result = validateTag('v1.0.0-beta.1', singleClientConfig);
+    expect(result).toEqual({ tag: 'v1.0.0-beta.1', valid: true });
+  });
+
+  it('rejects a tag that does not match expected format', () => {
+    const result = validateTag('release-2024', singleClientConfig);
+    expect(result).toEqual({
+      tag: 'release-2024',
+      valid: false,
+      reason: 'does not match expected format',
+    });
+  });
+
+  it('rejects a tag with invalid semver', () => {
+    const result = validateTag('mobile-vbad', multiClientConfig);
+    expect(result).toEqual({
+      tag: 'mobile-vbad',
+      valid: false,
+      reason: 'does not match expected format',
+    });
+  });
+
+  it('rejects a tag with unknown prefix in multi-client mode', () => {
+    const result = validateTag('desktop-v1.0.0', multiClientConfig);
+    expect(result).toEqual({
+      tag: 'desktop-v1.0.0',
+      valid: false,
+      reason: 'unknown prefix "desktop" (expected: mobile, web)',
+    });
+  });
+
+  it('accepts any prefix in single-client mode', () => {
+    const result = validateTag('anything-v1.0.0', singleClientConfig);
+    expect(result).toEqual({ tag: 'anything-v1.0.0', valid: true });
   });
 });
