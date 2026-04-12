@@ -144,4 +144,64 @@ describe('runValidate', () => {
     expect(mockClient.listIssues).toHaveBeenCalled();
     consoleSpy.mockRestore();
   });
+
+  it('passes state to provider when --state is closed', async () => {
+    vi.mocked(mockClient.listIssues).mockResolvedValue([]);
+    vi.mocked(mockClient.listTags).mockResolvedValue([]);
+    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+    await runValidate({ config: '.releasejet.yml', state: 'closed', recent: 30 });
+
+    expect(mockClient.listIssues).toHaveBeenCalledWith('mobile/app', expect.objectContaining({ state: 'closed' }));
+    consoleSpy.mockRestore();
+  });
+
+  it('fetches both opened and closed when --state is all', async () => {
+    vi.mocked(mockClient.listIssues).mockResolvedValue([]);
+    vi.mocked(mockClient.listTags).mockResolvedValue([]);
+    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+    await runValidate({ config: '.releasejet.yml', state: 'all', recent: 30 });
+
+    expect(mockClient.listIssues).toHaveBeenCalledWith('mobile/app', expect.objectContaining({ state: 'opened' }));
+    expect(mockClient.listIssues).toHaveBeenCalledWith('mobile/app', expect.objectContaining({ state: 'closed' }));
+    consoleSpy.mockRestore();
+  });
+
+  it('filters issues by milestone when --milestone is provided', async () => {
+    vi.mocked(mockClient.listIssues).mockResolvedValue([
+      { number: 1, title: 'In milestone', labels: ['feature', 'MOBILE'], closedAt: '', webUrl: '', milestone: { title: 'v1.2.0', url: '' } },
+      { number: 2, title: 'Wrong milestone', labels: ['feature', 'MOBILE'], closedAt: '', webUrl: '', milestone: { title: 'v2.0.0', url: '' } },
+      { number: 3, title: 'No milestone', labels: ['bug'], closedAt: '', webUrl: '', milestone: null },
+    ]);
+    vi.mocked(mockClient.listTags).mockResolvedValue([]);
+    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+    await runValidate({ config: '.releasejet.yml', milestone: 'v1.2.0' });
+
+    const allOutput = consoleSpy.mock.calls.map((c) => c[0]).join('\n');
+    expect(allOutput).not.toContain('#2');
+    expect(allOutput).not.toContain('#3');
+    consoleSpy.mockRestore();
+  });
+
+  it('filters issues by recency when --recent is provided', async () => {
+    const now = new Date();
+    const fiveDaysAgo = new Date(now.getTime() - 5 * 24 * 60 * 60 * 1000).toISOString();
+    const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString();
+
+    vi.mocked(mockClient.listIssues).mockResolvedValue([
+      { number: 1, title: 'Recent', labels: ['bug'], closedAt: fiveDaysAgo, webUrl: '', milestone: null },
+      { number: 2, title: 'Old', labels: ['bug'], closedAt: thirtyDaysAgo, webUrl: '', milestone: null },
+    ]);
+    vi.mocked(mockClient.listTags).mockResolvedValue([]);
+    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+    await runValidate({ config: '.releasejet.yml', state: 'closed', recent: 10 });
+
+    const allOutput = consoleSpy.mock.calls.map((c) => c[0]).join('\n');
+    expect(allOutput).toContain('#1');
+    expect(allOutput).not.toContain('#2');
+    consoleSpy.mockRestore();
+  });
 });
