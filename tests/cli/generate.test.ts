@@ -1,4 +1,7 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { readFile, unlink } from 'node:fs/promises';
+import { join } from 'node:path';
+import { tmpdir } from 'node:os';
 import type { ProviderClient } from '../../src/providers/types.js';
 import type { ReleaseJetConfig } from '../../src/types.js';
 
@@ -125,6 +128,83 @@ describe('runGenerate', () => {
         config: '.releasejet.yml',
       }),
     ).rejects.toThrow('not found');
+  });
+
+  it('writes markdown to file when --output is set', async () => {
+    const outputPath = join(tmpdir(), `releasejet-test-${Date.now()}.md`);
+
+    await runGenerate({
+      tag: 'mobile-v0.1.17',
+      publish: false,
+      dryRun: false,
+      format: 'markdown',
+      output: outputPath,
+      config: '.releasejet.yml',
+    });
+
+    const content = await readFile(outputPath, 'utf-8');
+    expect(content).toContain('# MOBILE v0.1.17');
+    expect(content).toContain('New feature');
+    await unlink(outputPath);
+  });
+
+  it('writes JSON to file when --output and --format json are set', async () => {
+    const outputPath = join(tmpdir(), `releasejet-test-${Date.now()}.json`);
+
+    await runGenerate({
+      tag: 'mobile-v0.1.17',
+      publish: false,
+      dryRun: false,
+      format: 'json',
+      output: outputPath,
+      config: '.releasejet.yml',
+    });
+
+    const content = await readFile(outputPath, 'utf-8');
+    const parsed = JSON.parse(content);
+    expect(parsed.tagName).toBe('mobile-v0.1.17');
+    expect(parsed.version).toBe('0.1.17');
+    await unlink(outputPath);
+  });
+
+  it('uses --since tag as the previous tag', async () => {
+    const client = createMockClient();
+    (client.listTags as ReturnType<typeof vi.fn>).mockResolvedValue([
+      { name: 'mobile-v0.1.15', createdAt: '2026-02-01T10:00:00Z' },
+      { name: 'mobile-v0.1.16', createdAt: '2026-03-01T10:00:00Z' },
+      { name: 'mobile-v0.1.17', createdAt: '2026-04-08T10:00:00Z' },
+    ]);
+    vi.mocked(createClient).mockReturnValue(client);
+    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+    await runGenerate({
+      tag: 'mobile-v0.1.17',
+      since: 'mobile-v0.1.15',
+      publish: false,
+      dryRun: false,
+      format: 'markdown',
+      config: '.releasejet.yml',
+    });
+
+    // Should use mobile-v0.1.15 as the starting point (not auto-detected mobile-v0.1.16)
+    expect(client.listIssues).toHaveBeenCalledWith(
+      'mobile/app',
+      expect.objectContaining({ updatedAfter: '2026-02-01T10:00:00Z' }),
+    );
+    consoleSpy.mockRestore();
+  });
+
+  it('throws when --since tag is not found in remote', async () => {
+    await expect(
+      runGenerate({
+        tag: 'mobile-v0.1.17',
+        since: 'mobile-v0.0.1',
+        publish: false,
+        dryRun: false,
+        format: 'markdown',
+        config: '.releasejet.yml',
+      }),
+    ).rejects.toThrow('--since');
   });
 
   it('outputs JSON when format is json', async () => {

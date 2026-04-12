@@ -1,3 +1,4 @@
+import { writeFile } from 'node:fs/promises';
 import type { Command } from 'commander';
 import { loadConfig } from '../../core/config.js';
 import {
@@ -26,14 +27,23 @@ export function registerGenerateCommand(program: Command): void {
     .option('--publish', 'Publish release to provider', false)
     .option('--dry-run', 'Preview without publishing', false)
     .option('--format <format>', 'Output format (markdown|json)', 'markdown')
+    .option('--since <tag>', 'Use this tag as the starting point instead of auto-detecting the previous tag')
+    .option('--output <file>', 'Write release notes to a file')
     .option('--config <path>', 'Config file path', '.releasejet.yml')
     .option('--debug', 'Show debug information', false)
     .addHelpText('after', `
 Examples:
-  $ releasejet generate --tag v1.0.0                Preview release notes
-  $ releasejet generate --tag mobile-v2.1.0         Multi-client tag
-  $ releasejet generate --tag v1.0.0 --publish      Publish to provider
-  $ releasejet generate --tag v1.0.0 --format json  JSON output
+  $ releasejet generate --tag v1.0.0                    Preview release notes
+  $ releasejet generate --tag mobile-v2.1.0             Multi-client tag
+  $ releasejet generate --tag v1.0.0 --publish          Publish to provider
+  $ releasejet generate --tag v1.0.0 --format json      JSON output
+  $ releasejet generate --tag v1.0.0 --output notes.md  Write to file
+  $ releasejet generate --tag v2.0.0 --since v1.5.0     Notes from v1.5.0 to v2.0.0
+
+The --since flag overrides automatic previous tag detection. Useful for:
+  - Spanning multiple versions (e.g., --since v1.5.0 to cover v1.5.0 through v2.0.0)
+  - First-time adoption when previous tags don't follow the expected format
+  - Hotfix branches where the automatic tag chain doesn't match
 
 Tag format:
   Multi-client:  <prefix>-v<semver>  (e.g., mobile-v1.2.0)
@@ -46,9 +56,11 @@ Tag format:
 
 export async function runGenerate(options: {
   tag: string;
+  since?: string;
   publish: boolean;
   dryRun: boolean;
   format: string;
+  output?: string;
   config: string;
   debug?: boolean;
 }): Promise<void> {
@@ -100,8 +112,19 @@ export async function runGenerate(options: {
   }
   debug('Current tag:', JSON.stringify(currentTag));
 
-  const previousTag = findPreviousTag(allTags, currentTag);
-  debug('Previous tag:', previousTag ? JSON.stringify(previousTag) : 'none (first release)');
+  let previousTag: TagInfo | null;
+  if (options.since) {
+    previousTag = allTags.find((t) => t.raw === options.since) ?? null;
+    if (!previousTag) {
+      throw new Error(
+        `Tag "${options.since}" (specified by --since) not found in remote repository.`,
+      );
+    }
+    debug('Previous tag (from --since):', JSON.stringify(previousTag));
+  } else {
+    previousTag = findPreviousTag(allTags, currentTag);
+    debug('Previous tag:', previousTag ? JSON.stringify(previousTag) : 'none (first release)');
+  }
   debug('Date range:', previousTag?.createdAt ?? 'beginning', '->', currentTag.createdAt);
 
   const sourceLabel = config.source === 'pull_requests' ? 'pull requests' : 'issues';
@@ -157,12 +180,18 @@ export async function runGenerate(options: {
     uncategorizedCount: issues.uncategorized.length,
   };
 
-  if (options.format === 'json') {
-    console.log(JSON.stringify(data, null, 2));
-  } else {
-    const markdown = formatReleaseNotes(data, config);
-    console.log(markdown);
+  const output = options.format === 'json'
+    ? JSON.stringify(data, null, 2)
+    : formatReleaseNotes(data, config);
 
+  if (options.output) {
+    await writeFile(options.output, output, 'utf-8');
+    spinner?.succeed(`Release notes written to ${options.output}`);
+  } else {
+    console.log(output);
+  }
+
+  if (options.format !== 'json') {
     if (options.publish && !options.dryRun) {
       const releaseName = currentParsed.prefix
         ? `${currentParsed.prefix.toUpperCase()} v${currentParsed.version}`
@@ -172,7 +201,7 @@ export async function runGenerate(options: {
         await client.createRelease(projectPath, {
           tagName: options.tag,
           name: releaseName,
-          description: markdown,
+          description: output,
           milestones: milestone ? [milestone] : undefined,
         });
         spinner?.succeed(`Release published for ${options.tag}`);

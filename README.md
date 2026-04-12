@@ -137,6 +137,8 @@ Token resolution order:
 | `--publish` | Publish as a release on the provider |
 | `--dry-run` | Preview without publishing |
 | `--format <format>` | Output format: `markdown` (default) or `json` |
+| `--output <file>` | Write release notes to a file instead of stdout |
+| `--since <tag>` | Use this tag as the starting point instead of auto-detecting |
 | `--config <path>` | Custom config file path |
 | `--debug` | Show debug information |
 
