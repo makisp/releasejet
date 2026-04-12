@@ -110,4 +110,38 @@ describe('runValidate', () => {
     );
     consoleSpy.mockRestore();
   });
+
+  it('errors when --state closed is used without --recent', async () => {
+    await expect(
+      runValidate({ config: '.releasejet.yml', state: 'closed' }),
+    ).rejects.toThrow('--recent is required when --state is "closed" or "all"');
+  });
+
+  it('errors when --state all is used without --recent', async () => {
+    await expect(
+      runValidate({ config: '.releasejet.yml', state: 'all' }),
+    ).rejects.toThrow('--recent is required when --state is "closed" or "all"');
+  });
+
+  it('accepts --state closed with --recent', async () => {
+    vi.mocked(mockClient.listIssues).mockResolvedValue([]);
+    vi.mocked(mockClient.listTags).mockResolvedValue([]);
+    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+    await runValidate({ config: '.releasejet.yml', state: 'closed', recent: 30 });
+
+    expect(mockClient.listIssues).toHaveBeenCalled();
+    consoleSpy.mockRestore();
+  });
+
+  it('accepts --state opened without --recent', async () => {
+    vi.mocked(mockClient.listIssues).mockResolvedValue([]);
+    vi.mocked(mockClient.listTags).mockResolvedValue([]);
+    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+    await runValidate({ config: '.releasejet.yml', state: 'opened' });
+
+    expect(mockClient.listIssues).toHaveBeenCalled();
+    consoleSpy.mockRestore();
+  });
 });

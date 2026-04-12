@@ -14,13 +14,18 @@ import ora from 'ora';
 export function registerValidateCommand(program: Command): void {
   program
     .command('validate')
-    .description('Check open issues for proper labeling')
+    .description('Check issues and tags for release readiness')
     .option('--config <path>', 'Config file path', '.releasejet.yml')
+    .option('--milestone <title>', 'Only check issues in this milestone')
+    .option('--state <state>', 'Issue state: opened, closed, or all', 'opened')
+    .option('--recent <days>', 'Only check issues updated in last N days', parseInt)
     .option('--debug', 'Show debug information', false)
     .addHelpText('after', `
 Examples:
-  $ releasejet validate                   Check with default config
-  $ releasejet validate --config my.yml   Check with custom config
+  $ releasejet validate                              Check open issues + tag format
+  $ releasejet validate --milestone v1.2.0           Check issues in milestone v1.2.0
+  $ releasejet validate --state closed --recent 30   Check recently closed issues
+  $ releasejet validate --config my.yml              Check with custom config
 `)
     .action(withErrorHandler(async (options) => {
       await runValidate(options);
@@ -30,7 +35,16 @@ Examples:
 export async function runValidate(options: {
   config: string;
   debug?: boolean;
+  milestone?: string;
+  state?: 'opened' | 'closed' | 'all';
+  recent?: number;
 }): Promise<void> {
+  const state = options.state ?? 'opened';
+
+  if ((state === 'closed' || state === 'all') && options.recent === undefined) {
+    throw new Error('--recent is required when --state is "closed" or "all" to prevent unbounded queries.');
+  }
+
   const { debug } = createLogger(options.debug ?? false);
   const spinner = options.debug ? null : ora({ stream: process.stderr });
 
