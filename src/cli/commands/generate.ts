@@ -11,6 +11,7 @@ import {
   detectMilestone,
 } from '../../core/issue-collector.js';
 import { formatReleaseNotes } from '../../core/formatter.js';
+import { extractContributors } from '../../core/contributors.js';
 import { createClient } from '../../providers/factory.js';
 import { resolveToken } from '../auth.js';
 import { promptForUncategorized } from '../prompts.js';
@@ -168,6 +169,10 @@ export async function runGenerate(options: {
       0,
     ) + issues.uncategorized.length;
 
+  const contributors = config.contributors?.enabled
+    ? extractContributors(issues, config, hostUrl)
+    : [];
+
   const data: ReleaseNotesData = {
     tagName: options.tag,
     version: currentParsed.version,
@@ -178,7 +183,7 @@ export async function runGenerate(options: {
     issues,
     totalCount,
     uncategorizedCount: issues.uncategorized.length,
-    contributors: [],
+    contributors,
   };
 
   const output = options.format === 'json'
