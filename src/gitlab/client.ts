@@ -67,9 +67,9 @@ export function createGitLabClient(
         closedAt: i.closed_at ?? '',
         webUrl: i.web_url,
         milestone: i.milestone ? { title: i.milestone.title, url: i.milestone.web_url } : null,
-        author: null,
-        assignee: null,
-        closedBy: null,
+        author: i.author?.username ?? null,
+        assignee: i.assignees?.[0]?.username ?? i.assignee?.username ?? null,
+        closedBy: i.closed_by?.username ?? null,
       }));
     },
 
