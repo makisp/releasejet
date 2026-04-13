@@ -1,6 +1,6 @@
 {
   "name": "@makispps/releasejet",
-  "version": "1.2.0",
+  "version": "2.0.0",
   "description": "Automated release notes generator for GitLab and GitHub",
   "license": "MIT",
   "author": "Mavroudis Papas",

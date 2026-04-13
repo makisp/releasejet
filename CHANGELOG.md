@@ -5,6 +5,28 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.0] - 2026-04-13
+
+### Added
+
+- Plugin system — extensible architecture for `@releasejet/pro` integration via dynamic import
+- Plugin API contract (`ReleaseJetPlugin`, `PluginContext`, `PluginRuntime`) with versioned API (`PLUGIN_API_VERSION = 1`)
+- `HookRegistry` for sequential async pipeline hooks (`beforeFormat`, `afterPublish`)
+- `FormatterRegistry` for named custom template lookup
+- RS256 JWT license validation using `jose` (offline, no network calls during normal use)
+- License credential storage (`license` block in `~/.releasejet/credentials.yml`)
+- `releasejet auth activate <key>` — activate a Pro license key
+- `releasejet auth status` — show current license status (local, no network)
+- `releasejet auth refresh` — refresh the license token
+- `releasejet auth deactivate` — remove the license key
+- `--template <name>` flag on `generate` — use a custom formatter from `@releasejet/pro`
+- Core update checklist (`docs/CORE-UPDATE-CHECKLIST.md`) for plugin API compatibility
+
+### Changed
+
+- Version bump to 2.0.0 — the plugin API contract is a new semver-significant public interface
+- Milestone value passed to `createRelease` now uses the title string (fixes type mismatch)
+
 ## [1.2.0] - 2026-04-13
 
 ### Added
