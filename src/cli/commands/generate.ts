@@ -191,14 +191,12 @@ export async function runGenerate(options: {
 
   const pluginRuntime = getPluginRuntime();
 
-  // Fire beforeFormat hook
-  await pluginRuntime?.hooks.beforeFormat.run({ data, config });
-
   // Format output
   let output: string;
   if (options.format === 'json') {
     output = JSON.stringify(data, null, 2);
   } else if (options.template) {
+    await pluginRuntime?.hooks.beforeFormat.run({ data, config });
     if (!pluginRuntime?.hasFormatter(options.template)) {
       throw new Error(
         `Template "${options.template}" not available. Custom templates require @releasejet/pro.`,
@@ -206,6 +204,7 @@ export async function runGenerate(options: {
     }
     output = pluginRuntime.runFormatter(options.template, data, config);
   } else {
+    await pluginRuntime?.hooks.beforeFormat.run({ data, config });
     output = formatReleaseNotes(data, config);
   }
 
@@ -227,19 +226,19 @@ export async function runGenerate(options: {
           tagName: options.tag,
           name: releaseName,
           description: output,
-          milestones: milestone ? [milestone] : undefined,
+          milestones: milestone ? [milestone.title] : undefined,
         });
         spinner?.succeed(`Release published for ${options.tag}`);
-        await pluginRuntime?.hooks.afterPublish.run({
-          tagName: options.tag,
-          releaseName,
-          markdown: output,
-          projectUrl: data.projectUrl,
-        });
       } catch (err) {
         spinner?.fail('Failed to publish release');
         throw err;
       }
+      await pluginRuntime?.hooks.afterPublish.run({
+        tagName: options.tag,
+        releaseName,
+        markdown: output,
+        projectUrl: data.projectUrl,
+      });
     }
   }
 }
