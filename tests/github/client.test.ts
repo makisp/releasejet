@@ -65,6 +65,10 @@ describe('createGitHubClient', () => {
             closed_at: '2026-04-07T15:00:00Z',
             html_url: 'https://github.com/owner/repo/issues/42',
             milestone: { title: 'v1.0', html_url: 'https://github.com/owner/repo/milestone/1' },
+            user: { login: 'elena' },
+            assignees: [{ login: 'makisp' }],
+            assignee: { login: 'makisp' },
+            closed_by: { login: 'makisp' },
           },
           {
             number: 43,
@@ -74,6 +78,10 @@ describe('createGitHubClient', () => {
             html_url: 'https://github.com/owner/repo/pull/43',
             milestone: null,
             pull_request: { url: 'https://api.github.com/repos/owner/repo/pulls/43' },
+            user: { login: 'nikos' },
+            assignees: [],
+            assignee: null,
+            closed_by: null,
           },
         ],
       });
@@ -93,9 +101,9 @@ describe('createGitHubClient', () => {
         closedAt: '2026-04-07T15:00:00Z',
         webUrl: 'https://github.com/owner/repo/issues/42',
         milestone: { title: 'v1.0', url: 'https://github.com/owner/repo/milestone/1' },
-        author: null,
-        assignee: null,
-        closedBy: null,
+        author: 'elena',
+        assignee: 'makisp',
+        closedBy: 'makisp',
       });
     });
   });
@@ -112,6 +120,9 @@ describe('createGitHubClient', () => {
             html_url: 'https://github.com/owner/repo/pull/50',
             milestone: { title: 'v1.0', html_url: 'https://github.com/owner/repo/milestone/1' },
             merged_at: '2026-04-07T15:00:00Z',
+            user: { login: 'elena' },
+            assignees: [{ login: 'nikos' }],
+            assignee: { login: 'nikos' },
           },
           {
             number: 51,
@@ -121,6 +132,9 @@ describe('createGitHubClient', () => {
             html_url: 'https://github.com/owner/repo/pull/51',
             milestone: null,
             merged_at: null,
+            user: { login: 'bot' },
+            assignees: [],
+            assignee: null,
           },
         ],
       });
@@ -139,8 +153,8 @@ describe('createGitHubClient', () => {
         closedAt: '2026-04-07T15:00:00Z',
         webUrl: 'https://github.com/owner/repo/pull/50',
         milestone: { title: 'v1.0', url: 'https://github.com/owner/repo/milestone/1' },
-        author: null,
-        assignee: null,
+        author: 'elena',
+        assignee: 'nikos',
         closedBy: null,
       });
     });

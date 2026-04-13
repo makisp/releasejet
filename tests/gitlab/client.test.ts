@@ -49,6 +49,10 @@ describe('createGitLabClient', () => {
           closed_at: '2026-04-07T15:00:00Z',
           web_url: 'https://gitlab.example.com/mobile/app/-/issues/142',
           milestone: { title: '[MOBILE] Demo 13', web_url: 'https://gitlab.example.com/mobile/app/-/milestones/13' },
+          author: { username: 'elena' },
+          assignees: [{ username: 'makisp' }],
+          assignee: { username: 'makisp' },
+          closed_by: { username: 'nikos' },
         },
       ]);
 
@@ -67,9 +71,9 @@ describe('createGitLabClient', () => {
         closedAt: '2026-04-07T15:00:00Z',
         webUrl: 'https://gitlab.example.com/mobile/app/-/issues/142',
         milestone: { title: '[MOBILE] Demo 13', url: 'https://gitlab.example.com/mobile/app/-/milestones/13' },
-        author: null,
-        assignee: null,
-        closedBy: null,
+        author: 'elena',
+        assignee: 'makisp',
+        closedBy: 'nikos',
       });
     });
 

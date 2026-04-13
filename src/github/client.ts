@@ -54,9 +54,9 @@ export function createGitHubClient(
           closedAt: i.closed_at ?? '',
           webUrl: i.html_url,
           milestone: i.milestone ? { title: i.milestone.title, url: i.milestone.html_url } : null,
-          author: null,
-          assignee: null,
-          closedBy: null,
+          author: i.user?.login ?? null,
+          assignee: i.assignees?.[0]?.login ?? i.assignee?.login ?? null,
+          closedBy: i.closed_by?.login ?? null,
         }));
     },
 
@@ -80,8 +80,8 @@ export function createGitHubClient(
           closedAt: pr.closed_at ?? '',
           webUrl: pr.html_url,
           milestone: pr.milestone ? { title: pr.milestone.title, url: pr.milestone.html_url } : null,
-          author: null,
-          assignee: null,
+          author: pr.user?.login ?? null,
+          assignee: pr.assignees?.[0]?.login ?? pr.assignee?.login ?? null,
           closedBy: null,
         }));
     },
