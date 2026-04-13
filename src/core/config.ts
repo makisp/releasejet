@@ -140,6 +140,12 @@ function mergeWithDefaults(raw: Record<string, unknown>): ReleaseJetConfig {
     const cEnabled = cRaw.enabled as boolean | undefined;
     const cExclude = cRaw.exclude as unknown;
 
+    if (cEnabled !== undefined && typeof cEnabled !== 'boolean') {
+      throw new Error(
+        'Invalid config in .releasejet.yml\n\n  contributors.enabled: expected a boolean (true or false).',
+      );
+    }
+
     if (cExclude !== undefined && !Array.isArray(cExclude)) {
       throw new Error(
         'Invalid config in .releasejet.yml\n\n  contributors.exclude: expected an array of usernames to exclude.',
