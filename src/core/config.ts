@@ -9,6 +9,13 @@ const DEFAULT_CATEGORIES: Record<string, string> = {
   'breaking-change': 'Breaking Changes',
 };
 
+export const DEFAULT_BOT_EXCLUDE: string[] = [
+  'dependabot',
+  'renovate',
+  'gitlab-bot',
+  'github-actions',
+];
+
 export const DEFAULT_CONFIG: ReleaseJetConfig = {
   provider: { type: 'gitlab', url: '' },
   source: 'issues',
@@ -42,6 +49,7 @@ function mergeWithDefaults(raw: Record<string, unknown>): ReleaseJetConfig {
   const uncategorized = raw.uncategorized as string | undefined;
   const clientsRaw = raw.clients as unknown;
   const categoriesRaw = raw.categories as unknown;
+  const contributorsRaw = raw.contributors as unknown;
 
   // Provider
   let provider: { type: 'gitlab' | 'github'; url: string };
@@ -116,11 +124,40 @@ function mergeWithDefaults(raw: Record<string, unknown>): ReleaseJetConfig {
     categories = { ...DEFAULT_CATEGORIES };
   }
 
+  // Contributors
+  let contributors: { enabled: boolean; exclude: string[] } | undefined;
+  if (contributorsRaw !== undefined) {
+    if (
+      typeof contributorsRaw !== 'object' ||
+      contributorsRaw === null ||
+      Array.isArray(contributorsRaw)
+    ) {
+      throw new Error(
+        'Invalid config in .releasejet.yml\n\n  contributors: expected an object with "enabled" and/or "exclude" fields.',
+      );
+    }
+    const cRaw = contributorsRaw as Record<string, unknown>;
+    const cEnabled = cRaw.enabled as boolean | undefined;
+    const cExclude = cRaw.exclude as unknown;
+
+    if (cExclude !== undefined && !Array.isArray(cExclude)) {
+      throw new Error(
+        'Invalid config in .releasejet.yml\n\n  contributors.exclude: expected an array of usernames to exclude.',
+      );
+    }
+
+    contributors = {
+      enabled: cEnabled ?? true,
+      exclude: cExclude ? (cExclude as string[]) : [...DEFAULT_BOT_EXCLUDE],
+    };
+  }
+
   return {
     provider,
     source: (source as 'issues' | 'pull_requests') ?? 'issues',
     clients,
     categories,
     uncategorized: (uncategorized as 'lenient' | 'strict') ?? 'lenient',
+    contributors,
   };
 }
