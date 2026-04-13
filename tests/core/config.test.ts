@@ -196,4 +196,96 @@ provider:
     expect(config.clients).toEqual([]);
     expect(config.categories).toEqual(DEFAULT_CONFIG.categories);
   });
+
+  it('parses contributors config with enabled and exclude', async () => {
+    vi.mocked(readFile).mockResolvedValue(`
+provider:
+  type: github
+  url: https://github.com
+contributors:
+  enabled: true
+  exclude:
+    - my-ci-bot
+    - deploy-bot
+` as never);
+    const config = await loadConfig();
+    expect(config.contributors).toEqual({
+      enabled: true,
+      exclude: ['my-ci-bot', 'deploy-bot'],
+    });
+  });
+
+  it('applies default bot exclude list when exclude is not specified', async () => {
+    vi.mocked(readFile).mockResolvedValue(`
+provider:
+  type: github
+  url: https://github.com
+contributors:
+  enabled: true
+` as never);
+    const config = await loadConfig();
+    expect(config.contributors).toBeDefined();
+    expect(config.contributors!.enabled).toBe(true);
+    expect(config.contributors!.exclude).toEqual(['dependabot', 'renovate', 'gitlab-bot', 'github-actions']);
+  });
+
+  it('defaults enabled to true when contributors object is present', async () => {
+    vi.mocked(readFile).mockResolvedValue(`
+provider:
+  type: github
+  url: https://github.com
+contributors:
+  exclude:
+    - my-bot
+` as never);
+    const config = await loadConfig();
+    expect(config.contributors!.enabled).toBe(true);
+  });
+
+  it('returns no contributors config when field is omitted', async () => {
+    vi.mocked(readFile).mockResolvedValue(`
+provider:
+  type: github
+  url: https://github.com
+` as never);
+    const config = await loadConfig();
+    expect(config.contributors).toBeUndefined();
+  });
+
+  it('handles contributors enabled: false', async () => {
+    vi.mocked(readFile).mockResolvedValue(`
+provider:
+  type: github
+  url: https://github.com
+contributors:
+  enabled: false
+` as never);
+    const config = await loadConfig();
+    expect(config.contributors).toEqual({
+      enabled: false,
+      exclude: ['dependabot', 'renovate', 'gitlab-bot', 'github-actions'],
+    });
+  });
+
+  it('throws on non-object contributors value', async () => {
+    vi.mocked(readFile).mockResolvedValue(`
+provider:
+  type: github
+  url: https://github.com
+contributors: yes
+` as never);
+    await expect(loadConfig()).rejects.toThrow('contributors');
+  });
+
+  it('throws on non-array contributors.exclude', async () => {
+    vi.mocked(readFile).mockResolvedValue(`
+provider:
+  type: github
+  url: https://github.com
+contributors:
+  enabled: true
+  exclude: my-bot
+` as never);
+    await expect(loadConfig()).rejects.toThrow('contributors.exclude');
+  });
 });
