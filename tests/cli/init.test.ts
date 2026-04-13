@@ -57,8 +57,8 @@ describe('runInit — category step', () => {
     vi.mocked(input)
       .mockResolvedValueOnce('https://gitlab.example.com')
       .mockResolvedValueOnce('test-token');
-    // confirm calls: (1) multi-client? -> false, (2) CI setup -> false
-    vi.mocked(confirm).mockResolvedValueOnce(false).mockResolvedValueOnce(false);
+    // confirm calls: (1) multi-client? -> false, (2) contributors -> false, (3) CI setup -> false
+    vi.mocked(confirm).mockResolvedValueOnce(false).mockResolvedValueOnce(false).mockResolvedValueOnce(false);
 
     await runInit();
 
@@ -77,7 +77,7 @@ describe('runInit — category step', () => {
       .mockResolvedValueOnce('Security Fixes')          // 1st custom heading
       .mockResolvedValueOnce('')                         // done adding
       .mockResolvedValueOnce('test-token');              // token
-    vi.mocked(confirm).mockResolvedValueOnce(false).mockResolvedValueOnce(false);
+    vi.mocked(confirm).mockResolvedValueOnce(false).mockResolvedValueOnce(false).mockResolvedValueOnce(false);
 
     await runInit();
 
@@ -101,7 +101,7 @@ describe('runInit — category step', () => {
       .mockResolvedValueOnce('Bug Fixes')
       .mockResolvedValueOnce('')                         // done
       .mockResolvedValueOnce('test-token');
-    vi.mocked(confirm).mockResolvedValueOnce(false).mockResolvedValueOnce(false);
+    vi.mocked(confirm).mockResolvedValueOnce(false).mockResolvedValueOnce(false).mockResolvedValueOnce(false);
 
     await runInit();
 
@@ -124,7 +124,7 @@ describe('runInit — category step', () => {
       .mockResolvedValueOnce('security')                 // duplicate — skipped
       .mockResolvedValueOnce('')                         // done
       .mockResolvedValueOnce('test-token');
-    vi.mocked(confirm).mockResolvedValueOnce(false).mockResolvedValueOnce(false);
+    vi.mocked(confirm).mockResolvedValueOnce(false).mockResolvedValueOnce(false).mockResolvedValueOnce(false);
 
     await runInit();
 
@@ -147,7 +147,7 @@ describe('runInit — category step', () => {
       .mockResolvedValueOnce('Bug Fixes')
       .mockResolvedValueOnce('')                         // done
       .mockResolvedValueOnce('test-token');
-    vi.mocked(confirm).mockResolvedValueOnce(false).mockResolvedValueOnce(false);
+    vi.mocked(confirm).mockResolvedValueOnce(false).mockResolvedValueOnce(false).mockResolvedValueOnce(false);
 
     await runInit();
 
@@ -166,7 +166,7 @@ describe('runInit — category step', () => {
       .mockResolvedValueOnce('')                         // empty heading
       .mockResolvedValueOnce('')                         // done
       .mockResolvedValueOnce('test-token');
-    vi.mocked(confirm).mockResolvedValueOnce(false).mockResolvedValueOnce(false);
+    vi.mocked(confirm).mockResolvedValueOnce(false).mockResolvedValueOnce(false).mockResolvedValueOnce(false);
 
     await runInit();
 
@@ -206,9 +206,10 @@ describe('runInit — CI setup step', () => {
       vi.mocked(input).mockResolvedValueOnce(val);
     }
 
-    // confirm calls: (1) multi-client -> false, (2) CI setup
-    vi.mocked(confirm).mockResolvedValueOnce(false);
-    vi.mocked(confirm).mockResolvedValueOnce(ciSetup);
+    // confirm calls: (1) multi-client -> false, (2) contributors -> false, (3) CI setup
+    vi.mocked(confirm).mockResolvedValueOnce(false);   // multi-client
+    vi.mocked(confirm).mockResolvedValueOnce(false);   // contributors
+    vi.mocked(confirm).mockResolvedValueOnce(ciSetup); // CI
   }
 
   it('creates .gitlab-ci.yml when user accepts CI setup', async () => {
@@ -266,6 +267,7 @@ describe('runInit — provider selection', () => {
       .mockResolvedValueOnce('ghp_test-token');      // token
     vi.mocked(confirm)
       .mockResolvedValueOnce(false)  // multi-client
+      .mockResolvedValueOnce(false)  // contributors
       .mockResolvedValueOnce(false); // CI
 
     await runInit();
@@ -284,6 +286,7 @@ describe('runInit — provider selection', () => {
       .mockResolvedValueOnce('glpat-test-token');            // token
     vi.mocked(confirm)
       .mockResolvedValueOnce(false)  // multi-client
+      .mockResolvedValueOnce(false)  // contributors
       .mockResolvedValueOnce(false); // CI
 
     await runInit();
@@ -303,6 +306,7 @@ describe('runInit — provider selection', () => {
       .mockResolvedValueOnce('ghp_test-token');
     vi.mocked(confirm)
       .mockResolvedValueOnce(false)  // multi-client
+      .mockResolvedValueOnce(false)  // contributors
       .mockResolvedValueOnce(true);  // CI setup
 
     await runInit();
@@ -312,5 +316,51 @@ describe('runInit — provider selection', () => {
     );
     expect(workflowWrite).toBeDefined();
     expect(workflowWrite![1] as string).toContain('github.ref_name');
+  });
+});
+
+describe('runInit — contributors step', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.spyOn(console, 'log').mockImplementation(() => {});
+    vi.mocked(readFile).mockRejectedValue(Object.assign(new Error('ENOENT'), { code: 'ENOENT' }));
+  });
+
+  it('writes contributors config when user accepts', async () => {
+    vi.mocked(select)
+      .mockResolvedValueOnce('gitlab')     // provider
+      .mockResolvedValueOnce('lenient')    // uncategorized
+      .mockResolvedValueOnce('defaults');  // categories
+    vi.mocked(input)
+      .mockResolvedValueOnce('https://gitlab.example.com')  // provider URL
+      .mockResolvedValueOnce('test-token');                   // token
+    vi.mocked(confirm)
+      .mockResolvedValueOnce(false)   // multi-client
+      .mockResolvedValueOnce(true)    // contributors
+      .mockResolvedValueOnce(false);  // CI setup
+
+    await runInit();
+
+    const config = parseWrittenYaml();
+    expect(config.contributors).toEqual({ enabled: true });
+  });
+
+  it('omits contributors config when user declines', async () => {
+    vi.mocked(select)
+      .mockResolvedValueOnce('gitlab')     // provider
+      .mockResolvedValueOnce('lenient')    // uncategorized
+      .mockResolvedValueOnce('defaults');  // categories
+    vi.mocked(input)
+      .mockResolvedValueOnce('https://gitlab.example.com')  // provider URL
+      .mockResolvedValueOnce('test-token');                   // token
+    vi.mocked(confirm)
+      .mockResolvedValueOnce(false)   // multi-client
+      .mockResolvedValueOnce(false)   // contributors
+      .mockResolvedValueOnce(false);  // CI setup
+
+    await runInit();
+
+    const config = parseWrittenYaml();
+    expect(config.contributors).toBeUndefined();
   });
 });
