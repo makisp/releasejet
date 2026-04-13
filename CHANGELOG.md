@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] - 2026-04-13
+
+### Added
+
+- Contributors section in release notes — lists users who contributed to the release with linked profiles
+- `contributors` config block with `enabled` and `exclude` fields
+- Default bot filtering (dependabot, renovate, gitlab-bot, github-actions) plus automatic `[bot]` suffix detection
+- Contributors prompt in `init` wizard
+- `author`, `assignee`, `closedBy` fields populated from provider APIs
+
 ## [1.1.0] - 2026-04-13
 
 ### Added
