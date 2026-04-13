@@ -26,7 +26,7 @@ export interface AfterPublishPayload {
 export interface PluginOption {
   flags: string;
   description: string;
-  defaultValue?: unknown;
+  defaultValue?: string | boolean;
 }
 
 export interface PluginCommand {
