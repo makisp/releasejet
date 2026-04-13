@@ -26,3 +26,10 @@ categories:
 # "lenient" — include under "Other" with a warning (default)
 # "strict" — fail release generation
 uncategorized: lenient
+
+# Contributors section in release notes (disabled by default)
+# contributors:
+#   enabled: true
+#   exclude:
+#     - dependabot
+#     - renovate

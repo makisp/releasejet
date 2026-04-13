@@ -12,6 +12,7 @@ Automated release notes generator for GitLab and GitHub. Collects closed issues 
 - **CI/CD integration** — runs automatically on tag push via GitLab CI or GitHub Actions
 - **Strict/lenient modes** — enforce labeling or allow uncategorized issues under "Other"
 - **Milestone detection** — automatically links the most common milestone in release notes
+- **Contributors section** — optionally list who contributed to each release, with linked profiles
 
 ## Quick Start
 
@@ -54,6 +55,13 @@ categories:
   breaking-change: "Breaking Changes"
 
 uncategorized: lenient  # or "strict" to enforce labeling
+
+# Optional: list contributors in release notes
+contributors:
+  enabled: true
+  exclude:
+    - dependabot
+    - renovate
 ```
 
 ## CI/CD Integration
