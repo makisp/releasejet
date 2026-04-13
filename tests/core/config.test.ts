@@ -277,6 +277,17 @@ contributors: yes
     await expect(loadConfig()).rejects.toThrow('contributors');
   });
 
+  it('throws on non-boolean contributors.enabled', async () => {
+    vi.mocked(readFile).mockResolvedValue(`
+provider:
+  type: github
+  url: https://github.com
+contributors:
+  enabled: "yes"
+` as never);
+    await expect(loadConfig()).rejects.toThrow('contributors.enabled');
+  });
+
   it('throws on non-array contributors.exclude', async () => {
     vi.mocked(readFile).mockResolvedValue(`
 provider:
