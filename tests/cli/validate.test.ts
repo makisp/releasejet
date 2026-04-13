@@ -55,7 +55,7 @@ describe('runValidate', () => {
 
   it('reports properly labeled issues as OK', async () => {
     vi.mocked(mockClient.listIssues).mockResolvedValue([
-      { number: 1, title: 'Good issue', labels: ['feature', 'MOBILE'], closedAt: '', webUrl: '', milestone: null },
+      { number: 1, title: 'Good issue', labels: ['feature', 'MOBILE'], closedAt: '', webUrl: '', milestone: null, author: null, assignee: null, closedBy: null },
     ]);
     vi.mocked(mockClient.listTags).mockResolvedValue([]);
     const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
@@ -71,7 +71,7 @@ describe('runValidate', () => {
 
   it('reports issues missing client label', async () => {
     vi.mocked(mockClient.listIssues).mockResolvedValue([
-      { number: 1, title: 'No client', labels: ['feature'], closedAt: '', webUrl: '', milestone: null },
+      { number: 1, title: 'No client', labels: ['feature'], closedAt: '', webUrl: '', milestone: null, author: null, assignee: null, closedBy: null },
     ]);
     vi.mocked(mockClient.listTags).mockResolvedValue([]);
     const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
@@ -86,7 +86,7 @@ describe('runValidate', () => {
 
   it('reports issues missing category label', async () => {
     vi.mocked(mockClient.listIssues).mockResolvedValue([
-      { number: 2, title: 'No category', labels: ['MOBILE'], closedAt: '', webUrl: '', milestone: null },
+      { number: 2, title: 'No category', labels: ['MOBILE'], closedAt: '', webUrl: '', milestone: null, author: null, assignee: null, closedBy: null },
     ]);
     vi.mocked(mockClient.listTags).mockResolvedValue([]);
     const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
@@ -103,7 +103,7 @@ describe('runValidate', () => {
     const singleConfig: ReleaseJetConfig = { ...mockConfig, clients: [] };
     vi.mocked(loadConfig).mockResolvedValue(singleConfig);
     vi.mocked(mockClient.listIssues).mockResolvedValue([
-      { number: 1, title: 'Has category', labels: ['feature'], closedAt: '', webUrl: '', milestone: null },
+      { number: 1, title: 'Has category', labels: ['feature'], closedAt: '', webUrl: '', milestone: null, author: null, assignee: null, closedBy: null },
     ]);
     vi.mocked(mockClient.listTags).mockResolvedValue([]);
     const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
@@ -175,9 +175,9 @@ describe('runValidate', () => {
 
   it('filters issues by milestone when --milestone is provided', async () => {
     vi.mocked(mockClient.listIssues).mockResolvedValue([
-      { number: 1, title: 'In milestone', labels: ['feature', 'MOBILE'], closedAt: '', webUrl: '', milestone: { title: 'v1.2.0', url: '' } },
-      { number: 2, title: 'Wrong milestone', labels: ['feature', 'MOBILE'], closedAt: '', webUrl: '', milestone: { title: 'v2.0.0', url: '' } },
-      { number: 3, title: 'No milestone', labels: ['bug'], closedAt: '', webUrl: '', milestone: null },
+      { number: 1, title: 'In milestone', labels: ['feature', 'MOBILE'], closedAt: '', webUrl: '', milestone: { title: 'v1.2.0', url: '' }, author: null, assignee: null, closedBy: null },
+      { number: 2, title: 'Wrong milestone', labels: ['feature', 'MOBILE'], closedAt: '', webUrl: '', milestone: { title: 'v2.0.0', url: '' }, author: null, assignee: null, closedBy: null },
+      { number: 3, title: 'No milestone', labels: ['bug'], closedAt: '', webUrl: '', milestone: null, author: null, assignee: null, closedBy: null },
     ]);
     vi.mocked(mockClient.listTags).mockResolvedValue([]);
     const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
@@ -196,8 +196,8 @@ describe('runValidate', () => {
     const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString();
 
     vi.mocked(mockClient.listIssues).mockResolvedValue([
-      { number: 1, title: 'Recent', labels: ['bug'], closedAt: fiveDaysAgo, webUrl: '', milestone: null },
-      { number: 2, title: 'Old', labels: ['bug'], closedAt: thirtyDaysAgo, webUrl: '', milestone: null },
+      { number: 1, title: 'Recent', labels: ['bug'], closedAt: fiveDaysAgo, webUrl: '', milestone: null, author: null, assignee: null, closedBy: null },
+      { number: 2, title: 'Old', labels: ['bug'], closedAt: thirtyDaysAgo, webUrl: '', milestone: null, author: null, assignee: null, closedBy: null },
     ]);
     vi.mocked(mockClient.listTags).mockResolvedValue([]);
     const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
@@ -261,7 +261,7 @@ describe('runValidate', () => {
 
   it('shows structured output with both sections and summary', async () => {
     vi.mocked(mockClient.listIssues).mockResolvedValue([
-      { number: 42, title: 'Add dark mode', labels: ['MOBILE'], closedAt: '', webUrl: '', milestone: null },
+      { number: 42, title: 'Add dark mode', labels: ['MOBILE'], closedAt: '', webUrl: '', milestone: null, author: null, assignee: null, closedBy: null },
     ]);
     vi.mocked(mockClient.listTags).mockResolvedValue([
       { name: 'mobile-v1.0.0', createdAt: '2026-01-01T00:00:00Z' },
@@ -285,7 +285,7 @@ describe('runValidate', () => {
 
   it('includes milestone in issue section header when --milestone is used', async () => {
     vi.mocked(mockClient.listIssues).mockResolvedValue([
-      { number: 1, title: 'Good', labels: ['feature', 'MOBILE'], closedAt: '', webUrl: '', milestone: { title: 'v1.2.0', url: '' } },
+      { number: 1, title: 'Good', labels: ['feature', 'MOBILE'], closedAt: '', webUrl: '', milestone: { title: 'v1.2.0', url: '' }, author: null, assignee: null, closedBy: null },
     ]);
     vi.mocked(mockClient.listTags).mockResolvedValue([]);
     const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
@@ -299,7 +299,7 @@ describe('runValidate', () => {
 
   it('exits with code 1 when label problems exist', async () => {
     vi.mocked(mockClient.listIssues).mockResolvedValue([
-      { number: 1, title: 'Missing labels', labels: [], closedAt: '', webUrl: '', milestone: null },
+      { number: 1, title: 'Missing labels', labels: [], closedAt: '', webUrl: '', milestone: null, author: null, assignee: null, closedBy: null },
     ]);
     vi.mocked(mockClient.listTags).mockResolvedValue([]);
     const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
@@ -312,7 +312,7 @@ describe('runValidate', () => {
 
   it('shows zero-problem summary when everything is clean', async () => {
     vi.mocked(mockClient.listIssues).mockResolvedValue([
-      { number: 1, title: 'Good', labels: ['feature', 'MOBILE'], closedAt: '', webUrl: '', milestone: null },
+      { number: 1, title: 'Good', labels: ['feature', 'MOBILE'], closedAt: '', webUrl: '', milestone: null, author: null, assignee: null, closedBy: null },
     ]);
     vi.mocked(mockClient.listTags).mockResolvedValue([
       { name: 'mobile-v1.0.0', createdAt: '2026-01-01T00:00:00Z' },

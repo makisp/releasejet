@@ -3,6 +3,16 @@ export interface ClientConfig {
   label: string;
 }
 
+export interface ContributorsConfig {
+  enabled: boolean;
+  exclude: string[];
+}
+
+export interface Contributor {
+  username: string;
+  profileUrl: string;
+}
+
 export interface ReleaseJetConfig {
   provider: {
     type: 'gitlab' | 'github';
@@ -12,6 +22,7 @@ export interface ReleaseJetConfig {
   clients: ClientConfig[];
   categories: Record<string, string>;
   uncategorized: 'lenient' | 'strict';
+  contributors?: ContributorsConfig;
 }
 
 export interface ParsedTag {
@@ -32,6 +43,9 @@ export interface Issue {
   closedAt: string;
   webUrl: string;
   milestone: { title: string; url: string } | null;
+  author: string | null;
+  assignee: string | null;
+  closedBy: string | null;
 }
 
 export interface Milestone {
@@ -55,4 +69,5 @@ export interface ReleaseNotesData {
   issues: CategorizedIssues;
   totalCount: number;
   uncategorizedCount: number;
+  contributors: Contributor[];
 }

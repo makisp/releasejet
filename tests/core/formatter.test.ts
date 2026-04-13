@@ -27,19 +27,20 @@ describe('formatReleaseNotes', () => {
       issues: {
         categorized: {
           'New Features': [
-            { number:142, title: 'Dark mode support', labels: ['feature', 'MOBILE'], closedAt: '', webUrl: '', milestone: null },
-            { number:137, title: 'Export as PDF', labels: ['feature', 'MOBILE'], closedAt: '', webUrl: '', milestone: null },
+            { number:142, title: 'Dark mode support', labels: ['feature', 'MOBILE'], closedAt: '', webUrl: '', milestone: null, author: null, assignee: null, closedBy: null },
+            { number:137, title: 'Export as PDF', labels: ['feature', 'MOBILE'], closedAt: '', webUrl: '', milestone: null, author: null, assignee: null, closedBy: null },
           ],
           'Bug Fixes': [
-            { number:155, title: 'Login redirect loop', labels: ['bug', 'MOBILE'], closedAt: '', webUrl: '', milestone: null },
+            { number:155, title: 'Login redirect loop', labels: ['bug', 'MOBILE'], closedAt: '', webUrl: '', milestone: null, author: null, assignee: null, closedBy: null },
           ],
         },
         uncategorized: [
-          { number:151, title: 'Update dependencies', labels: ['MOBILE'], closedAt: '', webUrl: '', milestone: null },
+          { number:151, title: 'Update dependencies', labels: ['MOBILE'], closedAt: '', webUrl: '', milestone: null, author: null, assignee: null, closedBy: null },
         ],
       },
       totalCount: 4,
       uncategorizedCount: 1,
+      contributors: [],
     };
 
     const result = formatReleaseNotes(data, defaultConfig);
@@ -67,13 +68,14 @@ describe('formatReleaseNotes', () => {
       issues: {
         categorized: {
           'Bug Fixes': [
-            { number:10, title: 'Fix crash', labels: ['bug'], closedAt: '', webUrl: '', milestone: null },
+            { number:10, title: 'Fix crash', labels: ['bug'], closedAt: '', webUrl: '', milestone: null, author: null, assignee: null, closedBy: null },
           ],
         },
         uncategorized: [],
       },
       totalCount: 1,
       uncategorizedCount: 0,
+      contributors: [],
     };
 
     const result = formatReleaseNotes(data, defaultConfig);
@@ -95,13 +97,14 @@ describe('formatReleaseNotes', () => {
       issues: {
         categorized: {
           'Bug Fixes': [
-            { number:10, title: 'Fix crash', labels: ['bug'], closedAt: '', webUrl: '', milestone: null },
+            { number:10, title: 'Fix crash', labels: ['bug'], closedAt: '', webUrl: '', milestone: null, author: null, assignee: null, closedBy: null },
           ],
         },
         uncategorized: [],
       },
       totalCount: 1,
       uncategorizedCount: 0,
+      contributors: [],
     };
 
     const result = formatReleaseNotes(data, defaultConfig);
@@ -124,16 +127,17 @@ describe('formatReleaseNotes', () => {
       issues: {
         categorized: {
           'Bug Fixes': [
-            { number:2, title: 'Bug', labels: ['bug'], closedAt: '', webUrl: '', milestone: null },
+            { number:2, title: 'Bug', labels: ['bug'], closedAt: '', webUrl: '', milestone: null, author: null, assignee: null, closedBy: null },
           ],
           'New Features': [
-            { number:1, title: 'Feature', labels: ['feature'], closedAt: '', webUrl: '', milestone: null },
+            { number:1, title: 'Feature', labels: ['feature'], closedAt: '', webUrl: '', milestone: null, author: null, assignee: null, closedBy: null },
           ],
         },
         uncategorized: [],
       },
       totalCount: 2,
       uncategorizedCount: 0,
+      contributors: [],
     };
 
     const result = formatReleaseNotes(data, defaultConfig);
@@ -154,15 +158,16 @@ describe('formatReleaseNotes', () => {
       issues: {
         categorized: {
           'New Features': [
-            { number:1, title: 'Feature', labels: ['feature'], closedAt: '', webUrl: '', milestone: null },
+            { number:1, title: 'Feature', labels: ['feature'], closedAt: '', webUrl: '', milestone: null, author: null, assignee: null, closedBy: null },
           ],
         },
         uncategorized: [
-          { number:2, title: 'Unlabeled', labels: [], closedAt: '', webUrl: '', milestone: null },
+          { number:2, title: 'Unlabeled', labels: [], closedAt: '', webUrl: '', milestone: null, author: null, assignee: null, closedBy: null },
         ],
       },
       totalCount: 2,
       uncategorizedCount: 1,
+      contributors: [],
     };
 
     const result = formatReleaseNotes(data, strictConfig);
@@ -191,13 +196,14 @@ describe('formatReleaseNotes', () => {
       issues: {
         categorized: {
           'New Features': [
-            { number: 10, title: 'New feature', labels: ['feature'], closedAt: '', webUrl: '', milestone: null },
+            { number: 10, title: 'New feature', labels: ['feature'], closedAt: '', webUrl: '', milestone: null, author: null, assignee: null, closedBy: null },
           ],
         },
         uncategorized: [],
       },
       totalCount: 1,
       uncategorizedCount: 0,
+      contributors: [],
     };
 
     const result = formatReleaseNotes(data, githubConfig);

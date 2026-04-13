@@ -50,9 +50,9 @@ describe('collectIssues', () => {
 
   it('categorizes issues by their label', async () => {
     vi.mocked(client.listIssues).mockResolvedValue([
-      { number:1, title: 'New feature', labels: ['feature', 'MOBILE'], closedAt: '2026-04-07', webUrl: '', milestone: null },
-      { number:2, title: 'Bug fix', labels: ['bug', 'MOBILE'], closedAt: '2026-04-06', webUrl: '', milestone: null },
-      { number:3, title: 'No category', labels: ['MOBILE'], closedAt: '2026-04-05', webUrl: '', milestone: null },
+      { number:1, title: 'New feature', labels: ['feature', 'MOBILE'], closedAt: '2026-04-07', webUrl: '', milestone: null, author: null, assignee: null, closedBy: null },
+      { number:2, title: 'Bug fix', labels: ['bug', 'MOBILE'], closedAt: '2026-04-06', webUrl: '', milestone: null, author: null, assignee: null, closedBy: null },
+      { number:3, title: 'No category', labels: ['MOBILE'], closedAt: '2026-04-05', webUrl: '', milestone: null, author: null, assignee: null, closedBy: null },
     ]);
 
     const result = await collectIssues(client, 'mobile/app', currentTag, previousTag, config);
@@ -109,9 +109,9 @@ describe('collectIssues', () => {
 
   it('filters issues by closedAt between previous and current tag', async () => {
     vi.mocked(client.listIssues).mockResolvedValue([
-      { number:1, title: 'In range', labels: ['feature', 'MOBILE'], closedAt: '2026-03-15T00:00:00Z', webUrl: '', milestone: null },
-      { number:2, title: 'Too old', labels: ['bug', 'MOBILE'], closedAt: '2026-02-15T00:00:00Z', webUrl: '', milestone: null },
-      { number:3, title: 'Too new', labels: ['bug', 'MOBILE'], closedAt: '2026-05-01T00:00:00Z', webUrl: '', milestone: null },
+      { number:1, title: 'In range', labels: ['feature', 'MOBILE'], closedAt: '2026-03-15T00:00:00Z', webUrl: '', milestone: null, author: null, assignee: null, closedBy: null },
+      { number:2, title: 'Too old', labels: ['bug', 'MOBILE'], closedAt: '2026-02-15T00:00:00Z', webUrl: '', milestone: null, author: null, assignee: null, closedBy: null },
+      { number:3, title: 'Too new', labels: ['bug', 'MOBILE'], closedAt: '2026-05-01T00:00:00Z', webUrl: '', milestone: null, author: null, assignee: null, closedBy: null },
     ]);
 
     const result = await collectIssues(client, 'mobile/app', currentTag, previousTag, config);
@@ -123,9 +123,9 @@ describe('collectIssues', () => {
 
   it('includes issues closed before current tag when no previous tag', async () => {
     vi.mocked(client.listIssues).mockResolvedValue([
-      { number:1, title: 'Old issue', labels: ['feature', 'MOBILE'], closedAt: '2026-01-01T00:00:00Z', webUrl: '', milestone: null },
-      { number:2, title: 'Recent issue', labels: ['bug', 'MOBILE'], closedAt: '2026-04-07T00:00:00Z', webUrl: '', milestone: null },
-      { number:3, title: 'Future issue', labels: ['bug', 'MOBILE'], closedAt: '2026-05-01T00:00:00Z', webUrl: '', milestone: null },
+      { number:1, title: 'Old issue', labels: ['feature', 'MOBILE'], closedAt: '2026-01-01T00:00:00Z', webUrl: '', milestone: null, author: null, assignee: null, closedBy: null },
+      { number:2, title: 'Recent issue', labels: ['bug', 'MOBILE'], closedAt: '2026-04-07T00:00:00Z', webUrl: '', milestone: null, author: null, assignee: null, closedBy: null },
+      { number:3, title: 'Future issue', labels: ['bug', 'MOBILE'], closedAt: '2026-05-01T00:00:00Z', webUrl: '', milestone: null, author: null, assignee: null, closedBy: null },
     ]);
 
     const result = await collectIssues(client, 'mobile/app', currentTag, null, config);
@@ -137,7 +137,7 @@ describe('collectIssues', () => {
 
   it('assigns issue to first matching category when multiple match', async () => {
     vi.mocked(client.listIssues).mockResolvedValue([
-      { number:1, title: 'Feature and bug', labels: ['feature', 'bug', 'MOBILE'], closedAt: '2026-04-07', webUrl: '', milestone: null },
+      { number:1, title: 'Feature and bug', labels: ['feature', 'bug', 'MOBILE'], closedAt: '2026-04-07', webUrl: '', milestone: null, author: null, assignee: null, closedBy: null },
     ]);
 
     const result = await collectIssues(client, 'mobile/app', currentTag, previousTag, config);
@@ -153,7 +153,7 @@ describe('collectIssues', () => {
       source: 'pull_requests',
     };
     vi.mocked(client.listPullRequests).mockResolvedValue([
-      { number: 10, title: 'PR feature', labels: ['feature', 'MOBILE'], closedAt: '2026-04-07', webUrl: '', milestone: null },
+      { number: 10, title: 'PR feature', labels: ['feature', 'MOBILE'], closedAt: '2026-04-07', webUrl: '', milestone: null, author: null, assignee: null, closedBy: null },
     ]);
 
     const result = await collectIssues(client, 'mobile/app', currentTag, previousTag, prConfig);
@@ -170,12 +170,12 @@ describe('detectMilestone', () => {
     const issues: CategorizedIssues = {
       categorized: {
         'New Features': [
-          { number:1, title: 'Feature', labels: ['feature'], closedAt: '', webUrl: '', milestone: { title: '[MOBILE] Demo 13', url: 'https://gitlab.example.com/-/milestones/13' } },
-          { number:2, title: 'Feature 2', labels: ['feature'], closedAt: '', webUrl: '', milestone: { title: '[MOBILE] Demo 13', url: 'https://gitlab.example.com/-/milestones/13' } },
+          { number:1, title: 'Feature', labels: ['feature'], closedAt: '', webUrl: '', milestone: { title: '[MOBILE] Demo 13', url: 'https://gitlab.example.com/-/milestones/13' }, author: null, assignee: null, closedBy: null },
+          { number:2, title: 'Feature 2', labels: ['feature'], closedAt: '', webUrl: '', milestone: { title: '[MOBILE] Demo 13', url: 'https://gitlab.example.com/-/milestones/13' }, author: null, assignee: null, closedBy: null },
         ],
       },
       uncategorized: [
-        { number:3, title: 'Other', labels: [], closedAt: '', webUrl: '', milestone: { title: '[MOBILE] Demo 12', url: 'https://gitlab.example.com/-/milestones/12' } },
+        { number:3, title: 'Other', labels: [], closedAt: '', webUrl: '', milestone: { title: '[MOBILE] Demo 12', url: 'https://gitlab.example.com/-/milestones/12' }, author: null, assignee: null, closedBy: null },
       ],
     };
     expect(detectMilestone(issues)).toEqual({ title: '[MOBILE] Demo 13', url: 'https://gitlab.example.com/-/milestones/13' });
@@ -185,7 +185,7 @@ describe('detectMilestone', () => {
     const issues: CategorizedIssues = {
       categorized: {
         'Bug Fixes': [
-          { number:1, title: 'Bug', labels: ['bug'], closedAt: '', webUrl: '', milestone: null },
+          { number:1, title: 'Bug', labels: ['bug'], closedAt: '', webUrl: '', milestone: null, author: null, assignee: null, closedBy: null },
         ],
       },
       uncategorized: [],
