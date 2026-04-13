@@ -21,6 +21,9 @@ vi.mock('../../src/cli/auth.js', () => ({
 vi.mock('../../src/cli/prompts.js', () => ({
   promptForUncategorized: vi.fn(),
 }));
+vi.mock('../../src/plugins/loader.js', () => ({
+  getPluginRuntime: vi.fn().mockReturnValue(null),
+}));
 
 import { loadConfig } from '../../src/core/config.js';
 import { createClient } from '../../src/providers/factory.js';
@@ -223,5 +226,115 @@ describe('runGenerate', () => {
     expect(parsed.tagName).toBe('mobile-v0.1.17');
     expect(parsed.version).toBe('0.1.17');
     consoleSpy.mockRestore();
+  });
+
+  it('uses plugin formatter when --template is provided', async () => {
+    const { getPluginRuntime } = await import('../../src/plugins/loader.js');
+    vi.mocked(getPluginRuntime).mockReturnValue({
+      hasFormatter: (name: string) => name === 'compact',
+      runFormatter: () => '## Custom compact output',
+      hooks: {
+        beforeFormat: { run: vi.fn() },
+        afterPublish: { run: vi.fn() },
+      },
+    });
+
+    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+    await runGenerate({
+      tag: 'mobile-v0.1.17',
+      publish: false,
+      dryRun: false,
+      format: 'markdown',
+      template: 'compact',
+      config: '.releasejet.yml',
+    });
+
+    expect(consoleSpy.mock.calls[0][0]).toBe('## Custom compact output');
+    consoleSpy.mockRestore();
+    vi.mocked(getPluginRuntime).mockReturnValue(null);
+  });
+
+  it('throws when --template is used but no plugin provides it', async () => {
+    const { getPluginRuntime } = await import('../../src/plugins/loader.js');
+    vi.mocked(getPluginRuntime).mockReturnValue(null);
+
+    await expect(
+      runGenerate({
+        tag: 'mobile-v0.1.17',
+        publish: false,
+        dryRun: false,
+        format: 'markdown',
+        template: 'nonexistent',
+        config: '.releasejet.yml',
+      }),
+    ).rejects.toThrow('Custom templates require @releasejet/pro');
+
+    vi.mocked(getPluginRuntime).mockReturnValue(null);
+  });
+
+  it('fires beforeFormat hook before formatting', async () => {
+    const beforeFormatRun = vi.fn();
+    const { getPluginRuntime } = await import('../../src/plugins/loader.js');
+    vi.mocked(getPluginRuntime).mockReturnValue({
+      hasFormatter: () => false,
+      runFormatter: () => '',
+      hooks: {
+        beforeFormat: { run: beforeFormatRun },
+        afterPublish: { run: vi.fn() },
+      },
+    });
+
+    vi.spyOn(console, 'log').mockImplementation(() => {});
+
+    await runGenerate({
+      tag: 'mobile-v0.1.17',
+      publish: false,
+      dryRun: false,
+      format: 'markdown',
+      config: '.releasejet.yml',
+    });
+
+    expect(beforeFormatRun).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ tagName: 'mobile-v0.1.17' }),
+      }),
+    );
+
+    vi.restoreAllMocks();
+    vi.mocked(getPluginRuntime).mockReturnValue(null);
+  });
+
+  it('fires afterPublish hook after publishing', async () => {
+    const afterPublishRun = vi.fn();
+    const { getPluginRuntime } = await import('../../src/plugins/loader.js');
+    vi.mocked(getPluginRuntime).mockReturnValue({
+      hasFormatter: () => false,
+      runFormatter: () => '',
+      hooks: {
+        beforeFormat: { run: vi.fn() },
+        afterPublish: { run: afterPublishRun },
+      },
+    });
+
+    vi.spyOn(console, 'log').mockImplementation(() => {});
+
+    await runGenerate({
+      tag: 'mobile-v0.1.17',
+      publish: true,
+      dryRun: false,
+      format: 'markdown',
+      config: '.releasejet.yml',
+    });
+
+    expect(afterPublishRun).toHaveBeenCalledWith(
+      expect.objectContaining({
+        tagName: 'mobile-v0.1.17',
+        releaseName: 'MOBILE v0.1.17',
+      }),
+    );
+
+    vi.restoreAllMocks();
+    vi.mocked(getPluginRuntime).mockReturnValue(null);
   });
 });

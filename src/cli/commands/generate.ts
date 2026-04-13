@@ -17,6 +17,7 @@ import { resolveToken } from '../auth.js';
 import { promptForUncategorized } from '../prompts.js';
 import { withErrorHandler } from '../error-handler.js';
 import { createLogger } from '../logger.js';
+import { getPluginRuntime } from '../../plugins/loader.js';
 import ora from 'ora';
 import type { TagInfo, ReleaseNotesData } from '../../types.js';
 
@@ -29,6 +30,7 @@ export function registerGenerateCommand(program: Command): void {
     .option('--dry-run', 'Preview without publishing', false)
     .option('--format <format>', 'Output format (markdown|json)', 'markdown')
     .option('--since <tag>', 'Use this tag as the starting point instead of auto-detecting the previous tag')
+    .option('--template <name>', 'Use a custom template from @releasejet/pro')
     .option('--output <file>', 'Write release notes to a file')
     .option('--config <path>', 'Config file path', '.releasejet.yml')
     .option('--debug', 'Show debug information', false)
@@ -61,6 +63,7 @@ export async function runGenerate(options: {
   publish: boolean;
   dryRun: boolean;
   format: string;
+  template?: string;
   output?: string;
   config: string;
   debug?: boolean;
@@ -186,9 +189,25 @@ export async function runGenerate(options: {
     contributors,
   };
 
-  const output = options.format === 'json'
-    ? JSON.stringify(data, null, 2)
-    : formatReleaseNotes(data, config);
+  const pluginRuntime = getPluginRuntime();
+
+  // Fire beforeFormat hook
+  await pluginRuntime?.hooks.beforeFormat.run({ data, config });
+
+  // Format output
+  let output: string;
+  if (options.format === 'json') {
+    output = JSON.stringify(data, null, 2);
+  } else if (options.template) {
+    if (!pluginRuntime?.hasFormatter(options.template)) {
+      throw new Error(
+        `Template "${options.template}" not available. Custom templates require @releasejet/pro.`,
+      );
+    }
+    output = pluginRuntime.runFormatter(options.template, data, config);
+  } else {
+    output = formatReleaseNotes(data, config);
+  }
 
   if (options.output) {
     await writeFile(options.output, output, 'utf-8');
@@ -211,6 +230,12 @@ export async function runGenerate(options: {
           milestones: milestone ? [milestone] : undefined,
         });
         spinner?.succeed(`Release published for ${options.tag}`);
+        await pluginRuntime?.hooks.afterPublish.run({
+          tagName: options.tag,
+          releaseName,
+          markdown: output,
+          projectUrl: data.projectUrl,
+        });
       } catch (err) {
         spinner?.fail('Failed to publish release');
         throw err;
