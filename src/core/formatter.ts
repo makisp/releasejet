@@ -59,6 +59,17 @@ export function formatReleaseNotes(
     lines.push('');
   }
 
+  // Contributors
+  if (data.contributors.length > 0) {
+    lines.push('#### Contributors');
+    lines.push(
+      data.contributors
+        .map(c => `[@${c.username}](${c.profileUrl})`)
+        .join(', '),
+    );
+    lines.push('');
+  }
+
   // Footer
   lines.push('---');
   lines.push('');
