@@ -201,6 +201,12 @@ export async function runInit(): Promise<void> {
     }
   }
 
+  // 7b. Contributors
+  const enableContributors = await confirm({
+    message: 'Include a contributors section in release notes?',
+    default: false,
+  });
+
   // 8. Write config
   const config: Record<string, unknown> = {
     provider: { type: providerType, url: providerUrl },
@@ -214,6 +220,10 @@ export async function runInit(): Promise<void> {
 
   if (clients.length > 0) {
     config.clients = clients;
+  }
+
+  if (enableContributors) {
+    config.contributors = { enabled: true };
   }
 
   const yamlContent = stringifyYaml(config);
