@@ -178,6 +178,7 @@ export async function runGenerate(options: {
     issues,
     totalCount,
     uncategorizedCount: issues.uncategorized.length,
+    contributors: [],
   };
 
   const output = options.format === 'json'

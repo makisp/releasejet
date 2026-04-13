@@ -45,7 +45,7 @@ function createMockClient(): ProviderClient {
       { name: 'mobile-v0.1.17', createdAt: '2026-04-08T10:00:00Z' },
     ]),
     listIssues: vi.fn().mockResolvedValue([
-      { number: 1, title: 'New feature', labels: ['feature', 'MOBILE'], closedAt: '2026-04-07', webUrl: '', milestone: null },
+      { number: 1, title: 'New feature', labels: ['feature', 'MOBILE'], closedAt: '2026-04-07', webUrl: '', milestone: null, author: null, assignee: null, closedBy: null },
     ]),
     listPullRequests: vi.fn().mockResolvedValue([]),
     createRelease: vi.fn().mockResolvedValue(undefined),

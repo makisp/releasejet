@@ -67,6 +67,9 @@ describe('createGitLabClient', () => {
         closedAt: '2026-04-07T15:00:00Z',
         webUrl: 'https://gitlab.example.com/mobile/app/-/issues/142',
         milestone: { title: '[MOBILE] Demo 13', url: 'https://gitlab.example.com/mobile/app/-/milestones/13' },
+        author: null,
+        assignee: null,
+        closedBy: null,
       });
     });
 

@@ -93,6 +93,9 @@ describe('createGitHubClient', () => {
         closedAt: '2026-04-07T15:00:00Z',
         webUrl: 'https://github.com/owner/repo/issues/42',
         milestone: { title: 'v1.0', url: 'https://github.com/owner/repo/milestone/1' },
+        author: null,
+        assignee: null,
+        closedBy: null,
       });
     });
   });
@@ -136,6 +139,9 @@ describe('createGitHubClient', () => {
         closedAt: '2026-04-07T15:00:00Z',
         webUrl: 'https://github.com/owner/repo/pull/50',
         milestone: { title: 'v1.0', url: 'https://github.com/owner/repo/milestone/1' },
+        author: null,
+        assignee: null,
+        closedBy: null,
       });
     });
   });
