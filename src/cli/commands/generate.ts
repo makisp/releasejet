@@ -11,6 +11,7 @@ import {
   detectMilestone,
 } from '../../core/issue-collector.js';
 import { formatReleaseNotes } from '../../core/formatter.js';
+import { renderCustomTemplate } from '../../core/template-engine.js';
 import { extractContributors } from '../../core/contributors.js';
 import { createClient } from '../../providers/factory.js';
 import { resolveToken } from '../auth.js';
@@ -20,6 +21,10 @@ import { createLogger } from '../logger.js';
 import { getPluginRuntime } from '../../plugins/loader.js';
 import ora from 'ora';
 import type { TagInfo, ReleaseNotesData } from '../../types.js';
+
+function isTemplatePath(value: string): boolean {
+  return value.includes('/') || value.includes('\\') || value.endsWith('.hbs');
+}
 
 export function registerGenerateCommand(program: Command): void {
   program
@@ -191,18 +196,29 @@ export async function runGenerate(options: {
 
   const pluginRuntime = getPluginRuntime();
 
+  const templateName = options.template ?? config.template;
+
   // Format output
   let output: string;
   if (options.format === 'json') {
     output = JSON.stringify(data, null, 2);
-  } else if (options.template) {
+  } else if (templateName) {
     await pluginRuntime?.hooks.beforeFormat.run({ data, config });
-    if (!pluginRuntime?.hasFormatter(options.template)) {
-      throw new Error(
-        `Template "${options.template}" not available. Custom templates require @releasejet/pro.`,
-      );
+    if (isTemplatePath(templateName)) {
+      if (!pluginRuntime) {
+        throw new Error(
+          'Custom templates require @releasejet/pro. Install the plugin and activate a license.',
+        );
+      }
+      output = renderCustomTemplate(templateName, data, config);
+    } else {
+      if (!pluginRuntime?.hasFormatter(templateName)) {
+        throw new Error(
+          `Template "${templateName}" not available. Custom templates require @releasejet/pro.`,
+        );
+      }
+      output = pluginRuntime.runFormatter(templateName, data, config);
     }
-    output = pluginRuntime.runFormatter(options.template, data, config);
   } else {
     await pluginRuntime?.hooks.beforeFormat.run({ data, config });
     output = formatReleaseNotes(data, config);

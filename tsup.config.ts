@@ -19,4 +19,11 @@ export default defineConfig([
     target: 'node20',
     dts: true,
   },
+  {
+    entry: { 'plugins/template-api': 'src/plugins/template-api.ts' },
+    format: ['esm'],
+    target: 'node20',
+    dts: true,
+    loader: { '.hbs': 'text' },
+  },
 ]);

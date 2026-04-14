@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.0] - 2026-04-14
+
+### Added
+
+- `template` field in `.releasejet.yml` config for default template selection
+- Custom `.hbs` file path support via `--template ./path/to/template.hbs`
+- `./plugin/templates` subpath export exposing template engine API for Pro plugin
+- Issue URLs in template context (`categoryEntries[].issues[].url`, `uncategorizedEntries[].url`)
+- `uncategorizedEntries` array in template context for direct iteration in templates
+
+### Changed
+
+- `--template` flag now falls back to `config.template` when not specified on CLI
+- `default.hbs` template uses `uncategorizedEntries` instead of raw `data.issues.uncategorized`
+- `tsup.config.ts` adds separate build entry for `plugins/template-api` with `.hbs` loader
+
+### Removed
+
+- `packages/pro/` development scaffold — Pro plugin moved to its own repository
+
 ## [1.4.0] - 2026-04-14
 
 ### Added

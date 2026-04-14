@@ -23,6 +23,7 @@ export interface ReleaseJetConfig {
   categories: Record<string, string>;
   uncategorized: 'lenient' | 'strict';
   contributors?: ContributorsConfig;
+  template?: string;
 }
 
 export interface ParsedTag {

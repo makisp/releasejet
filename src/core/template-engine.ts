@@ -16,10 +16,28 @@ export interface TemplateContext {
   title: string;
   tagUrl: string;
   metaLine: string;
-  categoryEntries: Array<{ heading: string; issues: Array<{ title: string; number: number }> }>;
+  categoryEntries: Array<{ heading: string; issues: Array<{ title: string; number: number; url: string }> }>;
+  uncategorizedEntries: Array<{ title: string; number: number; url: string }>;
   showUncategorized: boolean;
   hasContributors: boolean;
   contributorsList: string;
+}
+
+function buildIssueUrl(
+  projectUrl: string,
+  number: number,
+  providerType: 'github' | 'gitlab',
+  source: 'issues' | 'pull_requests',
+): string {
+  if (providerType === 'github') {
+    return source === 'pull_requests'
+      ? `${projectUrl}/pull/${number}`
+      : `${projectUrl}/issues/${number}`;
+  } else {
+    return source === 'pull_requests'
+      ? `${projectUrl}/-/merge_requests/${number}`
+      : `${projectUrl}/-/issues/${number}`;
+  }
 }
 
 export function buildTemplateContext(
@@ -55,8 +73,18 @@ export function buildTemplateContext(
     })
     .map(heading => ({
       heading,
-      issues: data.issues.categorized[heading].map(i => ({ title: i.title, number: i.number })),
+      issues: data.issues.categorized[heading].map(i => ({
+        title: i.title,
+        number: i.number,
+        url: buildIssueUrl(data.projectUrl, i.number, config.provider.type, config.source),
+      })),
     }));
+
+  const uncategorizedEntries = data.issues.uncategorized.map(i => ({
+    title: i.title,
+    number: i.number,
+    url: buildIssueUrl(data.projectUrl, i.number, config.provider.type, config.source),
+  }));
 
   const showUncategorized =
     data.issues.uncategorized.length > 0 && config.uncategorized === 'lenient';
@@ -74,6 +102,7 @@ export function buildTemplateContext(
     tagUrl,
     metaLine,
     categoryEntries,
+    uncategorizedEntries,
     showUncategorized,
     hasContributors,
     contributorsList,

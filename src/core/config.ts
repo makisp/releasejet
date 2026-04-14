@@ -50,6 +50,7 @@ function mergeWithDefaults(raw: Record<string, unknown>): ReleaseJetConfig {
   const clientsRaw = raw.clients as unknown;
   const categoriesRaw = raw.categories as unknown;
   const contributorsRaw = raw.contributors as unknown;
+  const template = raw.template as string | undefined;
 
   // Provider
   let provider: { type: 'gitlab' | 'github'; url: string };
@@ -165,5 +166,6 @@ function mergeWithDefaults(raw: Record<string, unknown>): ReleaseJetConfig {
     categories,
     uncategorized: (uncategorized as 'lenient' | 'strict') ?? 'lenient',
     contributors,
+    template,
   };
 }

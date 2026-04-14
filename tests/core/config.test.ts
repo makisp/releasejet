@@ -299,4 +299,29 @@ contributors:
 ` as never);
     await expect(loadConfig()).rejects.toThrow('contributors.exclude');
   });
+
+  it('parses template field from config', async () => {
+    vi.mocked(readFile).mockResolvedValue(`
+provider:
+  type: github
+template: compact
+categories:
+  bug: Bug Fixes
+` as never);
+
+    const config = await loadConfig();
+    expect(config.template).toBe('compact');
+  });
+
+  it('defaults template to undefined when not specified', async () => {
+    vi.mocked(readFile).mockResolvedValue(`
+provider:
+  type: github
+categories:
+  bug: Bug Fixes
+` as never);
+
+    const config = await loadConfig();
+    expect(config.template).toBeUndefined();
+  });
 });

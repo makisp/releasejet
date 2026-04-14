@@ -24,11 +24,19 @@ vi.mock('../../src/cli/prompts.js', () => ({
 vi.mock('../../src/plugins/loader.js', () => ({
   getPluginRuntime: vi.fn().mockReturnValue(null),
 }));
+vi.mock('../../src/core/template-engine.js', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../src/core/template-engine.js')>();
+  return {
+    ...actual,
+    renderCustomTemplate: vi.fn().mockReturnValue('# Custom template output'),
+  };
+});
 
 import { loadConfig } from '../../src/core/config.js';
 import { createClient } from '../../src/providers/factory.js';
 import { resolveProjectInfo } from '../../src/core/git.js';
 import { runGenerate } from '../../src/cli/commands/generate.js';
+import { renderCustomTemplate } from '../../src/core/template-engine.js';
 
 const mockConfig: ReleaseJetConfig = {
   provider: { type: 'gitlab', url: 'https://gitlab.example.com' },
@@ -336,5 +344,92 @@ describe('runGenerate', () => {
 
     vi.restoreAllMocks();
     vi.mocked(getPluginRuntime).mockReturnValue(null);
+  });
+
+  describe('custom .hbs file path template', () => {
+    it('routes .hbs file path to renderCustomTemplate when Pro is loaded', async () => {
+      const { getPluginRuntime } = await import('../../src/plugins/loader.js');
+      vi.mocked(getPluginRuntime).mockReturnValue({
+        hasFormatter: vi.fn().mockReturnValue(false),
+        runFormatter: vi.fn(),
+        hooks: {
+          beforeFormat: { run: vi.fn() },
+          afterPublish: { run: vi.fn() },
+        },
+      });
+
+      vi.spyOn(console, 'log').mockImplementation(() => {});
+
+      await runGenerate({
+        tag: 'mobile-v0.1.17',
+        publish: false,
+        dryRun: false,
+        format: 'markdown',
+        template: './my-template.hbs',
+        config: '.releasejet.yml',
+      });
+
+      expect(renderCustomTemplate).toHaveBeenCalledWith(
+        './my-template.hbs',
+        expect.anything(),
+        expect.anything(),
+      );
+
+      vi.restoreAllMocks();
+      vi.mocked(getPluginRuntime).mockReturnValue(null);
+    });
+
+    it('throws error for .hbs file path when Pro is not loaded', async () => {
+      const { getPluginRuntime } = await import('../../src/plugins/loader.js');
+      vi.mocked(getPluginRuntime).mockReturnValue(null);
+
+      await expect(
+        runGenerate({
+          tag: 'mobile-v0.1.17',
+          publish: false,
+          dryRun: false,
+          format: 'markdown',
+          template: './my-template.hbs',
+          config: '.releasejet.yml',
+        }),
+      ).rejects.toThrow('Custom templates require @releasejet/pro');
+    });
+  });
+
+  describe('config template fallback', () => {
+    it('uses config.template as fallback when --template is not specified', async () => {
+      const { getPluginRuntime } = await import('../../src/plugins/loader.js');
+      const configWithTemplate = { ...mockConfig, template: 'compact' };
+      vi.mocked(loadConfig).mockResolvedValue(configWithTemplate);
+      vi.mocked(createClient).mockReturnValue(createMockClient());
+
+      const mockRunFormatter = vi.fn().mockReturnValue('# Compact output');
+      vi.mocked(getPluginRuntime).mockReturnValue({
+        hasFormatter: vi.fn().mockReturnValue(true),
+        runFormatter: mockRunFormatter,
+        hooks: {
+          beforeFormat: { run: vi.fn() },
+          afterPublish: { run: vi.fn() },
+        },
+      });
+
+      const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+      await runGenerate({
+        tag: 'mobile-v0.1.17',
+        publish: false,
+        dryRun: false,
+        format: 'markdown',
+        config: '.releasejet.yml',
+      });
+
+      expect(mockRunFormatter).toHaveBeenCalledWith(
+        'compact',
+        expect.any(Object),
+        expect.any(Object),
+      );
+      consoleSpy.mockRestore();
+      vi.mocked(getPluginRuntime).mockReturnValue(null);
+    });
   });
 });
