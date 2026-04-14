@@ -13,7 +13,7 @@ function render(data: Parameters<typeof buildTemplateContext>[0], config: Parame
 describe('changelog template', () => {
   it('renders Keep a Changelog header format', () => {
     const result = render(fullData, githubConfig);
-    expect(result).toContain('## [v1.2.0] - 2026-04-14');
+    expect(result).toContain('## [1.2.0] - 2026-04-14');
   });
 
   it('uses ### for category headings', () => {
