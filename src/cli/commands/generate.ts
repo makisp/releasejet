@@ -196,26 +196,28 @@ export async function runGenerate(options: {
 
   const pluginRuntime = getPluginRuntime();
 
+  const templateName = options.template ?? config.template;
+
   // Format output
   let output: string;
   if (options.format === 'json') {
     output = JSON.stringify(data, null, 2);
-  } else if (options.template) {
+  } else if (templateName) {
     await pluginRuntime?.hooks.beforeFormat.run({ data, config });
-    if (isTemplatePath(options.template)) {
+    if (isTemplatePath(templateName)) {
       if (!pluginRuntime) {
         throw new Error(
           'Custom templates require @releasejet/pro. Install the plugin and activate a license.',
         );
       }
-      output = renderCustomTemplate(options.template, data, config);
+      output = renderCustomTemplate(templateName, data, config);
     } else {
-      if (!pluginRuntime?.hasFormatter(options.template)) {
+      if (!pluginRuntime?.hasFormatter(templateName)) {
         throw new Error(
-          `Template "${options.template}" not available. Custom templates require @releasejet/pro.`,
+          `Template "${templateName}" not available. Custom templates require @releasejet/pro.`,
         );
       }
-      output = pluginRuntime.runFormatter(options.template, data, config);
+      output = pluginRuntime.runFormatter(templateName, data, config);
     }
   } else {
     await pluginRuntime?.hooks.beforeFormat.run({ data, config });
