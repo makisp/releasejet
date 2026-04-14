@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { formatReleaseNotes } from '../../src/core/formatter.js';
+import { buildTemplateContext } from '../../src/core/template-engine.js';
 import type { ReleaseNotesData, ReleaseJetConfig } from '../../src/types.js';
 
 const defaultConfig: ReleaseJetConfig = {
@@ -273,5 +274,142 @@ describe('formatReleaseNotes', () => {
 
     expect(result).toContain('**Tag:** [v1.0.0](https://github.com/owner/repo/releases/tag/v1.0.0)');
     expect(result).not.toContain('/-/tags/');
+  });
+});
+
+describe('buildTemplateContext', () => {
+  it('builds issue URLs for GitHub issues', () => {
+    const config: ReleaseJetConfig = {
+      provider: { type: 'github', url: 'https://github.com' },
+      source: 'issues',
+      clients: [],
+      categories: { feature: 'New Features' },
+      uncategorized: 'lenient',
+    };
+    const data: ReleaseNotesData = {
+      tagName: 'v1.0.0',
+      version: '1.0.0',
+      clientPrefix: null,
+      date: '2026-04-14',
+      milestone: null,
+      projectUrl: 'https://github.com/owner/repo',
+      issues: {
+        categorized: {
+          'New Features': [
+            { number: 42, title: 'Add dark mode', labels: ['feature'], closedAt: '', webUrl: '', milestone: null, author: null, assignee: null, closedBy: null },
+          ],
+        },
+        uncategorized: [
+          { number: 99, title: 'Unlabeled issue', labels: [], closedAt: '', webUrl: '', milestone: null, author: null, assignee: null, closedBy: null },
+        ],
+      },
+      totalCount: 2,
+      uncategorizedCount: 1,
+      contributors: [],
+    };
+
+    const ctx = buildTemplateContext(data, config);
+
+    expect(ctx.categoryEntries[0].issues[0].url).toBe('https://github.com/owner/repo/issues/42');
+    expect(ctx.uncategorizedEntries[0].url).toBe('https://github.com/owner/repo/issues/99');
+  });
+
+  it('builds issue URLs for GitLab issues', () => {
+    const config: ReleaseJetConfig = {
+      provider: { type: 'gitlab', url: 'https://gitlab.example.com' },
+      source: 'issues',
+      clients: [],
+      categories: { feature: 'New Features' },
+      uncategorized: 'lenient',
+    };
+    const data: ReleaseNotesData = {
+      tagName: 'v1.0.0',
+      version: '1.0.0',
+      clientPrefix: null,
+      date: '2026-04-14',
+      milestone: null,
+      projectUrl: 'https://gitlab.example.com/group/project',
+      issues: {
+        categorized: {
+          'New Features': [
+            { number: 42, title: 'Add dark mode', labels: ['feature'], closedAt: '', webUrl: '', milestone: null, author: null, assignee: null, closedBy: null },
+          ],
+        },
+        uncategorized: [],
+      },
+      totalCount: 1,
+      uncategorizedCount: 0,
+      contributors: [],
+    };
+
+    const ctx = buildTemplateContext(data, config);
+
+    expect(ctx.categoryEntries[0].issues[0].url).toBe('https://gitlab.example.com/group/project/-/issues/42');
+  });
+
+  it('builds PR URLs for GitHub pull_requests source', () => {
+    const config: ReleaseJetConfig = {
+      provider: { type: 'github', url: 'https://github.com' },
+      source: 'pull_requests',
+      clients: [],
+      categories: { feature: 'New Features' },
+      uncategorized: 'lenient',
+    };
+    const data: ReleaseNotesData = {
+      tagName: 'v1.0.0',
+      version: '1.0.0',
+      clientPrefix: null,
+      date: '2026-04-14',
+      milestone: null,
+      projectUrl: 'https://github.com/owner/repo',
+      issues: {
+        categorized: {
+          'New Features': [
+            { number: 10, title: 'Add feature via PR', labels: ['feature'], closedAt: '', webUrl: '', milestone: null, author: null, assignee: null, closedBy: null },
+          ],
+        },
+        uncategorized: [],
+      },
+      totalCount: 1,
+      uncategorizedCount: 0,
+      contributors: [],
+    };
+
+    const ctx = buildTemplateContext(data, config);
+
+    expect(ctx.categoryEntries[0].issues[0].url).toBe('https://github.com/owner/repo/pull/10');
+  });
+
+  it('builds MR URLs for GitLab pull_requests source', () => {
+    const config: ReleaseJetConfig = {
+      provider: { type: 'gitlab', url: 'https://gitlab.example.com' },
+      source: 'pull_requests',
+      clients: [],
+      categories: { feature: 'New Features' },
+      uncategorized: 'lenient',
+    };
+    const data: ReleaseNotesData = {
+      tagName: 'v1.0.0',
+      version: '1.0.0',
+      clientPrefix: null,
+      date: '2026-04-14',
+      milestone: null,
+      projectUrl: 'https://gitlab.example.com/group/project',
+      issues: {
+        categorized: {
+          'New Features': [
+            { number: 10, title: 'Add feature via MR', labels: ['feature'], closedAt: '', webUrl: '', milestone: null, author: null, assignee: null, closedBy: null },
+          ],
+        },
+        uncategorized: [],
+      },
+      totalCount: 1,
+      uncategorizedCount: 0,
+      contributors: [],
+    };
+
+    const ctx = buildTemplateContext(data, config);
+
+    expect(ctx.categoryEntries[0].issues[0].url).toBe('https://gitlab.example.com/group/project/-/merge_requests/10');
   });
 });
