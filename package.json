@@ -1,6 +1,6 @@
 {
   "name": "@makispps/releasejet",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "description": "Automated release notes generator for GitLab and GitHub",
   "license": "MIT",
   "author": "Mavroudis Papas",
@@ -22,6 +22,10 @@
     "ci-cd"
   ],
   "type": "module",
+  "exports": {
+    ".": "./dist/cli.js",
+    "./plugin": "./dist/plugins/types.js"
+  },
   "bin": {
     "releasejet": "./dist/cli.js"
   },
@@ -42,6 +46,7 @@
     "@inquirer/prompts": "^7.2.0",
     "@octokit/rest": "^22.0.1",
     "commander": "^13.1.0",
+    "handlebars": "^4.7.9",
     "jose": "^6.2.2",
     "ora": "^9.3.0",
     "semver": "^7.7.1",

@@ -10,8 +10,9 @@ dist/
 .superpowers/
 docs/*
 !docs/CORE-UPDATE-CHECKLIST.md
-!docs/ROADMAP.md
+docs/ROADMAP.md
 bash.exe.stackdump
 .npmrc
 CLAUDE.md
 mockups/
+packages/
