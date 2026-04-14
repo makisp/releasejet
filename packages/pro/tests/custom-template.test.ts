@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach } from 'vitest';
-import { writeFileSync, unlinkSync, mkdirSync } from 'node:fs';
+import { writeFileSync, rmSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { renderCustomTemplate, clearTemplateCache } from '@makispps/releasejet/plugin/templates';
@@ -22,7 +22,7 @@ describe('custom .hbs template', () => {
       expect(result).toContain('Bug Fixes: 2');
       expect(result).toContain('New Features: 1');
     } finally {
-      unlinkSync(filePath);
+      rmSync(dir, { recursive: true });
     }
   });
 
@@ -54,7 +54,7 @@ describe('custom .hbs template', () => {
       expect(result).toContain('date:2026-04-14');
       expect(result).toContain('hasContributors:true');
     } finally {
-      unlinkSync(filePath);
+      rmSync(dir, { recursive: true });
     }
   });
 });

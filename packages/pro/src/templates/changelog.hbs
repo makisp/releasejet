@@ -1,4 +1,8 @@
+{{#if data.clientPrefix}}
 ## [{{title}}] - {{data.date}}
+{{else}}
+## [{{data.version}}] - {{data.date}}
+{{/if}}
 
 {{#each categoryEntries}}
 ### {{this.heading}}

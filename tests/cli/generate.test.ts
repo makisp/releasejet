@@ -395,4 +395,41 @@ describe('runGenerate', () => {
       ).rejects.toThrow('Custom templates require @releasejet/pro');
     });
   });
+
+  describe('config template fallback', () => {
+    it('uses config.template as fallback when --template is not specified', async () => {
+      const { getPluginRuntime } = await import('../../src/plugins/loader.js');
+      const configWithTemplate = { ...mockConfig, template: 'compact' };
+      vi.mocked(loadConfig).mockResolvedValue(configWithTemplate);
+      vi.mocked(createClient).mockReturnValue(createMockClient());
+
+      const mockRunFormatter = vi.fn().mockReturnValue('# Compact output');
+      vi.mocked(getPluginRuntime).mockReturnValue({
+        hasFormatter: vi.fn().mockReturnValue(true),
+        runFormatter: mockRunFormatter,
+        hooks: {
+          beforeFormat: { run: vi.fn() },
+          afterPublish: { run: vi.fn() },
+        },
+      });
+
+      const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+      await runGenerate({
+        tag: 'mobile-v0.1.17',
+        publish: false,
+        dryRun: false,
+        format: 'markdown',
+        config: '.releasejet.yml',
+      });
+
+      expect(mockRunFormatter).toHaveBeenCalledWith(
+        'compact',
+        expect.any(Object),
+        expect.any(Object),
+      );
+      consoleSpy.mockRestore();
+      vi.mocked(getPluginRuntime).mockReturnValue(null);
+    });
+  });
 });
