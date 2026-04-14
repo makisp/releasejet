@@ -24,7 +24,8 @@
   "type": "module",
   "exports": {
     ".": "./dist/cli.js",
-    "./plugin": "./dist/plugins/types.js"
+    "./plugin": "./dist/plugins/types.js",
+    "./plugin/templates": "./dist/plugins/template-api.js"
   },
   "bin": {
     "releasejet": "./dist/cli.js"
