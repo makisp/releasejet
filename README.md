@@ -17,7 +17,7 @@ Automated release notes generator for GitLab and GitHub. Collects closed issues 
 ## Quick Start
 
 ```bash
-npm install -g releasejet
+npm i -g @makispps/releasejet
 
 # Interactive setup (detects provider from git remote)
 releasejet init
@@ -86,7 +86,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
-      - run: npm install -g releasejet
+      - run: npm i -g @makispps/releasejet
       - run: releasejet generate --tag "${{ github.ref_name }}" --publish
         env:
           RELEASEJET_TOKEN: ${{ secrets.RELEASEJET_TOKEN }}
@@ -105,7 +105,7 @@ release-notes:
   rules:
     - if: $CI_COMMIT_TAG
   before_script:
-    - npm install -g releasejet
+    - npm i -g @makispps/releasejet
   script:
     - releasejet generate --tag "$CI_COMMIT_TAG" --publish
 ```
