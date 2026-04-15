@@ -17,7 +17,7 @@ Automated release notes generator for GitLab and GitHub. Collects closed issues 
 ## Quick Start
 
 ```bash
-npm i -g @makispps/releasejet
+npm install -g @makispps/releasejet
 
 # Interactive setup (detects provider from git remote)
 releasejet init
