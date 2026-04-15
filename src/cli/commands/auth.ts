@@ -1,6 +1,7 @@
 import type { Command } from 'commander';
 import { readLicense, writeLicense, removeLicense } from '../../license/store.js';
 import { verifyLicense } from '../../license/validator.js';
+import { isNpmrcConfigured, writeNpmrcConfig, removeNpmrcConfig } from '../../license/npmrc.js';
 import { withErrorHandler } from '../error-handler.js';
 
 const LICENSE_API_URL =
@@ -8,7 +9,29 @@ const LICENSE_API_URL =
 
 const KEY_PATTERN = /^rlj_[a-zA-Z0-9]{32}$/;
 
-export async function runActivate(key: string): Promise<void> {
+interface ActivateOptions {
+  confirmNpmrc?: () => Promise<boolean>;
+}
+
+async function defaultConfirmNpmrc(): Promise<boolean> {
+  const { createInterface } = await import('node:readline');
+  const rl = createInterface({ input: process.stdin, output: process.stdout });
+  return new Promise((resolve, reject) => {
+    rl.question(
+      '\nConfigure npm to install Pro packages automatically? (Y/n) ',
+      (answer) => {
+        rl.close();
+        resolve(answer.trim().toLowerCase() !== 'n');
+      },
+    );
+    rl.once('error', (err) => {
+      rl.close();
+      reject(err);
+    });
+  });
+}
+
+export async function runActivate(key: string, options?: ActivateOptions): Promise<void> {
   if (!KEY_PATTERN.test(key)) {
     throw new Error(
       'Invalid key format. Keys start with rlj_ followed by 32 characters.',
@@ -39,6 +62,23 @@ export async function runActivate(key: string): Promise<void> {
 
   await writeLicense({ key, token, expiresAt });
   console.log(`Pro license activated. Expires: ${expiresAt}.`);
+
+  // Prompt for npmrc configuration
+  const confirm = options?.confirmNpmrc ?? defaultConfirmNpmrc;
+  const shouldConfigure = await confirm();
+
+  if (shouldConfigure) {
+    await writeNpmrcConfig(key);
+    console.log('npm configured. You can now run: npm install @releasejet/pro');
+  } else {
+    console.log('');
+    console.log('To install Pro packages, add these lines to ~/.npmrc:');
+    console.log('');
+    console.log(`  @releasejet:registry=https://npm.releasejet.dev/`);
+    console.log(`  //npm.releasejet.dev/:_authToken=${key}`);
+    console.log('');
+    console.log('Then run: npm install @releasejet/pro');
+  }
 }
 
 export async function runStatus(): Promise<void> {
@@ -66,6 +106,11 @@ export async function runStatus(): Promise<void> {
   console.log(`Email:    ${status.payload.email}`);
   console.log(`Features: ${status.payload.features.join(', ')}`);
   console.log(`Expires:  ${license.expiresAt}`);
+
+  const npmConfigured = await isNpmrcConfigured();
+  console.log(
+    `npm registry: ${npmConfigured ? 'configured (in ~/.npmrc)' : 'not configured (run \'releasejet auth activate\' to set up)'}`,
+  );
 }
 
 export async function runRefresh(): Promise<void> {
@@ -105,8 +150,13 @@ export async function runRefresh(): Promise<void> {
 }
 
 export async function runDeactivate(): Promise<void> {
+  const hadNpmrc = await isNpmrcConfigured();
   await removeLicense();
+  await removeNpmrcConfig();
   console.log('Pro license removed.');
+  if (hadNpmrc) {
+    console.log('npm registry config removed from ~/.npmrc.');
+  }
 }
 
 export function registerAuthCommand(program: Command): void {
