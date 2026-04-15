@@ -13,7 +13,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
-      - run: npm install -g releasejet
+      - run: npm install -g @makispps/releasejet
       - run: releasejet generate --tag "${{ github.ref_name }}" --publish
         env:
           RELEASEJET_TOKEN: ${{ secrets.RELEASEJET_TOKEN }}

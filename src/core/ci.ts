@@ -14,7 +14,7 @@ export function generateCiBlock(tags: string[]): string {
     '  tags:',
     tagLines,
     '  before_script:',
-    '    - npm install -g releasejet',
+    '    - npm install -g @makispps/releasejet',
     '  script:',
     '    - releasejet generate --tag "$CI_COMMIT_TAG" --publish',
     CI_MARKER_END,
