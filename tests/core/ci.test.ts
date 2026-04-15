@@ -14,7 +14,7 @@ describe('generateCiBlock', () => {
     const block = generateCiBlock(['short-duration']);
     expect(block).toContain(CI_MARKER_START);
     expect(block).toContain(CI_MARKER_END);
-    expect(block).toContain('npm install -g releasejet');
+    expect(block).toContain('npm install -g @makispps/releasejet');
     expect(block).toContain('releasejet generate --tag "$CI_COMMIT_TAG" --publish');
     expect(block).toContain('    - short-duration');
   });
