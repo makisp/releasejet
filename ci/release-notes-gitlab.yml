@@ -17,6 +17,6 @@ release-notes:
   variables:
     RELEASEJET_TOKEN: ${RELEASEJET_TOKEN}
   before_script:
-    - npm install -g releasejet
+    - npm install -g @makispps/releasejet
   script:
     - releasejet generate --tag "$CI_COMMIT_TAG" --publish
