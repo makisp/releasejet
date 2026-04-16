@@ -154,6 +154,21 @@ describe('generateGitHubActionsTemplate', () => {
     expect(template).toContain('@makispps/releasejet @releasejet/pro');
     expect(template).toContain('RELEASEJET_TOKEN');
   });
+
+  it('passes RELEASEJET_PRO_TOKEN to generate step in Pro template', () => {
+    const template = generateGitHubActionsTemplate({ pro: true });
+    // Find the generate step and check it has the env var
+    const generateStepIndex = template.indexOf('releasejet generate');
+    const envAfterGenerate = template.substring(generateStepIndex);
+    expect(envAfterGenerate).toContain('RELEASEJET_PRO_TOKEN');
+  });
+
+  it('does not pass RELEASEJET_PRO_TOKEN to generate step in free template', () => {
+    const template = generateGitHubActionsTemplate({ pro: false });
+    const generateStepIndex = template.indexOf('releasejet generate');
+    const envAfterGenerate = template.substring(generateStepIndex);
+    expect(envAfterGenerate).not.toContain('RELEASEJET_PRO_TOKEN');
+  });
 });
 
 describe('hasProLines', () => {
