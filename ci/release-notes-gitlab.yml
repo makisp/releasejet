@@ -20,3 +20,13 @@ release-notes:
     - npm install -g @makispps/releasejet
   script:
     - releasejet generate --tag "$CI_COMMIT_TAG" --publish
+
+# --- Pro Support (uncomment if using @releasejet/pro) ---
+# Add RELEASEJET_PRO_TOKEN as a CI/CD variable with your rlj_ license key.
+#
+# Replace the "before_script" section above with:
+#   before_script:
+#     - echo "@releasejet:registry=https://npm.releasejet.dev/" >> ~/.npmrc
+#     - echo "//npm.releasejet.dev/:_authToken=${RELEASEJET_PRO_TOKEN}" >> ~/.npmrc
+#     - npm install -g @makispps/releasejet @releasejet/pro
+# ---
