@@ -111,7 +111,7 @@ export interface TagValidationResult {
 
 export function validateTag(tagName: string, config: ReleaseJetConfig): TagValidationResult {
   try {
-    const parsed = parseTag(tagName);
+    const parsed = parseTag(tagName, config.tagFormat);
 
     // In multi-client mode, check that the prefix matches a configured client
     if (config.clients.length > 0 && parsed.prefix !== null) {
