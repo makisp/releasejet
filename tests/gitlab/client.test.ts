@@ -3,13 +3,14 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 const mockTagsAll = vi.fn();
 const mockIssuesAll = vi.fn();
 const mockReleasesCreate = vi.fn();
+const mockReleasesEdit = vi.fn();
 const mockMilestonesAll = vi.fn();
 
 vi.mock('@gitbeaker/rest', () => ({
   Gitlab: vi.fn().mockImplementation(() => ({
     Tags: { all: mockTagsAll },
     Issues: { all: mockIssuesAll },
-    ProjectReleases: { create: mockReleasesCreate },
+    ProjectReleases: { create: mockReleasesCreate, edit: mockReleasesEdit },
     ProjectMilestones: { all: mockMilestonesAll },
   })),
 }));
@@ -108,6 +109,36 @@ describe('createGitLabClient', () => {
         name: 'MOBILE v0.1.17',
         description: '# Release notes',
       });
+    });
+
+    it('updates existing release on conflict', async () => {
+      mockReleasesCreate.mockRejectedValue(new Error('Release already exists'));
+
+      const client = createGitLabClient('https://gitlab.example.com', 'token');
+      await client.createRelease('mobile/app', {
+        tagName: 'mobile-v0.1.17',
+        name: 'MOBILE v0.1.17',
+        description: '# Updated notes',
+      });
+
+      expect(mockReleasesEdit).toHaveBeenCalledWith('mobile/app', 'mobile-v0.1.17', {
+        name: 'MOBILE v0.1.17',
+        description: '# Updated notes',
+        milestones: undefined,
+      });
+    });
+
+    it('rethrows non-conflict errors', async () => {
+      mockReleasesCreate.mockRejectedValue(new Error('Forbidden'));
+
+      const client = createGitLabClient('https://gitlab.example.com', 'token');
+      await expect(
+        client.createRelease('mobile/app', {
+          tagName: 'mobile-v0.1.17',
+          name: 'MOBILE v0.1.17',
+          description: '# Notes',
+        }),
+      ).rejects.toThrow('Forbidden');
     });
   });
 
