@@ -9,31 +9,12 @@ import { getRemoteUrl, resolveHostUrl, detectProviderFromRemote } from '../../co
 import type { ClientConfig } from '../../types.js';
 import {
   generateCiBlock,
+  generateGitHubActionsTemplate,
   hasCiBlock,
   appendCiBlock,
   DEFAULT_TAGS,
 } from '../../core/ci.js';
-
-const GITHUB_ACTIONS_TEMPLATE = `name: Release Notes
-on:
-  push:
-    tags:
-      - '**'
-jobs:
-  release-notes:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-      - run: npm install -g @makispps/releasejet
-      - run: releasejet generate --tag "\${{ github.ref_name }}" --publish
-        env:
-          RELEASEJET_TOKEN: \${{ secrets.RELEASEJET_TOKEN }}
-`;
+import { hasActivePro } from '../../license/detect.js';
 
 export function registerInitCommand(program: Command): void {
   program
@@ -301,11 +282,22 @@ async function setupGitLabCi(): Promise<void> {
 
   if (hasCiBlock(existingCi)) {
     console.log('  ReleaseJet CI is already configured.');
-  } else {
-    const block = generateCiBlock(ciTags);
-    const ciContent = appendCiBlock(existingCi, block);
-    await writeFile('.gitlab-ci.yml', ciContent);
-    console.log('✓ Created .gitlab-ci.yml with ReleaseJet CI configuration');
+    return;
+  }
+
+  const pro = await hasActivePro();
+  const block = generateCiBlock(ciTags, { pro });
+  const ciContent = appendCiBlock(existingCi, block);
+  await writeFile('.gitlab-ci.yml', ciContent);
+
+  const suffix = pro ? ' (with Pro support)' : '';
+  console.log(`✓ Created .gitlab-ci.yml with ReleaseJet CI configuration${suffix}`);
+
+  if (pro) {
+    console.log('');
+    console.log('Add RELEASEJET_PRO_TOKEN to your repo secrets:');
+    console.log('  GitLab: Settings → CI/CD → Variables');
+    console.log('  Value: your rlj_ license key');
   }
 }
 
@@ -325,7 +317,19 @@ async function setupGitHubActions(): Promise<void> {
     return;
   }
 
+  const pro = await hasActivePro();
+  const template = generateGitHubActionsTemplate({ pro });
+
   await mkdir('.github/workflows', { recursive: true });
-  await writeFile(workflowPath, GITHUB_ACTIONS_TEMPLATE);
-  console.log('✓ Created .github/workflows/release-notes.yml');
+  await writeFile(workflowPath, template);
+
+  const suffix = pro ? ' (with Pro support)' : '';
+  console.log(`✓ Created .github/workflows/release-notes.yml${suffix}`);
+
+  if (pro) {
+    console.log('');
+    console.log('Add RELEASEJET_PRO_TOKEN to your repo secrets:');
+    console.log('  GitHub: Settings → Secrets → Actions → New secret');
+    console.log('  Value: your rlj_ license key');
+  }
 }
