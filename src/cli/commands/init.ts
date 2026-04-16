@@ -101,7 +101,76 @@ export async function runInit(): Promise<void> {
     }
   }
 
-  // 6. Uncategorized mode
+  // 6. Tag format
+  const defaultFormat = isMultiClient ? '{prefix}-v{version}' : 'v{version}';
+  const examplePrefix = clients.length > 0 ? clients[0].prefix : 'app';
+
+  const singleChoices = [
+    { name: `v{version}              (e.g. v1.0.0)`, value: 'v{version}' },
+    { name: `{version}                (e.g. 1.0.0)`, value: '{version}' },
+    { name: `release/v{version}       (e.g. release/v1.0.0)`, value: 'release/v{version}' },
+    { name: 'Custom...', value: '__custom__' },
+  ];
+
+  const multiChoices = [
+    { name: `{prefix}-v{version}     (e.g. ${examplePrefix}-v1.0.0)`, value: '{prefix}-v{version}' },
+    { name: `{prefix}/{version}       (e.g. ${examplePrefix}/1.0.0)`, value: '{prefix}/{version}' },
+    { name: `{prefix}@{version}       (e.g. ${examplePrefix}@1.0.0)`, value: '{prefix}@{version}' },
+    { name: 'Custom...', value: '__custom__' },
+  ];
+
+  let tagFormat = await select({
+    message: 'Tag format for your releases:',
+    choices: isMultiClient ? multiChoices : singleChoices,
+    default: defaultFormat,
+  });
+
+  if (tagFormat === '__custom__') {
+    console.log('');
+    console.log('Use placeholders to define your tag format:');
+    console.log('  {version}  → semver version (e.g. 1.0.0)');
+    if (isMultiClient) {
+      console.log('  {prefix}   → client prefix (for multi-client repos)');
+    }
+    console.log('');
+    console.log('Examples:');
+    if (isMultiClient) {
+      console.log(`  {prefix}/v{version}    → ${examplePrefix}/v1.0.0`);
+      console.log(`  release/{prefix}-{version} → release/${examplePrefix}-1.0.0`);
+    } else {
+      console.log('  release-{version}      → release-1.0.0');
+      console.log('  release/v{version}     → release/v1.0.0');
+    }
+    console.log('');
+
+    const customFormat = await input({
+      message: 'Your tag pattern:',
+    });
+
+    if (customFormat.trim()) {
+      tagFormat = customFormat.trim();
+    } else {
+      tagFormat = defaultFormat;
+    }
+
+    // Validate custom format
+    if (!tagFormat.includes('{version}')) {
+      console.log(`  ⚠ Pattern must contain {version}. Using default: ${defaultFormat}`);
+      tagFormat = defaultFormat;
+    }
+    if (!isMultiClient && tagFormat.includes('{prefix}')) {
+      console.log('  ⚠ {prefix} is only valid for multi-client repos. Using default: ' + defaultFormat);
+      tagFormat = defaultFormat;
+    }
+
+    // Show preview
+    const preview = tagFormat
+      .replace('{prefix}', examplePrefix)
+      .replace('{version}', '1.0.0');
+    console.log(`  → e.g. ${preview}`);
+  }
+
+  // 7. Uncategorized mode
   const uncategorized = await select({
     message: 'How to handle uncategorized issues?',
     choices: [
@@ -116,7 +185,7 @@ export async function runInit(): Promise<void> {
     ],
   });
 
-  // 7. Category configuration
+  // 8. Category configuration
   const defaultCategories: Record<string, string> = {
     feature: 'New Features',
     bug: 'Bug Fixes',
@@ -182,15 +251,16 @@ export async function runInit(): Promise<void> {
     }
   }
 
-  // 7b. Contributors
+  // 9. Contributors
   const enableContributors = await confirm({
     message: 'Include a contributors section in release notes?',
     default: false,
   });
 
-  // 8. Write config
+  // 10. Write config
   const config: Record<string, unknown> = {
     provider: { type: providerType, url: providerUrl },
+    tagFormat,
     categories,
     uncategorized,
   };
@@ -211,7 +281,7 @@ export async function runInit(): Promise<void> {
   await writeFile('.releasejet.yml', yamlContent);
   console.log('\n✓ Created .releasejet.yml');
 
-  // 9. CI setup
+  // 11. CI setup
   const ciLabel = providerType === 'github' ? 'GitHub Actions' : 'GitLab CI/CD';
   const setupCi = await confirm({
     message: `Set up ${ciLabel} integration?`,
@@ -226,14 +296,14 @@ export async function runInit(): Promise<void> {
     }
   }
 
-  // 10. API token
+  // 12. API token
   const tokenMessage = providerType === 'github'
     ? 'GitHub personal access token (repo scope):'
     : 'GitLab API token (api scope):';
 
   const token = await input({ message: tokenMessage });
 
-  // 11. Store token
+  // 13. Store token
   if (token) {
     const credDir = join(homedir(), '.releasejet');
     await mkdir(credDir, { recursive: true });
