@@ -102,19 +102,12 @@ function printSecretInstructions(): void {
 
 function printCiInstructions(): void {
   console.log('');
-  console.log('To use Pro in CI, update your workflow:');
+  console.log('To use Pro in CI:');
   console.log('');
   console.log('  1. Add secret RELEASEJET_PRO_TOKEN (value: your rlj_ license key) to your repo');
-  console.log('  2. Add registry setup before npm install:');
+  console.log('  2. Run `releasejet ci enable --pro` to generate the CI template');
   console.log('');
-  console.log('     - run: |');
-  console.log('         echo "@releasejet:registry=https://npm.releasejet.dev/" >> ~/.npmrc');
-  console.log('         echo "//npm.releasejet.dev/:_authToken=${RELEASEJET_PRO_TOKEN}" >> ~/.npmrc');
-  console.log('       env:');
-  console.log('         RELEASEJET_PRO_TOKEN: ${{ secrets.RELEASEJET_PRO_TOKEN }}');
-  console.log('');
-  console.log('  3. Install both packages:');
-  console.log('     npm install -g @makispps/releasejet @releasejet/pro');
+  console.log('  Pro activates automatically when RELEASEJET_PRO_TOKEN is in the environment.');
 }
 
 async function handleCiUpgrade(options: ActivateOptions): Promise<void> {

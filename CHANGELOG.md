@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.8.0] - 2026-04-16
+
+### Added
+
+- **Pro auto-activation from environment variable** — When the Pro plugin is installed and `RELEASEJET_PRO_TOKEN` is set, the license activates automatically without needing `releasejet auth activate` in CI. Hard-fails with a clear error if the env var is set but activation fails.
+- GitHub Actions Pro template now passes `RELEASEJET_PRO_TOKEN` to the `generate` step for auto-activation
+
+### Changed
+
+- Simplified CI setup instructions in `auth activate` — manual `auth activate` step no longer needed in workflows
+
 ## [1.7.0] - 2026-04-16
 
 ### Added

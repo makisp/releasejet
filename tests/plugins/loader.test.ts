@@ -200,6 +200,255 @@ describe('discoverPlugin', () => {
     expect(getPluginRuntime()).not.toBeNull();
   });
 
+  it('auto-activates Pro license from RELEASEJET_PRO_TOKEN when no local credentials exist', async () => {
+    const savedToken = process.env.RELEASEJET_PRO_TOKEN;
+    process.env.RELEASEJET_PRO_TOKEN = 'rlj_abcdefghijklmnopqrstuvwxyz123456';
+
+    try {
+      const program = createMockProgram();
+      const plugin = createMockPlugin();
+
+      vi.mocked(readLicense).mockResolvedValue(null);
+
+      const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => ({ token: 'jwt.from.api', expiresAt: '2026-12-31' }),
+      } as Response);
+
+      vi.mocked(verifyLicense).mockResolvedValue({
+        valid: true,
+        payload: {
+          sub: 'org_abc',
+          email: 'user@example.com',
+          plan: 'pro',
+          features: ['templates'],
+          iat: 0,
+          exp: 0,
+        },
+      });
+
+      await discoverPlugin(program as any, stubConfig, vi.fn(), async () => ({
+        default: plugin,
+      }));
+
+      expect(fetchSpy).toHaveBeenCalledWith(
+        expect.stringContaining('/activate'),
+        expect.objectContaining({
+          method: 'POST',
+          body: JSON.stringify({ key: 'rlj_abcdefghijklmnopqrstuvwxyz123456' }),
+        }),
+      );
+      expect(verifyLicense).toHaveBeenCalledWith('jwt.from.api');
+      expect(plugin.register).toHaveBeenCalled();
+      expect(getPluginRuntime()).not.toBeNull();
+
+      fetchSpy.mockRestore();
+    } finally {
+      if (savedToken === undefined) {
+        delete process.env.RELEASEJET_PRO_TOKEN;
+      } else {
+        process.env.RELEASEJET_PRO_TOKEN = savedToken;
+      }
+    }
+  });
+
+  it('throws on invalid RELEASEJET_PRO_TOKEN format', async () => {
+    const savedToken = process.env.RELEASEJET_PRO_TOKEN;
+    process.env.RELEASEJET_PRO_TOKEN = 'bad-key-format';
+
+    try {
+      const program = createMockProgram();
+      const plugin = createMockPlugin();
+
+      vi.mocked(readLicense).mockResolvedValue(null);
+
+      await expect(
+        discoverPlugin(program as any, stubConfig, vi.fn(), async () => ({
+          default: plugin,
+        })),
+      ).rejects.toThrow('invalid license key format');
+    } finally {
+      if (savedToken === undefined) {
+        delete process.env.RELEASEJET_PRO_TOKEN;
+      } else {
+        process.env.RELEASEJET_PRO_TOKEN = savedToken;
+      }
+    }
+  });
+
+  it('throws on API 401 (invalid key) during auto-activation', async () => {
+    const savedToken = process.env.RELEASEJET_PRO_TOKEN;
+    process.env.RELEASEJET_PRO_TOKEN = 'rlj_abcdefghijklmnopqrstuvwxyz123456';
+
+    try {
+      const program = createMockProgram();
+      const plugin = createMockPlugin();
+
+      vi.mocked(readLicense).mockResolvedValue(null);
+
+      const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue({
+        ok: false,
+        status: 401,
+      } as Response);
+
+      await expect(
+        discoverPlugin(program as any, stubConfig, vi.fn(), async () => ({
+          default: plugin,
+        })),
+      ).rejects.toThrow('invalid license key');
+
+      fetchSpy.mockRestore();
+    } finally {
+      if (savedToken === undefined) {
+        delete process.env.RELEASEJET_PRO_TOKEN;
+      } else {
+        process.env.RELEASEJET_PRO_TOKEN = savedToken;
+      }
+    }
+  });
+
+  it('throws on API 402 (subscription expired) during auto-activation', async () => {
+    const savedToken = process.env.RELEASEJET_PRO_TOKEN;
+    process.env.RELEASEJET_PRO_TOKEN = 'rlj_abcdefghijklmnopqrstuvwxyz123456';
+
+    try {
+      const program = createMockProgram();
+      const plugin = createMockPlugin();
+
+      vi.mocked(readLicense).mockResolvedValue(null);
+
+      const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue({
+        ok: false,
+        status: 402,
+      } as Response);
+
+      await expect(
+        discoverPlugin(program as any, stubConfig, vi.fn(), async () => ({
+          default: plugin,
+        })),
+      ).rejects.toThrow('subscription expired');
+
+      fetchSpy.mockRestore();
+    } finally {
+      if (savedToken === undefined) {
+        delete process.env.RELEASEJET_PRO_TOKEN;
+      } else {
+        process.env.RELEASEJET_PRO_TOKEN = savedToken;
+      }
+    }
+  });
+
+  it('throws on network failure during auto-activation', async () => {
+    const savedToken = process.env.RELEASEJET_PRO_TOKEN;
+    process.env.RELEASEJET_PRO_TOKEN = 'rlj_abcdefghijklmnopqrstuvwxyz123456';
+
+    try {
+      const program = createMockProgram();
+      const plugin = createMockPlugin();
+
+      vi.mocked(readLicense).mockResolvedValue(null);
+
+      const fetchSpy = vi.spyOn(globalThis, 'fetch').mockRejectedValue(
+        new Error('ECONNREFUSED'),
+      );
+
+      await expect(
+        discoverPlugin(program as any, stubConfig, vi.fn(), async () => ({
+          default: plugin,
+        })),
+      ).rejects.toThrow('could not reach license server');
+
+      fetchSpy.mockRestore();
+    } finally {
+      if (savedToken === undefined) {
+        delete process.env.RELEASEJET_PRO_TOKEN;
+      } else {
+        process.env.RELEASEJET_PRO_TOKEN = savedToken;
+      }
+    }
+  });
+
+  it('local credentials take precedence over RELEASEJET_PRO_TOKEN env var', async () => {
+    const savedToken = process.env.RELEASEJET_PRO_TOKEN;
+    process.env.RELEASEJET_PRO_TOKEN = 'rlj_abcdefghijklmnopqrstuvwxyz123456';
+
+    try {
+      const program = createMockProgram();
+      const plugin = createMockPlugin();
+
+      vi.mocked(readLicense).mockResolvedValue({
+        key: 'rlj_local',
+        token: 'local.jwt.token',
+        expiresAt: '2026-12-31',
+      });
+
+      const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => ({ token: 'should.not.be.used', expiresAt: '2026-12-31' }),
+      } as Response);
+
+      vi.mocked(verifyLicense).mockResolvedValue({
+        valid: true,
+        payload: {
+          sub: 'org_abc',
+          email: 'user@example.com',
+          plan: 'pro',
+          features: ['templates'],
+          iat: 0,
+          exp: 0,
+        },
+      });
+
+      await discoverPlugin(program as any, stubConfig, vi.fn(), async () => ({
+        default: plugin,
+      }));
+
+      expect(fetchSpy).not.toHaveBeenCalled();
+      expect(verifyLicense).toHaveBeenCalledWith('local.jwt.token');
+      expect(getPluginRuntime()).not.toBeNull();
+
+      fetchSpy.mockRestore();
+    } finally {
+      if (savedToken === undefined) {
+        delete process.env.RELEASEJET_PRO_TOKEN;
+      } else {
+        process.env.RELEASEJET_PRO_TOKEN = savedToken;
+      }
+    }
+  });
+
+  it('does not call API when plugin is not installed even if RELEASEJET_PRO_TOKEN is set', async () => {
+    const savedToken = process.env.RELEASEJET_PRO_TOKEN;
+    process.env.RELEASEJET_PRO_TOKEN = 'rlj_abcdefghijklmnopqrstuvwxyz123456';
+
+    try {
+      const program = createMockProgram();
+
+      const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => ({ token: 'should.not.be.used', expiresAt: '2026-12-31' }),
+      } as Response);
+
+      await discoverPlugin(program as any, stubConfig, vi.fn(), async () => {
+        throw new Error('MODULE_NOT_FOUND');
+      });
+
+      expect(fetchSpy).not.toHaveBeenCalled();
+      expect(getPluginRuntime()).toBeNull();
+
+      fetchSpy.mockRestore();
+    } finally {
+      if (savedToken === undefined) {
+        delete process.env.RELEASEJET_PRO_TOKEN;
+      } else {
+        process.env.RELEASEJET_PRO_TOKEN = savedToken;
+      }
+    }
+  });
+
   it('plugin runtime exposes formatters registered during register()', async () => {
     const program = createMockProgram();
     const plugin = createMockPlugin({
