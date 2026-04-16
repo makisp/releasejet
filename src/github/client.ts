@@ -6,6 +6,11 @@ function parseOwnerRepo(projectPath: string): { owner: string; repo: string } {
   return { owner, repo };
 }
 
+/** GitLab uses "opened"; GitHub uses "open". */
+function toGitHubState(state: string): string {
+  return state === 'opened' ? 'open' : state;
+}
+
 export function createGitHubClient(
   url: string,
   token: string,
@@ -37,7 +42,7 @@ export function createGitHubClient(
       const params: Record<string, unknown> = {
         owner,
         repo,
-        state: options.state ?? 'closed',
+        state: toGitHubState(options.state ?? 'closed'),
         per_page: 100,
       };
       if (options.updatedAfter) params.since = options.updatedAfter;
@@ -65,7 +70,7 @@ export function createGitHubClient(
       const params: Record<string, unknown> = {
         owner,
         repo,
-        state: options.state ?? 'closed',
+        state: toGitHubState(options.state ?? 'closed'),
         per_page: 100,
       };
 
@@ -100,7 +105,7 @@ export function createGitHubClient(
     async listMilestones(projectPath, options) {
       const { owner, repo } = parseOwnerRepo(projectPath);
       const params: Record<string, unknown> = { owner, repo, per_page: 100 };
-      if (options?.state) params.state = options.state as any;
+      if (options?.state) params.state = toGitHubState(options.state) as any;
 
       const { data: milestones } = await octokit.issues.listMilestones(params as any);
 
