@@ -86,7 +86,19 @@ export function createGitLabClient(
       if (options.milestones?.length) {
         params.milestones = options.milestones;
       }
-      await api.ProjectReleases.create(projectPath, params as any);
+      try {
+        await api.ProjectReleases.create(projectPath, params as any);
+      } catch (err: any) {
+        if (err.cause?.response?.status === 409 || err.message?.includes('already exists')) {
+          await api.ProjectReleases.edit(projectPath, options.tagName, {
+            name: options.name,
+            description: options.description,
+            milestones: options.milestones,
+          } as any);
+        } else {
+          throw err;
+        }
+      }
     },
 
     async listMilestones(projectPath, options) {

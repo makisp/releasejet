@@ -5,6 +5,8 @@ const mockGetCommit = vi.fn();
 const mockListForRepo = vi.fn();
 const mockPullsList = vi.fn();
 const mockCreateRelease = vi.fn();
+const mockGetReleaseByTag = vi.fn();
+const mockUpdateRelease = vi.fn();
 const mockListMilestones = vi.fn();
 
 vi.mock('@octokit/rest', () => ({
@@ -13,6 +15,8 @@ vi.mock('@octokit/rest', () => ({
       listTags: mockListTags,
       getCommit: mockGetCommit,
       createRelease: mockCreateRelease,
+      getReleaseByTag: mockGetReleaseByTag,
+      updateRelease: mockUpdateRelease,
     },
     issues: {
       listForRepo: mockListForRepo,
@@ -178,6 +182,49 @@ describe('createGitHubClient', () => {
         name: 'v1.0.0',
         body: '# Release notes',
       });
+    });
+
+    it('updates existing release on 422 conflict', async () => {
+      const err = new Error('Validation Failed') as any;
+      err.status = 422;
+      mockCreateRelease.mockRejectedValue(err);
+      mockGetReleaseByTag.mockResolvedValue({ data: { id: 99 } });
+      mockUpdateRelease.mockResolvedValue({ data: {} });
+
+      const client = createGitHubClient('https://github.com', 'token');
+      await client.createRelease('owner/repo', {
+        tagName: 'v1.0.0',
+        name: 'v1.0.0',
+        description: '# Updated notes',
+      });
+
+      expect(mockGetReleaseByTag).toHaveBeenCalledWith({
+        owner: 'owner',
+        repo: 'repo',
+        tag: 'v1.0.0',
+      });
+      expect(mockUpdateRelease).toHaveBeenCalledWith({
+        owner: 'owner',
+        repo: 'repo',
+        release_id: 99,
+        name: 'v1.0.0',
+        body: '# Updated notes',
+      });
+    });
+
+    it('rethrows non-422 errors', async () => {
+      const err = new Error('Server error') as any;
+      err.status = 500;
+      mockCreateRelease.mockRejectedValue(err);
+
+      const client = createGitHubClient('https://github.com', 'token');
+      await expect(
+        client.createRelease('owner/repo', {
+          tagName: 'v1.0.0',
+          name: 'v1.0.0',
+          description: '# Notes',
+        }),
+      ).rejects.toThrow('Server error');
     });
   });
 
