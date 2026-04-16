@@ -17,3 +17,16 @@ jobs:
       - run: releasejet generate --tag "${{ github.ref_name }}" --publish
         env:
           RELEASEJET_TOKEN: ${{ secrets.RELEASEJET_TOKEN }}
+
+# --- Pro Support (uncomment if using @releasejet/pro) ---
+# Add RELEASEJET_PRO_TOKEN to your repo secrets with your rlj_ license key.
+#
+# Replace the "npm install" step above with:
+#     - name: Configure Pro registry
+#       run: |
+#         echo "@releasejet:registry=https://npm.releasejet.dev/" >> ~/.npmrc
+#         echo "//npm.releasejet.dev/:_authToken=${RELEASEJET_PRO_TOKEN}" >> ~/.npmrc
+#       env:
+#         RELEASEJET_PRO_TOKEN: ${{ secrets.RELEASEJET_PRO_TOKEN }}
+#     - run: npm install -g @makispps/releasejet @releasejet/pro
+# ---
