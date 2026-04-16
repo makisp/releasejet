@@ -48,9 +48,10 @@ describe('runInit — category step', () => {
   });
 
   it('writes default categories when user selects "defaults"', async () => {
-    // select calls: (1) provider=gitlab, (2) uncategorized, (3) category mode
+    // select calls: (1) provider=gitlab, (2) tag format, (3) uncategorized, (4) category mode
     vi.mocked(select)
       .mockResolvedValueOnce('gitlab')
+      .mockResolvedValueOnce('v{version}')
       .mockResolvedValueOnce('lenient')
       .mockResolvedValueOnce('defaults');
     // input calls: (1) provider URL, (2) token
@@ -68,9 +69,10 @@ describe('runInit — category step', () => {
 
   it('extends defaults with custom categories', async () => {
     vi.mocked(select)
-      .mockResolvedValueOnce('gitlab')   // provider
-      .mockResolvedValueOnce('lenient')  // uncategorized
-      .mockResolvedValueOnce('extend');  // category mode
+      .mockResolvedValueOnce('gitlab')       // provider
+      .mockResolvedValueOnce('v{version}')   // tag format
+      .mockResolvedValueOnce('lenient')      // uncategorized
+      .mockResolvedValueOnce('extend');      // category mode
     vi.mocked(input)
       .mockResolvedValueOnce('https://gitlab.example.com') // provider URL
       .mockResolvedValueOnce('security')               // 1st custom label
@@ -90,9 +92,10 @@ describe('runInit — category step', () => {
 
   it('uses only custom categories when user selects "custom"', async () => {
     vi.mocked(select)
-      .mockResolvedValueOnce('gitlab')   // provider
-      .mockResolvedValueOnce('lenient')  // uncategorized
-      .mockResolvedValueOnce('custom');  // category mode
+      .mockResolvedValueOnce('gitlab')       // provider
+      .mockResolvedValueOnce('v{version}')   // tag format
+      .mockResolvedValueOnce('lenient')      // uncategorized
+      .mockResolvedValueOnce('custom');      // category mode
     vi.mocked(input)
       .mockResolvedValueOnce('https://gitlab.example.com')
       .mockResolvedValueOnce('enhancement')
@@ -114,9 +117,10 @@ describe('runInit — category step', () => {
 
   it('skips duplicate labels silently', async () => {
     vi.mocked(select)
-      .mockResolvedValueOnce('gitlab')   // provider
-      .mockResolvedValueOnce('lenient')  // uncategorized
-      .mockResolvedValueOnce('extend');  // category mode
+      .mockResolvedValueOnce('gitlab')       // provider
+      .mockResolvedValueOnce('v{version}')   // tag format
+      .mockResolvedValueOnce('lenient')      // uncategorized
+      .mockResolvedValueOnce('extend');      // category mode
     vi.mocked(input)
       .mockResolvedValueOnce('https://gitlab.example.com')
       .mockResolvedValueOnce('security')
@@ -137,9 +141,10 @@ describe('runInit — category step', () => {
 
   it('re-prompts when custom-only mode has zero entries', async () => {
     vi.mocked(select)
-      .mockResolvedValueOnce('gitlab')   // provider
-      .mockResolvedValueOnce('lenient')  // uncategorized
-      .mockResolvedValueOnce('custom');  // category mode
+      .mockResolvedValueOnce('gitlab')       // provider
+      .mockResolvedValueOnce('v{version}')   // tag format
+      .mockResolvedValueOnce('lenient')      // uncategorized
+      .mockResolvedValueOnce('custom');      // category mode
     vi.mocked(input)
       .mockResolvedValueOnce('https://gitlab.example.com')
       .mockResolvedValueOnce('')                         // empty on first try
@@ -157,9 +162,10 @@ describe('runInit — category step', () => {
 
   it('defaults heading to capitalized label when left empty', async () => {
     vi.mocked(select)
-      .mockResolvedValueOnce('gitlab')   // provider
-      .mockResolvedValueOnce('lenient')  // uncategorized
-      .mockResolvedValueOnce('extend');  // category mode
+      .mockResolvedValueOnce('gitlab')       // provider
+      .mockResolvedValueOnce('v{version}')   // tag format
+      .mockResolvedValueOnce('lenient')      // uncategorized
+      .mockResolvedValueOnce('extend');      // category mode
     vi.mocked(input)
       .mockResolvedValueOnce('https://gitlab.example.com')
       .mockResolvedValueOnce('security')
@@ -187,9 +193,10 @@ describe('runInit — CI setup step', () => {
   });
 
   function mockDefaultAnswers(ciSetup: boolean, ciTags?: string) {
-    // select calls: (1) provider=gitlab, (2) uncategorized, (3) category mode
+    // select calls: (1) provider=gitlab, (2) tag format, (3) uncategorized, (4) category mode
     vi.mocked(select)
       .mockResolvedValueOnce('gitlab')
+      .mockResolvedValueOnce('v{version}')
       .mockResolvedValueOnce('lenient')
       .mockResolvedValueOnce('defaults');
 
@@ -258,10 +265,11 @@ describe('runInit — provider selection', () => {
 
   it('writes provider block for GitHub', async () => {
     vi.mocked(select)
-      .mockResolvedValueOnce('github')     // provider
-      .mockResolvedValueOnce('issues')     // source
-      .mockResolvedValueOnce('lenient')    // uncategorized
-      .mockResolvedValueOnce('defaults');  // categories
+      .mockResolvedValueOnce('github')          // provider
+      .mockResolvedValueOnce('issues')          // source
+      .mockResolvedValueOnce('v{version}')      // tag format
+      .mockResolvedValueOnce('lenient')         // uncategorized
+      .mockResolvedValueOnce('defaults');       // categories
     vi.mocked(input)
       .mockResolvedValueOnce('https://github.com')  // provider URL
       .mockResolvedValueOnce('ghp_test-token');      // token
@@ -278,9 +286,10 @@ describe('runInit — provider selection', () => {
 
   it('writes provider block for GitLab', async () => {
     vi.mocked(select)
-      .mockResolvedValueOnce('gitlab')     // provider
-      .mockResolvedValueOnce('lenient')    // uncategorized
-      .mockResolvedValueOnce('defaults');  // categories
+      .mockResolvedValueOnce('gitlab')          // provider
+      .mockResolvedValueOnce('v{version}')      // tag format
+      .mockResolvedValueOnce('lenient')         // uncategorized
+      .mockResolvedValueOnce('defaults');       // categories
     vi.mocked(input)
       .mockResolvedValueOnce('https://gitlab.example.com')  // provider URL
       .mockResolvedValueOnce('glpat-test-token');            // token
@@ -299,6 +308,7 @@ describe('runInit — provider selection', () => {
     vi.mocked(select)
       .mockResolvedValueOnce('github')
       .mockResolvedValueOnce('issues')
+      .mockResolvedValueOnce('v{version}')
       .mockResolvedValueOnce('lenient')
       .mockResolvedValueOnce('defaults');
     vi.mocked(input)
@@ -328,9 +338,10 @@ describe('runInit — contributors step', () => {
 
   it('writes contributors config when user accepts', async () => {
     vi.mocked(select)
-      .mockResolvedValueOnce('gitlab')     // provider
-      .mockResolvedValueOnce('lenient')    // uncategorized
-      .mockResolvedValueOnce('defaults');  // categories
+      .mockResolvedValueOnce('gitlab')          // provider
+      .mockResolvedValueOnce('v{version}')      // tag format
+      .mockResolvedValueOnce('lenient')         // uncategorized
+      .mockResolvedValueOnce('defaults');       // categories
     vi.mocked(input)
       .mockResolvedValueOnce('https://gitlab.example.com')  // provider URL
       .mockResolvedValueOnce('test-token');                   // token
@@ -347,9 +358,10 @@ describe('runInit — contributors step', () => {
 
   it('omits contributors config when user declines', async () => {
     vi.mocked(select)
-      .mockResolvedValueOnce('gitlab')     // provider
-      .mockResolvedValueOnce('lenient')    // uncategorized
-      .mockResolvedValueOnce('defaults');  // categories
+      .mockResolvedValueOnce('gitlab')          // provider
+      .mockResolvedValueOnce('v{version}')      // tag format
+      .mockResolvedValueOnce('lenient')         // uncategorized
+      .mockResolvedValueOnce('defaults');       // categories
     vi.mocked(input)
       .mockResolvedValueOnce('https://gitlab.example.com')  // provider URL
       .mockResolvedValueOnce('test-token');                   // token
