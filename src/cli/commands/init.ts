@@ -153,8 +153,8 @@ export async function runInit(): Promise<void> {
     while (true) {
       const label = await input({
         message: needsAtLeastOne
-          ? 'At least one category is required. Label (as it appears in GitLab):'
-          : 'Label (as it appears in GitLab, or press Enter when done):',
+          ? 'At least one category is required. Label (as it appears in your repo):'
+          : 'Label (as it appears in your repo, or press Enter when done):',
       });
 
       if (!label.trim()) {
