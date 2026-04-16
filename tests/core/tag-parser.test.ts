@@ -1,6 +1,65 @@
 import { describe, it, expect } from 'vitest';
-import { parseTag, findPreviousTag, validateTag } from '../../src/core/tag-parser.js';
+import { parseTag, findPreviousTag, validateTag, tagFormatToRegex } from '../../src/core/tag-parser.js';
 import type { TagInfo, ReleaseJetConfig } from '../../src/types.js';
+
+describe('tagFormatToRegex', () => {
+  it('converts v{version} to regex with version in group 1', () => {
+    const result = tagFormatToRegex('v{version}');
+    expect(result.regex.source).toBe('^v(.+)$');
+    expect(result.prefixGroup).toBeNull();
+    expect(result.versionGroup).toBe(1);
+  });
+
+  it('converts {prefix}-v{version} to regex with prefix in group 1 and version in group 2', () => {
+    const result = tagFormatToRegex('{prefix}-v{version}');
+    expect(result.regex.source).toBe('^(.+?)-v(.+)$');
+    expect(result.prefixGroup).toBe(1);
+    expect(result.versionGroup).toBe(2);
+  });
+
+  it('converts bare {version} to regex', () => {
+    const result = tagFormatToRegex('{version}');
+    expect(result.regex.source).toBe('^(.+)$');
+    expect(result.prefixGroup).toBeNull();
+    expect(result.versionGroup).toBe(1);
+  });
+
+  it('converts {prefix}/{version} with slash separator', () => {
+    const result = tagFormatToRegex('{prefix}/{version}');
+    // Node 22+ escapes '/' in RegExp.source; test the regex behavior instead
+    expect('mobile/1.0.0').toMatch(result.regex);
+    expect('mobile-1.0.0').not.toMatch(result.regex);
+    expect(result.prefixGroup).toBe(1);
+    expect(result.versionGroup).toBe(2);
+  });
+
+  it('converts {prefix}@{version} with at-sign separator', () => {
+    const result = tagFormatToRegex('{prefix}@{version}');
+    expect(result.regex.source).toBe('^(.+?)@(.+)$');
+    expect(result.prefixGroup).toBe(1);
+    expect(result.versionGroup).toBe(2);
+  });
+
+  it('converts release/v{version} with literal path prefix', () => {
+    const result = tagFormatToRegex('release/v{version}');
+    // Node 22+ escapes '/' in RegExp.source; test the regex behavior instead
+    expect('release/v1.0.0').toMatch(result.regex);
+    expect('release-v1.0.0').not.toMatch(result.regex);
+    expect(result.prefixGroup).toBeNull();
+    expect(result.versionGroup).toBe(1);
+  });
+
+  it('escapes regex special characters in literal parts', () => {
+    const result = tagFormatToRegex('release.{version}');
+    expect(result.regex.source).toBe('^release\\.(.+)$');
+  });
+
+  it('throws when {version} placeholder is missing', () => {
+    expect(() => tagFormatToRegex('{prefix}-release')).toThrow(
+      'Tag format must contain {version}',
+    );
+  });
+});
 
 describe('parseTag', () => {
   it('parses multi-client tag', () => {
@@ -67,6 +126,116 @@ describe('parseTag', () => {
 
   it('throws on tag with no version number', () => {
     expect(() => parseTag('v-no-version')).toThrow('Invalid tag format');
+  });
+});
+
+describe('parseTag with tagFormat', () => {
+  it('parses v-prefixed tag with v{version} format', () => {
+    expect(parseTag('v1.0.0', 'v{version}')).toEqual({
+      raw: 'v1.0.0',
+      prefix: null,
+      version: '1.0.0',
+      suffix: null,
+    });
+  });
+
+  it('parses bare version with {version} format', () => {
+    expect(parseTag('1.0.0', '{version}')).toEqual({
+      raw: '1.0.0',
+      prefix: null,
+      version: '1.0.0',
+      suffix: null,
+    });
+  });
+
+  it('parses multi-client tag with {prefix}-v{version} format', () => {
+    expect(parseTag('mobile-v1.0.0', '{prefix}-v{version}')).toEqual({
+      raw: 'mobile-v1.0.0',
+      prefix: 'mobile',
+      version: '1.0.0',
+      suffix: null,
+    });
+  });
+
+  it('parses tag with slash separator {prefix}/{version}', () => {
+    expect(parseTag('mobile/1.0.0', '{prefix}/{version}')).toEqual({
+      raw: 'mobile/1.0.0',
+      prefix: 'mobile',
+      version: '1.0.0',
+      suffix: null,
+    });
+  });
+
+  it('parses tag with at-sign separator {prefix}@{version}', () => {
+    expect(parseTag('mobile@1.0.0', '{prefix}@{version}')).toEqual({
+      raw: 'mobile@1.0.0',
+      prefix: 'mobile',
+      version: '1.0.0',
+      suffix: null,
+    });
+  });
+
+  it('parses tag with literal path prefix release/v{version}', () => {
+    expect(parseTag('release/v1.0.0', 'release/v{version}')).toEqual({
+      raw: 'release/v1.0.0',
+      prefix: null,
+      version: '1.0.0',
+      suffix: null,
+    });
+  });
+
+  it('preserves suffix with custom format', () => {
+    expect(parseTag('v1.0.0-beta.1', 'v{version}')).toEqual({
+      raw: 'v1.0.0-beta.1',
+      prefix: null,
+      version: '1.0.0',
+      suffix: '-beta.1',
+    });
+  });
+
+  it('preserves suffix with prefix format', () => {
+    expect(parseTag('mobile-v0.12.0-hotfix', '{prefix}-v{version}')).toEqual({
+      raw: 'mobile-v0.12.0-hotfix',
+      prefix: 'mobile',
+      version: '0.12.0',
+      suffix: '-hotfix',
+    });
+  });
+
+  it('throws when tag does not match custom format', () => {
+    expect(() => parseTag('badtag', 'v{version}')).toThrow(
+      'Expected format: v{version}',
+    );
+  });
+
+  it('throws when version part is not valid semver', () => {
+    expect(() => parseTag('v-notaversion', 'v{version}')).toThrow(
+      'Expected format: v{version}',
+    );
+  });
+
+  it('parses hyphenated prefix with custom format', () => {
+    expect(parseTag('my-app-v2.0.0', '{prefix}-v{version}')).toEqual({
+      raw: 'my-app-v2.0.0',
+      prefix: 'my-app',
+      version: '2.0.0',
+      suffix: null,
+    });
+  });
+
+  it('falls back to legacy behavior when tagFormat is undefined', () => {
+    expect(parseTag('v1.0.0')).toEqual({
+      raw: 'v1.0.0',
+      prefix: null,
+      version: '1.0.0',
+      suffix: null,
+    });
+    expect(parseTag('mobile-v1.0.0')).toEqual({
+      raw: 'mobile-v1.0.0',
+      prefix: 'mobile',
+      version: '1.0.0',
+      suffix: null,
+    });
   });
 });
 
