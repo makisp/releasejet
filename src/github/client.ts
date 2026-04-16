@@ -93,13 +93,32 @@ export function createGitHubClient(
 
     async createRelease(projectPath, options) {
       const { owner, repo } = parseOwnerRepo(projectPath);
-      await octokit.repos.createRelease({
-        owner,
-        repo,
-        tag_name: options.tagName,
-        name: options.name,
-        body: options.description,
-      });
+      try {
+        await octokit.repos.createRelease({
+          owner,
+          repo,
+          tag_name: options.tagName,
+          name: options.name,
+          body: options.description,
+        });
+      } catch (err: any) {
+        if (err.status === 422) {
+          const { data: existing } = await octokit.repos.getReleaseByTag({
+            owner,
+            repo,
+            tag: options.tagName,
+          });
+          await octokit.repos.updateRelease({
+            owner,
+            repo,
+            release_id: existing.id,
+            name: options.name,
+            body: options.description,
+          });
+        } else {
+          throw err;
+        }
+      }
     },
 
     async listMilestones(projectPath, options) {
