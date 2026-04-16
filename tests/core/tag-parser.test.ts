@@ -371,4 +371,53 @@ describe('validateTag', () => {
     const result = validateTag('anything-v1.0.0', singleClientConfig);
     expect(result).toEqual({ tag: 'anything-v1.0.0', valid: true });
   });
+
+  it('validates tag against custom tagFormat', () => {
+    const config: ReleaseJetConfig = {
+      ...singleClientConfig,
+      tagFormat: '{version}',
+    };
+    const result = validateTag('1.0.0', config);
+    expect(result).toEqual({ tag: '1.0.0', valid: true });
+  });
+
+  it('rejects tag that does not match custom tagFormat', () => {
+    const config: ReleaseJetConfig = {
+      ...singleClientConfig,
+      tagFormat: 'release/v{version}',
+    };
+    const result = validateTag('v1.0.0', config);
+    expect(result).toEqual({
+      tag: 'v1.0.0',
+      valid: false,
+      reason: 'does not match expected format',
+    });
+  });
+
+  it('validates multi-client tag with custom format and known prefix', () => {
+    const config: ReleaseJetConfig = {
+      ...multiClientConfig,
+      tagFormat: '{prefix}/{version}',
+    };
+    const result = validateTag('mobile/1.0.0', config);
+    expect(result).toEqual({ tag: 'mobile/1.0.0', valid: true });
+  });
+
+  it('rejects multi-client tag with custom format and unknown prefix', () => {
+    const config: ReleaseJetConfig = {
+      ...multiClientConfig,
+      tagFormat: '{prefix}/{version}',
+    };
+    const result = validateTag('desktop/1.0.0', config);
+    expect(result).toEqual({
+      tag: 'desktop/1.0.0',
+      valid: false,
+      reason: 'unknown prefix "desktop" (expected: mobile, web)',
+    });
+  });
+
+  it('falls back to legacy validation when tagFormat is undefined', () => {
+    const result = validateTag('v1.2.3', singleClientConfig);
+    expect(result).toEqual({ tag: 'v1.2.3', valid: true });
+  });
 });

@@ -54,8 +54,7 @@ The --since flag overrides automatic previous tag detection. Useful for:
   - Hotfix branches where the automatic tag chain doesn't match
 
 Tag format:
-  Multi-client:  <prefix>-v<semver>  (e.g., mobile-v1.2.0)
-  Single-client: v<semver>           (e.g., v1.2.0)
+  Configured via tagFormat in .releasejet.yml (default: v<semver> or <prefix>-v<semver>)
 `)
     .action(withErrorHandler(async (options) => {
       await runGenerate(options);
@@ -88,7 +87,7 @@ export async function runGenerate(options: {
   const token = await resolveToken(config.provider.type);
   const client = createClient(config, token);
 
-  const currentParsed = parseTag(options.tag);
+  const currentParsed = parseTag(options.tag, config.tagFormat);
   debug('Parsed tag:', JSON.stringify(currentParsed));
 
   let apiTags: Array<{ name: string; createdAt: string }>;
@@ -105,7 +104,7 @@ export async function runGenerate(options: {
   const allTags: TagInfo[] = apiTags
     .map((t) => {
       try {
-        const parsed = parseTag(t.name);
+        const parsed = parseTag(t.name, config.tagFormat);
         return { ...parsed, createdAt: t.createdAt };
       } catch {
         return null;
