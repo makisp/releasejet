@@ -24,6 +24,7 @@ export interface ReleaseJetConfig {
   uncategorized: 'lenient' | 'strict';
   contributors?: ContributorsConfig;
   template?: string;
+  tagFormat?: string;
 }
 
 export interface ParsedTag {
