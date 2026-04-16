@@ -13,6 +13,11 @@ import { readLicense } from '../license/store.js';
 import { verifyLicense } from '../license/validator.js';
 import type { ReleaseJetConfig } from '../types.js';
 
+const LICENSE_API_URL =
+  process.env.RELEASEJET_LICENSE_API || 'https://releasejet.dev/api/license';
+
+const KEY_PATTERN = /^rlj_[a-zA-Z0-9]{32}$/;
+
 let _pluginRuntime: PluginRuntime | null = null;
 
 export function getPluginRuntime(): PluginRuntime | null {
@@ -65,15 +70,57 @@ export async function discoverPlugin(
     return;
   }
 
+  let token: string;
   const license = await readLicense();
-  if (!license) {
-    console.warn(
-      '@releasejet/pro found but no license activated. Run `releasejet auth activate <key>`.',
-    );
-    return;
+
+  if (license) {
+    token = license.token;
+  } else {
+    const proKey = process.env.RELEASEJET_PRO_TOKEN;
+    if (!proKey) {
+      console.warn(
+        '@releasejet/pro found but no license activated. Run `releasejet auth activate <key>` or set RELEASEJET_PRO_TOKEN.',
+      );
+      return;
+    }
+
+    if (!KEY_PATTERN.test(proKey)) {
+      throw new Error(
+        'Pro auto-activation failed: invalid license key format. Expected rlj_ prefix.',
+      );
+    }
+
+    let response: Response;
+    try {
+      response = await fetch(`${LICENSE_API_URL}/activate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key: proKey }),
+      });
+    } catch {
+      throw new Error(
+        'Pro auto-activation failed: could not reach license server. Check network connectivity.',
+      );
+    }
+
+    if (!response.ok) {
+      const status = response.status;
+      if (status === 402 || status === 403) {
+        throw new Error(
+          'Pro auto-activation failed: subscription expired. Renew at releasejet.dev.',
+        );
+      }
+      throw new Error(
+        'Pro auto-activation failed: invalid license key. Check your RELEASEJET_PRO_TOKEN secret.',
+      );
+    }
+
+    const body = (await response.json()) as { token: string; expiresAt: string };
+    token = body.token;
+    debug('Pro license auto-activated from RELEASEJET_PRO_TOKEN env var');
   }
 
-  const status = await verifyLicense(license.token);
+  const status = await verifyLicense(token);
   if (!status.valid) {
     if (status.reason === 'expired') {
       console.warn(
