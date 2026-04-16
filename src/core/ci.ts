@@ -79,7 +79,7 @@ ${registryStep}      - run: npm install -g ${installPackage}
       - run: releasejet generate --tag "\${{ github.ref_name }}" --publish
         env:
           RELEASEJET_TOKEN: \${{ secrets.RELEASEJET_TOKEN }}
-`;
+${pro ? '          RELEASEJET_PRO_TOKEN: ${{ secrets.RELEASEJET_PRO_TOKEN }}\n' : ''}`;
 }
 
 export function hasProLines(content: string): boolean {
