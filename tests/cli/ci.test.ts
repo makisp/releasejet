@@ -7,17 +7,32 @@ vi.mock('node:fs/promises', () => ({
   readFile: vi.fn(),
   writeFile: vi.fn().mockResolvedValue(undefined),
   unlink: vi.fn().mockResolvedValue(undefined),
+  mkdir: vi.fn().mockResolvedValue(undefined),
+}));
+
+vi.mock('../../src/license/detect.js', () => ({
+  hasActivePro: vi.fn(),
+}));
+
+vi.mock('../../src/core/git.js', () => ({
+  getRemoteUrl: vi.fn(),
+  detectProviderFromRemote: vi.fn(),
 }));
 
 import { input } from '@inquirer/prompts';
-import { readFile, writeFile, unlink } from 'node:fs/promises';
+import { readFile, writeFile, unlink, mkdir } from 'node:fs/promises';
 import { runCiEnable, runCiDisable } from '../../src/cli/commands/ci.js';
 import { CI_MARKER_START, CI_MARKER_END } from '../../src/core/ci.js';
+import { hasActivePro } from '../../src/license/detect.js';
+import { getRemoteUrl, detectProviderFromRemote } from '../../src/core/git.js';
 
 describe('runCiEnable', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.spyOn(console, 'log').mockImplementation(() => {});
+    vi.mocked(hasActivePro).mockResolvedValue(false);
+    vi.mocked(getRemoteUrl).mockReturnValue('git@gitlab.com:group/project.git');
+    vi.mocked(detectProviderFromRemote).mockReturnValue('gitlab');
   });
 
   it('creates .gitlab-ci.yml when file does not exist', async () => {
@@ -87,10 +102,16 @@ describe('runCiDisable', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.spyOn(console, 'log').mockImplementation(() => {});
+    vi.mocked(hasActivePro).mockResolvedValue(false);
+    vi.mocked(getRemoteUrl).mockReturnValue('git@gitlab.com:group/project.git');
+    vi.mocked(detectProviderFromRemote).mockReturnValue('gitlab');
   });
 
   it('removes marker block and keeps other config', async () => {
     const block = `${CI_MARKER_START}\ninclude:\n  - project: 'tools/releasejet'\n${CI_MARKER_END}`;
+    const enoent = Object.assign(new Error('ENOENT'), { code: 'ENOENT' });
+    // First call: GitHub Actions path (not found), second call: GitLab CI path (found)
+    vi.mocked(readFile).mockRejectedValueOnce(enoent);
     vi.mocked(readFile).mockResolvedValueOnce(`stages:\n  - build\n\n${block}\n`);
 
     await runCiDisable();
@@ -104,6 +125,9 @@ describe('runCiDisable', () => {
 
   it('deletes file when only marker block remains', async () => {
     const block = `${CI_MARKER_START}\ninclude:\n  - project: 'tools/releasejet'\n${CI_MARKER_END}\n`;
+    const enoent = Object.assign(new Error('ENOENT'), { code: 'ENOENT' });
+    // First call: GitHub Actions path (not found), second call: GitLab CI path (found)
+    vi.mocked(readFile).mockRejectedValueOnce(enoent);
     vi.mocked(readFile).mockResolvedValueOnce(block);
 
     await runCiDisable();
@@ -114,6 +138,8 @@ describe('runCiDisable', () => {
 
   it('prints message when file does not exist', async () => {
     const enoent = Object.assign(new Error('ENOENT'), { code: 'ENOENT' });
+    // Both GitHub Actions and GitLab CI paths return ENOENT
+    vi.mocked(readFile).mockRejectedValueOnce(enoent);
     vi.mocked(readFile).mockRejectedValueOnce(enoent);
 
     await runCiDisable();
@@ -124,6 +150,9 @@ describe('runCiDisable', () => {
   });
 
   it('prints message when no markers found in existing file', async () => {
+    const enoent = Object.assign(new Error('ENOENT'), { code: 'ENOENT' });
+    // First call: GitHub Actions path (not found), second call: GitLab CI path (no markers)
+    vi.mocked(readFile).mockRejectedValueOnce(enoent);
     vi.mocked(readFile).mockResolvedValueOnce('stages:\n  - build\n');
 
     await runCiDisable();
@@ -131,5 +160,92 @@ describe('runCiDisable', () => {
     expect(console.log).toHaveBeenCalledWith('ReleaseJet CI is not configured.');
     expect(writeFile).not.toHaveBeenCalled();
     expect(unlink).not.toHaveBeenCalled();
+  });
+});
+
+describe('runCiEnable — Pro support', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.spyOn(console, 'log').mockImplementation(() => {});
+    vi.mocked(hasActivePro).mockResolvedValue(false);
+    vi.mocked(getRemoteUrl).mockReturnValue('git@gitlab.com:group/project.git');
+    vi.mocked(detectProviderFromRemote).mockReturnValue('gitlab');
+  });
+
+  it('generates Pro GitLab CI block with --pro flag', async () => {
+    const enoent = Object.assign(new Error('ENOENT'), { code: 'ENOENT' });
+    vi.mocked(readFile).mockRejectedValue(enoent);
+    vi.mocked(input).mockResolvedValueOnce('');
+
+    await runCiEnable({ pro: true });
+
+    const written = vi.mocked(writeFile).mock.calls[0][1] as string;
+    expect(written).toContain('npm.releasejet.dev');
+    expect(written).toContain('@releasejet/pro');
+  });
+
+  it('auto-detects Pro license and generates Pro template', async () => {
+    const enoent = Object.assign(new Error('ENOENT'), { code: 'ENOENT' });
+    vi.mocked(readFile).mockRejectedValue(enoent);
+    vi.mocked(input).mockResolvedValueOnce('');
+    vi.mocked(hasActivePro).mockResolvedValue(true);
+
+    await runCiEnable({});
+
+    const written = vi.mocked(writeFile).mock.calls[0][1] as string;
+    expect(written).toContain('@releasejet/pro');
+  });
+
+  it('generates free template when no Pro license', async () => {
+    const enoent = Object.assign(new Error('ENOENT'), { code: 'ENOENT' });
+    vi.mocked(readFile).mockRejectedValue(enoent);
+    vi.mocked(input).mockResolvedValueOnce('');
+
+    await runCiEnable({});
+
+    const written = vi.mocked(writeFile).mock.calls[0][1] as string;
+    expect(written).not.toContain('npm.releasejet.dev');
+  });
+});
+
+describe('runCiEnable — GitHub Actions', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.spyOn(console, 'log').mockImplementation(() => {});
+    vi.mocked(hasActivePro).mockResolvedValue(false);
+    vi.mocked(getRemoteUrl).mockReturnValue('git@github.com:user/repo.git');
+    vi.mocked(detectProviderFromRemote).mockReturnValue('github');
+  });
+
+  it('generates GitHub Actions workflow for GitHub provider', async () => {
+    const enoent = Object.assign(new Error('ENOENT'), { code: 'ENOENT' });
+    vi.mocked(readFile).mockRejectedValue(enoent);
+
+    await runCiEnable({});
+
+    expect(mkdir).toHaveBeenCalledWith('.github/workflows', { recursive: true });
+    expect(writeFile).toHaveBeenCalledWith(
+      '.github/workflows/release-notes.yml',
+      expect.stringContaining('name: Release Notes'),
+    );
+  });
+
+  it('generates Pro GitHub Actions workflow with --pro flag', async () => {
+    const enoent = Object.assign(new Error('ENOENT'), { code: 'ENOENT' });
+    vi.mocked(readFile).mockRejectedValue(enoent);
+
+    await runCiEnable({ pro: true });
+
+    const written = vi.mocked(writeFile).mock.calls[0][1] as string;
+    expect(written).toContain('npm.releasejet.dev');
+    expect(written).toContain('@releasejet/pro');
+  });
+
+  it('skips when GitHub Actions workflow already exists', async () => {
+    vi.mocked(readFile).mockResolvedValue('name: Release Notes\n');
+
+    await runCiEnable({});
+
+    expect(writeFile).not.toHaveBeenCalled();
   });
 });
