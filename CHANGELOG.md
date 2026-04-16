@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.9.0] - 2026-04-16
+
+### Added
+
+- **Custom tag format support** — new `tagFormat` field in `.releasejet.yml` lets you define how your git tags are structured using `{version}` and `{prefix}` placeholders (e.g., `{version}`, `release/v{version}`, `{prefix}@{version}`)
+- `init` wizard now includes a tag format selection step with common presets and a custom pattern option
+- Tags like `1.0.0` (no `v` prefix), `release/v1.0.0`, and `app@1.0.0` are now supported when configured
+
+### Changed
+
+- `parseTag()` and `validateTag()` now respect the `tagFormat` config field
+- `generate` command passes `tagFormat` to the tag parser for all tag operations
+- Existing configs without `tagFormat` continue to work with the default `v{version}` / `{prefix}-v{version}` behavior
+
 ## [1.8.2] - 2026-04-16
 
 ### Fixed

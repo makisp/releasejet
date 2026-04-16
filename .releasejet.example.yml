@@ -2,9 +2,16 @@
 # Copy to .releasejet.yml and customize for your project.
 # Or run: releasejet init
 
-# GitLab instance URL
-gitlab:
-  url: https://gitlab.example.com
+# Provider settings
+# provider:
+#   type: github          # or "gitlab"
+#   url: https://github.com
+
+# Tag format — how your git tags are structured
+# Use {version} for the semver part and {prefix} for multi-client prefixes.
+# Default: "v{version}" (single-client) or "{prefix}-v{version}" (multi-client)
+# Examples: "{version}", "release/v{version}", "{prefix}/{version}", "{prefix}@{version}"
+tagFormat: "v{version}"
 
 # Client definitions (omit for single-client repos)
 # clients:
@@ -14,7 +21,7 @@ gitlab:
 #     label: WEB
 
 # Category label mappings
-# Key: the label name in GitLab
+# Key: the label name in your provider
 # Value: the section heading in release notes
 categories:
   feature: "New Features"
