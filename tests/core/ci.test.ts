@@ -4,6 +4,8 @@ import {
   hasCiBlock,
   appendCiBlock,
   removeCiBlock,
+  generateGitHubActionsTemplate,
+  hasProLines,
   CI_MARKER_START,
   CI_MARKER_END,
   DEFAULT_TAGS,
@@ -107,5 +109,63 @@ describe('removeCiBlock', () => {
 describe('DEFAULT_TAGS', () => {
   it('defaults to short-duration', () => {
     expect(DEFAULT_TAGS).toEqual(['short-duration']);
+  });
+});
+
+describe('generateCiBlock — Pro variant', () => {
+  it('generates Pro block with registry lines and dual install', () => {
+    const block = generateCiBlock(['short-duration'], { pro: true });
+    expect(block).toContain(CI_MARKER_START);
+    expect(block).toContain(CI_MARKER_END);
+    expect(block).toContain('echo "@releasejet:registry=https://npm.releasejet.dev/"');
+    expect(block).toContain('RELEASEJET_PRO_TOKEN');
+    expect(block).toContain('@makispps/releasejet @releasejet/pro');
+  });
+
+  it('generates free block when pro is false', () => {
+    const block = generateCiBlock(['short-duration'], { pro: false });
+    expect(block).not.toContain('npm.releasejet.dev');
+    expect(block).not.toContain('@releasejet/pro');
+    expect(block).toContain('npm install -g @makispps/releasejet');
+  });
+
+  it('defaults to free block when options omitted', () => {
+    const block = generateCiBlock(['short-duration']);
+    expect(block).not.toContain('npm.releasejet.dev');
+  });
+});
+
+describe('generateGitHubActionsTemplate', () => {
+  it('generates free GitHub Actions template', () => {
+    const template = generateGitHubActionsTemplate({ pro: false });
+    expect(template).toContain('name: Release Notes');
+    expect(template).toContain('npm install -g @makispps/releasejet');
+    expect(template).toContain('RELEASEJET_TOKEN');
+    expect(template).not.toContain('npm.releasejet.dev');
+    expect(template).not.toContain('@releasejet/pro');
+  });
+
+  it('generates Pro GitHub Actions template', () => {
+    const template = generateGitHubActionsTemplate({ pro: true });
+    expect(template).toContain('name: Release Notes');
+    expect(template).toContain('Configure Pro registry');
+    expect(template).toContain('echo "@releasejet:registry=https://npm.releasejet.dev/"');
+    expect(template).toContain('RELEASEJET_PRO_TOKEN');
+    expect(template).toContain('@makispps/releasejet @releasejet/pro');
+    expect(template).toContain('RELEASEJET_TOKEN');
+  });
+});
+
+describe('hasProLines', () => {
+  it('returns true when content contains npm.releasejet.dev', () => {
+    expect(hasProLines('echo "//npm.releasejet.dev/:_authToken"')).toBe(true);
+  });
+
+  it('returns true when content contains @releasejet/pro', () => {
+    expect(hasProLines('npm install -g @makispps/releasejet @releasejet/pro')).toBe(true);
+  });
+
+  it('returns false for free template content', () => {
+    expect(hasProLines('npm install -g @makispps/releasejet')).toBe(false);
   });
 });

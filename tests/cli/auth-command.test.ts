@@ -10,22 +10,41 @@ vi.mock('../../src/license/validator.js', () => ({
   verifyLicense: vi.fn(),
 }));
 
+vi.mock('../../src/license/npmrc.js', () => ({
+  isNpmrcConfigured: vi.fn(),
+  writeNpmrcConfig: vi.fn(),
+  removeNpmrcConfig: vi.fn(),
+}));
+
+vi.mock('node:fs/promises', () => ({
+  readFile: vi.fn(),
+  writeFile: vi.fn().mockResolvedValue(undefined),
+  mkdir: vi.fn().mockResolvedValue(undefined),
+}));
+
 const fetchMock = vi.fn();
 vi.stubGlobal('fetch', fetchMock);
 
 import { readLicense, writeLicense, removeLicense } from '../../src/license/store.js';
 import { verifyLicense } from '../../src/license/validator.js';
+import { isNpmrcConfigured, writeNpmrcConfig, removeNpmrcConfig } from '../../src/license/npmrc.js';
+import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { runActivate, runStatus, runRefresh, runDeactivate } from '../../src/cli/commands/auth.js';
 
 beforeEach(() => {
   vi.clearAllMocks();
   vi.mocked(writeLicense).mockResolvedValue(undefined);
   vi.mocked(removeLicense).mockResolvedValue(undefined);
+  vi.mocked(writeNpmrcConfig).mockResolvedValue(undefined);
+  vi.mocked(removeNpmrcConfig).mockResolvedValue(undefined);
+  vi.mocked(isNpmrcConfigured).mockResolvedValue(false);
+  vi.mocked(readFile).mockRejectedValue(Object.assign(new Error('ENOENT'), { code: 'ENOENT' }));
+  vi.mocked(writeFile).mockResolvedValue(undefined);
 });
 
 describe('runActivate', () => {
   it('rejects an invalid key format', async () => {
-    await expect(runActivate('bad-key')).rejects.toThrow('Invalid key format');
+    await expect(runActivate('bad-key', { confirmNpmrc: async () => false })).rejects.toThrow('Invalid key format');
   });
 
   it('activates a valid key and stores credentials', async () => {
@@ -37,7 +56,7 @@ describe('runActivate', () => {
 
     const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
 
-    await runActivate('rlj_abcdefghijklmnopqrstuvwxyz012345');
+    await runActivate('rlj_abcdefghijklmnopqrstuvwxyz012345', { confirmNpmrc: async () => false });
 
     expect(fetchMock).toHaveBeenCalledWith(
       expect.stringContaining('/api/license/activate'),
@@ -59,7 +78,7 @@ describe('runActivate', () => {
     });
 
     await expect(
-      runActivate('rlj_abcdefghijklmnopqrstuvwxyz012345'),
+      runActivate('rlj_abcdefghijklmnopqrstuvwxyz012345', { confirmNpmrc: async () => false }),
     ).rejects.toThrow('Invalid license key');
   });
 
@@ -67,8 +86,36 @@ describe('runActivate', () => {
     fetchMock.mockRejectedValue(new Error('fetch failed'));
 
     await expect(
-      runActivate('rlj_abcdefghijklmnopqrstuvwxyz012345'),
+      runActivate('rlj_abcdefghijklmnopqrstuvwxyz012345', { confirmNpmrc: async () => false }),
     ).rejects.toThrow('Could not reach license server');
+  });
+
+  it('calls writeNpmrcConfig when user confirms', async () => {
+    fetchMock.mockResolvedValue({
+      ok: true,
+      json: async () => ({ token: 'jwt', expiresAt: '2026-06-13' }),
+    });
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+    await runActivate('rlj_abcdefghijklmnopqrstuvwxyz012345', { confirmNpmrc: async () => true });
+
+    expect(writeNpmrcConfig).toHaveBeenCalledWith('rlj_abcdefghijklmnopqrstuvwxyz012345');
+    logSpy.mockRestore();
+  });
+
+  it('prints instructions when user declines npmrc setup', async () => {
+    fetchMock.mockResolvedValue({
+      ok: true,
+      json: async () => ({ token: 'jwt', expiresAt: '2026-06-13' }),
+    });
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+    await runActivate('rlj_abcdefghijklmnopqrstuvwxyz012345', { confirmNpmrc: async () => false });
+
+    expect(writeNpmrcConfig).not.toHaveBeenCalled();
+    const output = logSpy.mock.calls.map((c) => c[0]).join('\n');
+    expect(output).toContain('npm.releasejet.dev');
+    logSpy.mockRestore();
   });
 });
 
@@ -182,6 +229,192 @@ describe('runDeactivate', () => {
 
     expect(removeLicense).toHaveBeenCalled();
     expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('removed'));
+    logSpy.mockRestore();
+  });
+
+  it('removes npmrc config on deactivate', async () => {
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+    await runDeactivate();
+
+    expect(removeNpmrcConfig).toHaveBeenCalled();
+    logSpy.mockRestore();
+  });
+
+  it('prints npmrc removal message only when npmrc was configured', async () => {
+    vi.mocked(isNpmrcConfigured).mockResolvedValue(true);
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+    await runDeactivate();
+
+    const output = logSpy.mock.calls.map((c) => c[0]).join('\n');
+    expect(output).toContain('npm registry config removed');
+    logSpy.mockRestore();
+  });
+
+  it('does not print npmrc removal message when npmrc was not configured', async () => {
+    vi.mocked(isNpmrcConfigured).mockResolvedValue(false);
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+    await runDeactivate();
+
+    const output = logSpy.mock.calls.map((c) => c[0]).join('\n');
+    expect(output).not.toContain('npm registry config removed');
+    logSpy.mockRestore();
+  });
+});
+
+describe('runStatus — npm registry', () => {
+  it('shows configured when npmrc has releasejet lines', async () => {
+    vi.mocked(readLicense).mockResolvedValue({
+      key: 'rlj_abc',
+      token: 'valid.jwt',
+      expiresAt: '2026-05-13',
+    });
+    vi.mocked(verifyLicense).mockResolvedValue({
+      valid: true,
+      payload: {
+        sub: 'org_abc',
+        email: 'user@example.com',
+        plan: 'pro',
+        features: ['templates'],
+        iat: 0,
+        exp: 0,
+      },
+    });
+    vi.mocked(isNpmrcConfigured).mockResolvedValue(true);
+
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    await runStatus();
+
+    const output = logSpy.mock.calls.map((c) => c[0]).join('\n');
+    expect(output).toContain('npm registry');
+    expect(output).toContain('configured');
+    logSpy.mockRestore();
+  });
+});
+
+describe('runActivate — CI upgrade', () => {
+  beforeEach(() => {
+    fetchMock.mockResolvedValue({
+      ok: true,
+      json: async () => ({ token: 'jwt', expiresAt: '2026-06-13' }),
+    });
+  });
+
+  it('upgrades GitHub Actions workflow when user confirms', async () => {
+    const freeTemplate = 'npm install -g @makispps/releasejet\nRELEASEJET_TOKEN';
+    vi.mocked(readFile).mockImplementation(async (path: any) => {
+      if (String(path).includes('release-notes.yml')) return freeTemplate;
+      throw Object.assign(new Error('ENOENT'), { code: 'ENOENT' });
+    });
+
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+    await runActivate('rlj_abcdefghijklmnopqrstuvwxyz012345', {
+      confirmNpmrc: async () => false,
+      confirmCiUpgrade: async () => true,
+    });
+
+    expect(writeFile).toHaveBeenCalledWith(
+      '.github/workflows/release-notes.yml',
+      expect.stringContaining('npm.releasejet.dev'),
+    );
+    const output = logSpy.mock.calls.map((c) => c[0]).join('\n');
+    expect(output).toContain('CI workflow updated');
+    expect(output).toContain('RELEASEJET_PRO_TOKEN');
+    logSpy.mockRestore();
+  });
+
+  it('prints instructions when no CI workflow found', async () => {
+    vi.mocked(readFile).mockRejectedValue(
+      Object.assign(new Error('ENOENT'), { code: 'ENOENT' }),
+    );
+
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+    await runActivate('rlj_abcdefghijklmnopqrstuvwxyz012345', {
+      confirmNpmrc: async () => false,
+      confirmCiUpgrade: async () => false,
+    });
+
+    const output = logSpy.mock.calls.map((c) => c[0]).join('\n');
+    expect(output).toContain('To use Pro in CI');
+    logSpy.mockRestore();
+  });
+
+  it('skips CI prompt when workflow already has Pro lines', async () => {
+    const proTemplate = 'npm install -g @makispps/releasejet @releasejet/pro';
+    vi.mocked(readFile).mockImplementation(async (path: any) => {
+      if (String(path).includes('release-notes.yml')) return proTemplate;
+      throw Object.assign(new Error('ENOENT'), { code: 'ENOENT' });
+    });
+
+    const confirmCi = vi.fn();
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+    await runActivate('rlj_abcdefghijklmnopqrstuvwxyz012345', {
+      confirmNpmrc: async () => false,
+      confirmCiUpgrade: confirmCi,
+    });
+
+    expect(confirmCi).not.toHaveBeenCalled();
+    logSpy.mockRestore();
+  });
+
+  it('does not upgrade when user declines', async () => {
+    const freeTemplate = 'npm install -g @makispps/releasejet\n';
+    vi.mocked(readFile).mockImplementation(async (path: any) => {
+      if (String(path).includes('release-notes.yml')) return freeTemplate;
+      throw Object.assign(new Error('ENOENT'), { code: 'ENOENT' });
+    });
+
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+    await runActivate('rlj_abcdefghijklmnopqrstuvwxyz012345', {
+      confirmNpmrc: async () => false,
+      confirmCiUpgrade: async () => false,
+    });
+
+    expect(writeFile).not.toHaveBeenCalled();
+    logSpy.mockRestore();
+  });
+});
+
+describe('runDeactivate — CI downgrade', () => {
+  it('downgrades GitHub Actions workflow when user confirms', async () => {
+    vi.mocked(isNpmrcConfigured).mockResolvedValue(false);
+    const proTemplate = 'npm.releasejet.dev\n@releasejet/pro\nRELEASEJET_TOKEN';
+    vi.mocked(readFile).mockImplementation(async (path: any) => {
+      if (String(path).includes('release-notes.yml')) return proTemplate;
+      throw Object.assign(new Error('ENOENT'), { code: 'ENOENT' });
+    });
+
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+    await runDeactivate({ confirmCiDowngrade: async () => true });
+
+    expect(writeFile).toHaveBeenCalledWith(
+      '.github/workflows/release-notes.yml',
+      expect.not.stringContaining('npm.releasejet.dev'),
+    );
+    const output = logSpy.mock.calls.map((c) => c[0]).join('\n');
+    expect(output).toContain('CI workflow downgraded');
+    logSpy.mockRestore();
+  });
+
+  it('does not prompt when no Pro CI workflow exists', async () => {
+    vi.mocked(isNpmrcConfigured).mockResolvedValue(false);
+    vi.mocked(readFile).mockRejectedValue(
+      Object.assign(new Error('ENOENT'), { code: 'ENOENT' }),
+    );
+
+    const confirmCi = vi.fn();
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+    await runDeactivate({ confirmCiDowngrade: confirmCi });
+
+    expect(confirmCi).not.toHaveBeenCalled();
     logSpy.mockRestore();
   });
 });
