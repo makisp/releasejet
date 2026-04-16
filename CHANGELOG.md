@@ -5,6 +5,29 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.7.0] - 2026-04-16
+
+### Added
+
+- `auth activate` auto-detects existing CI workflows and prompts to upgrade them with Pro registry setup
+- `auth deactivate` offers to downgrade Pro CI workflows back to the free version
+- `ci enable --pro` flag to generate Pro CI templates with private registry configuration
+- `ci enable` now auto-detects active Pro license and generates Pro templates automatically
+- `ci enable` now supports GitHub Actions (auto-detected from git remote), not just GitLab CI
+- `init` wizard generates Pro CI templates when an active Pro license is detected
+- `src/license/detect.ts` — shared `hasActivePro()` helper for Pro license detection
+- Pro setup instructions added as comments to static CI template files (`ci/`)
+
+## [1.6.0] - 2026-04-16
+
+### Added
+
+- `.npmrc` management for private npm registry (`npm.releasejet.dev`)
+- `releasejet auth activate` now prompts to configure npm for Pro package installation
+- `releasejet auth deactivate` removes registry config from `~/.npmrc`
+- `releasejet auth status` shows npm registry configuration status
+- `src/license/npmrc.ts` — read/write/remove helpers for `@releasejet` scoped registry entries
+
 ## [1.5.0] - 2026-04-14
 
 ### Added
