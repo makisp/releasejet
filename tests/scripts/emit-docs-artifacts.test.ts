@@ -44,4 +44,14 @@ describe('emit-docs-artifacts script', () => {
     expect(tagFlag).toBeDefined();
     expect(tagFlag.required).toBe(true);
   });
+
+  it('includes examples and subcommands for real CLI commands', () => {
+    const file = join(DIST_DOCS, 'commands.json');
+    const tree = JSON.parse(readFileSync(file, 'utf-8'));
+    const generate = tree.commands.find((c: { name: string }) => c.name === 'generate');
+    expect(generate.examples.length).toBeGreaterThan(0);
+    const auth = tree.commands.find((c: { name: string }) => c.name === 'auth');
+    expect(Array.isArray(auth.commands)).toBe(true);
+    expect(auth.commands.length).toBeGreaterThanOrEqual(2); // activate, status (at least)
+  });
 });

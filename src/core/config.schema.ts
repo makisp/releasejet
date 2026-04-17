@@ -85,7 +85,12 @@ export type ReleaseJetConfigInput = z.input<typeof ReleaseJetConfigSchema>;
 
 export function parseConfig(raw: unknown): ReleaseJetConfig {
   // Pre-validation checks that match the legacy error format exactly.
-  const data = (raw ?? {}) as Record<string, unknown>;
+  let data = (raw ?? {}) as Record<string, unknown>;
+
+  // Legacy tolerance: clients: null (from empty YAML value) → treat as omitted.
+  if (data.clients === null) {
+    data = { ...data, clients: undefined };
+  }
 
   // Provider migration (legacy gitlab: key)
   const providerRaw = data.provider as Record<string, unknown> | undefined;

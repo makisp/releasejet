@@ -15,6 +15,7 @@ export interface CommandMetadata {
   description: string;
   flags: FlagMetadata[];
   examples: string[];
+  commands: CommandMetadata[];
 }
 
 export interface CommandTree {
@@ -55,12 +56,16 @@ function extractFlag(opt: Option): FlagMetadata {
 }
 
 function extractExamples(cmd: Command): string[] {
-  // Commander stores additional help via `addHelpText('after', ...)`.
-  // Parse lines that start with "$ " from the help text.
-  const help = cmd.helpInformation();
+  // Commander's addHelpText('after', ...) registers an 'afterHelp' event listener
+  // that only fires via outputHelp(). Neither helpInformation() nor
+  // createHelp().formatHelp() triggers the event, so we capture outputHelp() output.
+  const prevConfig = cmd.configureOutput();
+  let captured = '';
+  cmd.configureOutput({ writeOut: (str: string) => { captured += str; } });
+  cmd.outputHelp();
+  cmd.configureOutput(prevConfig);
   const examples: string[] = [];
-  const lines = help.split('\n');
-  for (const line of lines) {
+  for (const line of captured.split('\n')) {
     const trimmed = line.trim();
     if (trimmed.startsWith('$ ')) {
       examples.push(trimmed.slice(2).split(/\s{2,}/)[0].trim());
@@ -71,11 +76,13 @@ function extractExamples(cmd: Command): string[] {
 
 function extractCommand(cmd: Command): CommandMetadata {
   const flags = cmd.options.map(extractFlag);
+  const commands = cmd.commands.map(extractCommand);
   return {
     name: cmd.name(),
     description: cmd.description(),
     flags,
     examples: extractExamples(cmd),
+    commands,
   };
 }
 

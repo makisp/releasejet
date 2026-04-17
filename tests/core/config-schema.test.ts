@@ -96,4 +96,9 @@ describe('parseConfig', () => {
     const result = parseConfig({ contributors: { enabled: true, exclude: [] } });
     expect(result.contributors?.exclude).toEqual([]);
   });
+
+  it('tolerates clients: null (YAML empty value) and defaults to []', () => {
+    const result = parseConfig({ clients: null });
+    expect(result.clients).toEqual([]);
+  });
 });

@@ -62,4 +62,46 @@ describe('extractCommandTree', () => {
       default: 'markdown',
     });
   });
+
+  it('extracts examples from addHelpText("after", ...)', () => {
+    const program = new Command();
+    program.name('releasejet').description('test').version('1.0.0');
+    program
+      .command('generate')
+      .description('Generate release notes')
+      .addHelpText(
+        'after',
+        '\nExamples:\n  $ releasejet generate --tag v1.0.0\n  $ releasejet generate --tag v2.0.0 --publish\n',
+      );
+    const tree = extractCommandTree(program);
+    const gen = tree.commands.find((c) => c.name === 'generate')!;
+    expect(gen.examples).toEqual([
+      'releasejet generate --tag v1.0.0',
+      'releasejet generate --tag v2.0.0 --publish',
+    ]);
+  });
+
+  it('descends into subcommands', () => {
+    const program = new Command();
+    program.name('releasejet').description('test').version('1.0.0');
+    const auth = program.command('auth').description('Pro license commands');
+    auth
+      .command('activate <key>')
+      .description('Activate a Pro license');
+    auth.command('status').description('Show license status');
+
+    const tree = extractCommandTree(program);
+    const authMeta = tree.commands.find((c) => c.name === 'auth')!;
+    expect(authMeta.commands.map((c) => c.name)).toEqual(['activate', 'status']);
+    expect(authMeta.commands[0].description).toBe('Activate a Pro license');
+  });
+
+  it('returns empty commands array for leaf commands', () => {
+    const program = new Command();
+    program.name('releasejet').description('test').version('1.0.0');
+    program.command('init').description('Init');
+    const tree = extractCommandTree(program);
+    const init = tree.commands.find((c) => c.name === 'init')!;
+    expect(init.commands).toEqual([]);
+  });
 });
