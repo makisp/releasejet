@@ -11,6 +11,7 @@ export default defineConfig([
     clean: true,
     banner: { js: '#!/usr/bin/env node' },
     define: { __VERSION__: JSON.stringify(pkg.version) },
+    onSuccess: 'tsx scripts/emit-docs-artifacts.ts',
   },
   {
     entry: { 'plugins/types': 'src/plugins/types.ts' },
