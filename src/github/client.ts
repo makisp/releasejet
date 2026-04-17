@@ -24,17 +24,29 @@ export function createGitHubClient(
   return {
     async listTags(projectPath) {
       const { owner, repo } = parseOwnerRepo(projectPath);
-      const { data: tags } = await octokit.repos.listTags({ owner, repo, per_page: 100 });
+      const [{ data: tags }, releases] = await Promise.all([
+        octokit.repos.listTags({ owner, repo, per_page: 100 }),
+        octokit.repos.listReleases({ owner, repo, per_page: 100 })
+          .then((r) => r.data)
+          .catch(() => [] as any[]),
+      ]);
+
+      const releaseByTag = new Map<string, string>(
+        (releases as any[]).map((r) => [r.tag_name, r.created_at]),
+      );
 
       const result: RemoteTag[] = [];
       for (const tag of tags) {
-        const { data: commit } = await octokit.repos.getCommit({ owner, repo, ref: tag.commit.sha });
+        const { data: commit } = await octokit.repos.getCommit({
+          owner, repo, ref: tag.commit.sha,
+        });
         const commitDate = commit.commit.committer?.date ?? '';
+        const releaseDate = releaseByTag.get(tag.name);
         result.push({
           name: tag.name,
-          createdAt: commitDate,
+          createdAt: releaseDate ?? commitDate,
           commitDate,
-          dateSource: 'commit',
+          dateSource: releaseDate ? 'release' : 'commit',
         });
       }
       return result;
