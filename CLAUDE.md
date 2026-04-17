@@ -55,3 +55,9 @@ The tool reads `.releasejet.yml` in the project root. See `.releasejet.example.y
 - Do not auto commit changes
 - Update application version accordinly
 - Update CLAUDE.MD / README.MD / CHANGELOG.MD as needed
+
+## Repo Hygiene
+
+- `docs/` is gitignored and must stay that way. Never commit anything under `docs/` — including `docs/superpowers/specs/` and `docs/superpowers/plans/`. These are local working artifacts.
+- Do not use `git add -f` to bypass the `docs/` ignore. If a document genuinely belongs in the repo, place it outside `docs/` (e.g. `README.md`, `CHANGELOG.md`) rather than force-adding.
+- Before any `git add` / `git commit`, verify no staged paths fall under `docs/`.
