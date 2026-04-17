@@ -328,3 +328,90 @@ describe('runValidate', () => {
     consoleSpy.mockRestore();
   });
 });
+
+describe('runValidate — tag timestamps', () => {
+  let mockClient: ProviderClient;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    process.exitCode = undefined;
+    mockClient = createMockClient();
+    vi.mocked(loadConfig).mockResolvedValue(mockConfig);
+    vi.mocked(createClient).mockReturnValue(mockClient);
+  });
+
+  it('shows counts for annotated and release-resolved groups and flags commit-only tags', async () => {
+    vi.mocked(mockClient.listTags).mockResolvedValue([
+      { name: 'mobile-v1.0.0', createdAt: '2026-01-01T00:00:00Z', commitDate: '2026-01-01T00:00:00Z', dateSource: 'annotated' as const },
+      { name: 'mobile-v1.1.0', createdAt: '2026-02-01T00:00:00Z', commitDate: '2026-02-01T00:00:00Z', dateSource: 'annotated' as const },
+      { name: 'mobile-v1.2.0', createdAt: '2026-03-01T00:00:00Z', commitDate: '2026-03-01T00:00:00Z', dateSource: 'release' as const },
+      { name: 'mobile-v0.9.0', createdAt: '2025-12-01T00:00:00Z', commitDate: '2025-12-01T00:00:00Z', dateSource: 'commit' as const },
+      { name: 'mobile-v0.8.0', createdAt: '2025-11-01T00:00:00Z', commitDate: '2025-11-01T00:00:00Z', dateSource: 'commit' as const },
+    ]);
+    vi.mocked(mockClient.listIssues).mockResolvedValue([]);
+    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+    await runValidate({ config: '.releasejet.yml', debug: false });
+
+    const output = consoleSpy.mock.calls.map((c) => c[0]).join('\n');
+    expect(output).toContain('Tag Timestamps');
+    expect(output).toContain('2 annotated tags');
+    expect(output).toContain('1 tag resolved via release object');
+    expect(output).toContain('2 lightweight tags without a release');
+    expect(output).toContain('mobile-v0.9.0');
+    expect(output).toContain('mobile-v0.8.0');
+    expect(output).toContain('See README > Tag Timestamps');
+    expect(output).toContain('2 tag timestamp warnings');
+
+    consoleSpy.mockRestore();
+  });
+
+  it('omits the Tag Timestamps section when listTags returns nothing', async () => {
+    vi.mocked(mockClient.listTags).mockResolvedValue([]);
+    vi.mocked(mockClient.listIssues).mockResolvedValue([]);
+    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+    await runValidate({ config: '.releasejet.yml', debug: false });
+
+    const output = consoleSpy.mock.calls.map((c) => c[0]).join('\n');
+    expect(output).not.toContain('Tag Timestamps');
+    expect(output).toContain('0 tag timestamp warnings');
+
+    consoleSpy.mockRestore();
+  });
+
+  it('does not set exit code when only tag timestamp warnings exist', async () => {
+    vi.mocked(mockClient.listTags).mockResolvedValue([
+      { name: 'mobile-v0.9.0', createdAt: '2025-12-01T00:00:00Z', commitDate: '2025-12-01T00:00:00Z', dateSource: 'commit' as const },
+    ]);
+    vi.mocked(mockClient.listIssues).mockResolvedValue([
+      { number: 1, title: 'Good issue', labels: ['feature', 'MOBILE'], closedAt: '', webUrl: '', milestone: null, author: null, assignee: null, closedBy: null },
+    ]);
+    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+    await runValidate({ config: '.releasejet.yml', debug: false });
+
+    expect(process.exitCode).not.toBe(1);
+    consoleSpy.mockRestore();
+  });
+
+  it('uses singular forms when there is exactly one tag in a group', async () => {
+    vi.mocked(mockClient.listTags).mockResolvedValue([
+      { name: 'mobile-v1.0.0', createdAt: '2026-01-01T00:00:00Z', commitDate: '2026-01-01T00:00:00Z', dateSource: 'annotated' as const },
+      { name: 'mobile-v0.9.0', createdAt: '2025-12-01T00:00:00Z', commitDate: '2025-12-01T00:00:00Z', dateSource: 'commit' as const },
+    ]);
+    vi.mocked(mockClient.listIssues).mockResolvedValue([]);
+    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+    await runValidate({ config: '.releasejet.yml', debug: false });
+
+    const output = consoleSpy.mock.calls.map((c) => c[0]).join('\n');
+    expect(output).toContain('1 annotated tag');
+    expect(output).not.toContain('1 annotated tags');
+    expect(output).toContain('1 lightweight tag without a release');
+    expect(output).toContain('1 tag timestamp warning,');
+    expect(output).not.toContain('1 tag timestamp warnings');
+
+    consoleSpy.mockRestore();
+  });
+});

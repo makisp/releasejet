@@ -65,11 +65,12 @@ export async function runValidate(options: {
 
   // --- Tag Format Check ---
   let tagResults: TagValidationResult[] = [];
+  let remoteTags: Awaited<ReturnType<typeof client.listTags>> = [];
   try {
     spinner?.start('Fetching tags...');
-    const tags = await client.listTags(projectPath);
-    tagResults = tags.map((t) => validateTag(t.name, config));
-    spinner?.succeed(`Fetched ${tags.length} tags`);
+    remoteTags = await client.listTags(projectPath);
+    tagResults = remoteTags.map((t) => validateTag(t.name, config));
+    spinner?.succeed(`Fetched ${remoteTags.length} tags`);
   } catch (err) {
     spinner?.fail('Failed to fetch tags');
     throw err;
@@ -160,6 +161,35 @@ export async function runValidate(options: {
     }
   }
 
+  // Tag Timestamps section
+  const annotatedTags = remoteTags.filter((t) => t.dateSource === 'annotated');
+  const releaseTags = remoteTags.filter((t) => t.dateSource === 'release');
+  const commitTags = remoteTags.filter((t) => t.dateSource === 'commit');
+  const timestampWarnings = commitTags.length;
+
+  if (remoteTags.length > 0) {
+    console.log('');
+    console.log('Tag Timestamps');
+    if (annotatedTags.length > 0) {
+      console.log(`  \u2713 ${annotatedTags.length} annotated ${annotatedTags.length === 1 ? 'tag' : 'tags'}`);
+    }
+    if (releaseTags.length > 0) {
+      console.log(
+        `  \u2713 ${releaseTags.length} ${releaseTags.length === 1 ? 'tag' : 'tags'} resolved via release object`,
+      );
+    }
+    if (commitTags.length > 0) {
+      console.log(
+        `  \u26a0 ${commitTags.length} lightweight ${commitTags.length === 1 ? 'tag' : 'tags'} without a release (commit-date fallback):`,
+      );
+      for (const t of commitTags) {
+        console.log(`    ${t.name}`);
+      }
+      console.log('    Tip: create annotated tags or attach a release object.');
+      console.log('    See README > Tag Timestamps.');
+    }
+  }
+
   // Issue Labels section
   const milestoneLabel = options.milestone ? `, milestone: ${options.milestone}` : '';
   console.log('');
@@ -179,7 +209,11 @@ export async function runValidate(options: {
 
   // Summary
   console.log('');
-  console.log(`Summary: ${invalidTags.length} tag ${invalidTags.length === 1 ? 'warning' : 'warnings'}, ${problems.length} label ${problems.length === 1 ? 'problem' : 'problems'}`);
+  console.log(
+    `Summary: ${invalidTags.length} tag ${invalidTags.length === 1 ? 'warning' : 'warnings'}, ` +
+    `${timestampWarnings} tag timestamp ${timestampWarnings === 1 ? 'warning' : 'warnings'}, ` +
+    `${problems.length} label ${problems.length === 1 ? 'problem' : 'problems'}`,
+  );
 
   if (problems.length > 0) {
     process.exitCode = 1;
