@@ -1,5 +1,13 @@
 import { describe, it, expect } from 'vitest';
-import { parseTag, findPreviousTag, findNextSamePrefixTag, validateTag, tagFormatToRegex } from '../../src/core/tag-parser.js';
+import {
+  parseTag,
+  findPreviousTag,
+  findNextSamePrefixTag,
+  validateTag,
+  tagFormatToRegex,
+  collectOrphanTags,
+  formatOrphanError,
+} from '../../src/core/tag-parser.js';
 import type { TagInfo, ReleaseJetConfig } from '../../src/types.js';
 
 describe('tagFormatToRegex', () => {
@@ -483,5 +491,212 @@ describe('findNextSamePrefixTag', () => {
     ];
 
     expect(findNextSamePrefixTag(tags, current)?.raw).toBe('v1.2.0');
+  });
+});
+
+describe('collectOrphanTags', () => {
+  function makeTag(
+    raw: string,
+    prefix: string | null,
+    version: string,
+    suffix: string | null,
+    createdAt: string,
+  ): TagInfo {
+    return {
+      raw,
+      prefix,
+      version,
+      suffix,
+      createdAt,
+      commitDate: createdAt,
+      dateSource: 'annotated',
+    };
+  }
+
+  const current = makeTag('v1.0.0', null, '1.0.0', null, '2026-04-01T00:00:00Z');
+
+  it('returns { null, null } for a genuine first release (no orphans)', () => {
+    const report = collectOrphanTags([current], [], current);
+    expect(report).toEqual({ formatMismatch: null, suffix: null });
+  });
+
+  it('detects a single format-mismatch orphan', () => {
+    const unparseable = [{ name: 'old-v0.9.0', createdAt: '2026-03-01T00:00:00Z' }];
+    const report = collectOrphanTags([current], unparseable, current);
+    expect(report.formatMismatch).toEqual(unparseable[0]);
+    expect(report.suffix).toBeNull();
+  });
+
+  it('picks the most recent unparseable when multiple exist', () => {
+    const unparseable = [
+      { name: 'old-v0.8.0', createdAt: '2026-01-01T00:00:00Z' },
+      { name: 'old-v0.9.0', createdAt: '2026-03-01T00:00:00Z' },
+      { name: 'old-v0.9.5', createdAt: '2026-02-01T00:00:00Z' },
+    ];
+    const report = collectOrphanTags([current], unparseable, current);
+    expect(report.formatMismatch?.name).toBe('old-v0.9.0');
+  });
+
+  it('detects a suffix orphan with same prefix and semver.lte current', () => {
+    const beta = makeTag('v0.9.0-beta.1', null, '0.9.0', '-beta.1', '2026-03-01T00:00:00Z');
+    const report = collectOrphanTags([current, beta], [], current);
+    expect(report.suffix).toEqual(beta);
+    expect(report.formatMismatch).toBeNull();
+  });
+
+  it('detects suffix orphan when suffix tag has same coerced version as current (semver.lte)', () => {
+    const rc = makeTag('v1.0.0-rc.1', null, '1.0.0', '-rc.1', '2026-03-20T00:00:00Z');
+    const report = collectOrphanTags([current, rc], [], current);
+    expect(report.suffix).toEqual(rc);
+  });
+
+  it('sorts suffix candidates by semver desc then createdAt desc', () => {
+    const older = makeTag('v0.8.0-beta', null, '0.8.0', '-beta', '2026-03-05T00:00:00Z');
+    const newer = makeTag('v0.9.0-beta', null, '0.9.0', '-beta', '2026-02-01T00:00:00Z');
+    const newerTwin = makeTag('v0.9.0-rc', null, '0.9.0', '-rc', '2026-03-15T00:00:00Z');
+    const report = collectOrphanTags([current, older, newer, newerTwin], [], current);
+    expect(report.suffix?.raw).toBe('v0.9.0-rc');
+  });
+
+  it('excludes future-version suffix tags (semver > current)', () => {
+    const future = makeTag('v2.0.0-beta', null, '2.0.0', '-beta', '2026-03-01T00:00:00Z');
+    const report = collectOrphanTags([current, future], [], current);
+    expect(report.suffix).toBeNull();
+  });
+
+  it('excludes the current tag itself from suffix candidates (same raw)', () => {
+    const currentIsSuffixed = makeTag('v1.0.0-rc.1', null, '1.0.0', '-rc.1', '2026-04-01T00:00:00Z');
+    const report = collectOrphanTags([currentIsSuffixed], [], currentIsSuffixed);
+    expect(report.suffix).toBeNull();
+  });
+
+  it('excludes different-prefix suffix tags', () => {
+    const mobileCurrent = makeTag('mobile-v1.0.0', 'mobile', '1.0.0', null, '2026-04-01T00:00:00Z');
+    const desktopBeta = makeTag('desktop-v0.9.0-beta', 'desktop', '0.9.0', '-beta', '2026-03-01T00:00:00Z');
+    const report = collectOrphanTags([mobileCurrent, desktopBeta], [], mobileCurrent);
+    expect(report.suffix).toBeNull();
+  });
+
+  it('ignores prefix for unparseable tags (any unparseable counts)', () => {
+    const mobileCurrent = makeTag('mobile/1.0.0', 'mobile', '1.0.0', null, '2026-04-01T00:00:00Z');
+    const unparseable = [{ name: 'random-tag', createdAt: '2026-03-01T00:00:00Z' }];
+    const report = collectOrphanTags([mobileCurrent], unparseable, mobileCurrent);
+    expect(report.formatMismatch).toEqual(unparseable[0]);
+  });
+
+  it('returns both kinds when both exist', () => {
+    const beta = makeTag('v0.9.0-beta', null, '0.9.0', '-beta', '2026-03-10T00:00:00Z');
+    const unparseable = [{ name: 'old-v0.8.0', createdAt: '2026-02-01T00:00:00Z' }];
+    const report = collectOrphanTags([current, beta], unparseable, current);
+    expect(report.formatMismatch).toEqual(unparseable[0]);
+    expect(report.suffix).toEqual(beta);
+  });
+});
+
+describe('formatOrphanError', () => {
+  function makeTag(
+    raw: string,
+    prefix: string | null,
+    version: string,
+    suffix: string | null,
+    createdAt = '2026-04-01T00:00:00Z',
+  ): TagInfo {
+    return {
+      raw,
+      prefix,
+      version,
+      suffix,
+      createdAt,
+      commitDate: createdAt,
+      dateSource: 'annotated',
+    };
+  }
+
+  const current = makeTag('release/v1.0.0', null, '1.0.0', null);
+
+  it('Case A: formats format-mismatch-only with tagFormat, count, --since and re-tag guidance', () => {
+    const report = {
+      formatMismatch: { name: 'v0.9.2', createdAt: '2026-03-15T00:00:00Z' },
+      suffix: null,
+    };
+    const msg = formatOrphanError(report, current, 'release/{version}', 12);
+    expect(msg).toContain('No previous tag found for "release/v1.0.0"');
+    expect(msg).toContain('12 tags');
+    expect(msg).toContain('do not match');
+    expect(msg).toContain('"release/{version}"');
+    expect(msg).toContain('Most recent non-matching tag: v0.9.2 (2026-03-15)');
+    expect(msg).toContain('releasejet generate --tag release/v1.0.0 --since v0.9.2');
+    expect(msg).toContain('re-tag the previous release');
+    expect(msg).toContain('Aborting.');
+  });
+
+  it('Case A: singular form when unparseableCount === 1', () => {
+    const report = {
+      formatMismatch: { name: 'v0.9.2', createdAt: '2026-03-15T00:00:00Z' },
+      suffix: null,
+    };
+    const msg = formatOrphanError(report, current, 'release/{version}', 1);
+    expect(msg).toContain('1 tag');
+    expect(msg).not.toContain('1 tags');
+    expect(msg).toContain('does not match');
+    expect(msg).not.toContain('do not match');
+  });
+
+  it('Case A: uses legacy fallback when tagFormat is undefined', () => {
+    const report = {
+      formatMismatch: { name: 'v0.9.2', createdAt: '2026-03-15T00:00:00Z' },
+      suffix: null,
+    };
+    const msg = formatOrphanError(report, current, undefined, 3);
+    expect(msg).toContain('<prefix>-v<semver> or v<semver>');
+    expect(msg).not.toContain('undefined');
+  });
+
+  it('Case B: suffix-only uses "suffixed tag" wording (not "pre-release")', () => {
+    const ertCurrent = makeTag('ert-v1.1.0', 'ert', '1.1.0', null);
+    const orphan = makeTag(
+      'ert-v1.0.0-version',
+      'ert',
+      '1.0.0',
+      '-version',
+      '2026-03-15T00:00:00Z',
+    );
+    const msg = formatOrphanError(
+      { formatMismatch: null, suffix: orphan },
+      ertCurrent,
+      '{prefix}-v{version}',
+      0,
+    );
+    expect(msg).toContain('No previous tag found for "ert-v1.1.0"');
+    expect(msg).toContain('suffixed tag');
+    expect(msg).not.toContain('pre-release');
+    expect(msg).toContain('ert-v1.0.0-version');
+    expect(msg).toContain('2026-03-15');
+    expect(msg).toContain(
+      'releasejet generate --tag ert-v1.1.0 --since ert-v1.0.0-version',
+    );
+    expect(msg).toContain('Aborting.');
+  });
+
+  it('Case C: both bullets present, remediation uses suffix orphan raw as --since', () => {
+    const rc = makeTag('release/v1.0.0-rc.1', null, '1.0.0', '-rc.1', '2026-03-16T00:00:00Z');
+    const msg = formatOrphanError(
+      {
+        formatMismatch: { name: 'v0.9.2', createdAt: '2026-03-15T00:00:00Z' },
+        suffix: rc,
+      },
+      current,
+      'release/{version}',
+      5,
+    );
+    expect(msg).toContain('Multiple tags were skipped');
+    expect(msg).toContain('Most recent non-matching tag');
+    expect(msg).toContain('v0.9.2 (2026-03-15)');
+    expect(msg).toContain('Most recent same-prefix suffixed tag');
+    expect(msg).toContain('release/v1.0.0-rc.1 (2026-03-16)');
+    expect(msg).toContain(
+      'releasejet generate --tag release/v1.0.0 --since release/v1.0.0-rc.1',
+    );
+    expect(msg).toContain('Aborting.');
   });
 });

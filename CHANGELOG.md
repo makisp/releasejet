@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.9.4] - 2026-04-17
+
+### Added
+- `generate` now detects tag-format migrations and filtered suffix tags. When no previous tag is found under the current `tagFormat` but same-prefix orphans exist in the repository (either unparseable under the new format, or parseable but with a suffix), the command aborts with an actionable error that names the most recent orphan and suggests `--since <tag>` or re-tagging. This prevents CI runs from silently publishing release notes covering every issue since the beginning of history after a `tagFormat` change. Genuine first releases (no orphans) are unaffected and still proceed as before. `--since` continues to bypass the check.
+
 ## [1.9.3] - 2026-04-17
 
 ### Added
