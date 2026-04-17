@@ -144,6 +144,7 @@ export async function runGenerate(options: {
       projectPath,
       currentTag,
       previousTag,
+      allTags,
       config,
       debug,
     );
