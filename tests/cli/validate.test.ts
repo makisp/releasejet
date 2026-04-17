@@ -213,9 +213,9 @@ describe('runValidate', () => {
   it('reports tag format warnings in output', async () => {
     vi.mocked(mockClient.listIssues).mockResolvedValue([]);
     vi.mocked(mockClient.listTags).mockResolvedValue([
-      { name: 'mobile-v1.0.0', createdAt: '2026-01-01T00:00:00Z' },
-      { name: 'release-2024', createdAt: '2026-01-01T00:00:00Z' },
-      { name: 'mobile-vbad', createdAt: '2026-01-01T00:00:00Z' },
+      { name: 'mobile-v1.0.0', createdAt: '2026-01-01T00:00:00Z', commitDate: '2026-01-01T00:00:00Z', dateSource: 'commit' as const },
+      { name: 'release-2024', createdAt: '2026-01-01T00:00:00Z', commitDate: '2026-01-01T00:00:00Z', dateSource: 'commit' as const },
+      { name: 'mobile-vbad', createdAt: '2026-01-01T00:00:00Z', commitDate: '2026-01-01T00:00:00Z', dateSource: 'commit' as const },
     ]);
     const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
 
@@ -233,8 +233,8 @@ describe('runValidate', () => {
   it('shows all tags OK when all tags are valid', async () => {
     vi.mocked(mockClient.listIssues).mockResolvedValue([]);
     vi.mocked(mockClient.listTags).mockResolvedValue([
-      { name: 'mobile-v1.0.0', createdAt: '2026-01-01T00:00:00Z' },
-      { name: 'mobile-v1.1.0', createdAt: '2026-02-01T00:00:00Z' },
+      { name: 'mobile-v1.0.0', createdAt: '2026-01-01T00:00:00Z', commitDate: '2026-01-01T00:00:00Z', dateSource: 'commit' as const },
+      { name: 'mobile-v1.1.0', createdAt: '2026-02-01T00:00:00Z', commitDate: '2026-02-01T00:00:00Z', dateSource: 'commit' as const },
     ]);
     const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
 
@@ -249,7 +249,7 @@ describe('runValidate', () => {
   it('tag warnings do not cause exit code 1', async () => {
     vi.mocked(mockClient.listIssues).mockResolvedValue([]);
     vi.mocked(mockClient.listTags).mockResolvedValue([
-      { name: 'release-2024', createdAt: '2026-01-01T00:00:00Z' },
+      { name: 'release-2024', createdAt: '2026-01-01T00:00:00Z', commitDate: '2026-01-01T00:00:00Z', dateSource: 'commit' as const },
     ]);
     const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
 
@@ -264,8 +264,8 @@ describe('runValidate', () => {
       { number: 42, title: 'Add dark mode', labels: ['MOBILE'], closedAt: '', webUrl: '', milestone: null, author: null, assignee: null, closedBy: null },
     ]);
     vi.mocked(mockClient.listTags).mockResolvedValue([
-      { name: 'mobile-v1.0.0', createdAt: '2026-01-01T00:00:00Z' },
-      { name: 'release-2024', createdAt: '2026-01-01T00:00:00Z' },
+      { name: 'mobile-v1.0.0', createdAt: '2026-01-01T00:00:00Z', commitDate: '2026-01-01T00:00:00Z', dateSource: 'commit' as const },
+      { name: 'release-2024', createdAt: '2026-01-01T00:00:00Z', commitDate: '2026-01-01T00:00:00Z', dateSource: 'commit' as const },
     ]);
     const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
 
@@ -315,7 +315,7 @@ describe('runValidate', () => {
       { number: 1, title: 'Good', labels: ['feature', 'MOBILE'], closedAt: '', webUrl: '', milestone: null, author: null, assignee: null, closedBy: null },
     ]);
     vi.mocked(mockClient.listTags).mockResolvedValue([
-      { name: 'mobile-v1.0.0', createdAt: '2026-01-01T00:00:00Z' },
+      { name: 'mobile-v1.0.0', createdAt: '2026-01-01T00:00:00Z', commitDate: '2026-01-01T00:00:00Z', dateSource: 'commit' as const },
     ]);
     const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
 

@@ -31,6 +31,8 @@ const currentTag: TagInfo = {
   version: '0.1.17',
   suffix: null,
   createdAt: '2026-04-08T10:00:00Z',
+  commitDate: '2026-04-08T10:00:00Z',
+  dateSource: 'commit',
 };
 
 const previousTag: TagInfo = {
@@ -39,6 +41,8 @@ const previousTag: TagInfo = {
   version: '0.1.16',
   suffix: null,
   createdAt: '2026-03-01T10:00:00Z',
+  commitDate: '2026-03-01T10:00:00Z',
+  dateSource: 'commit',
 };
 
 describe('collectIssues', () => {
@@ -82,6 +86,8 @@ describe('collectIssues', () => {
       version: '1.0.0',
       suffix: null,
       createdAt: '2026-04-08T10:00:00Z',
+      commitDate: '2026-04-08T10:00:00Z',
+      dateSource: 'commit',
     };
     const singleConfig: ReleaseJetConfig = {
       ...config,

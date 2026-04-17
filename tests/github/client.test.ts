@@ -51,8 +51,8 @@ describe('createGitHubClient', () => {
       const tags = await client.listTags('owner/repo');
 
       expect(tags).toEqual([
-        { name: 'v1.0.0', createdAt: '2026-04-08T10:00:00Z' },
-        { name: 'v0.9.0', createdAt: '2026-03-01T10:00:00Z' },
+        { name: 'v1.0.0', createdAt: '2026-04-08T10:00:00Z', commitDate: '2026-04-08T10:00:00Z', dateSource: 'commit' },
+        { name: 'v0.9.0', createdAt: '2026-03-01T10:00:00Z', commitDate: '2026-03-01T10:00:00Z', dateSource: 'commit' },
       ]);
       expect(mockListTags).toHaveBeenCalledWith({ owner: 'owner', repo: 'repo', per_page: 100 });
     });

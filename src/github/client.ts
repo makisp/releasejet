@@ -1,5 +1,5 @@
 import { Octokit } from '@octokit/rest';
-import type { ProviderClient } from '../providers/types.js';
+import type { ProviderClient, RemoteTag } from '../providers/types.js';
 
 function parseOwnerRepo(projectPath: string): { owner: string; repo: string } {
   const [owner, repo] = projectPath.split('/');
@@ -26,12 +26,15 @@ export function createGitHubClient(
       const { owner, repo } = parseOwnerRepo(projectPath);
       const { data: tags } = await octokit.repos.listTags({ owner, repo, per_page: 100 });
 
-      const result: Array<{ name: string; createdAt: string }> = [];
+      const result: RemoteTag[] = [];
       for (const tag of tags) {
         const { data: commit } = await octokit.repos.getCommit({ owner, repo, ref: tag.commit.sha });
+        const commitDate = commit.commit.committer?.date ?? '';
         result.push({
           name: tag.name,
-          createdAt: commit.commit.committer?.date ?? '',
+          createdAt: commitDate,
+          commitDate,
+          dateSource: 'commit',
         });
       }
       return result;

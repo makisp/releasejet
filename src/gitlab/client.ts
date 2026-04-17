@@ -1,10 +1,11 @@
 import { Gitlab } from '@gitbeaker/rest';
 import type { Issue, Milestone } from '../types.js';
+import type { RemoteTag } from '../providers/types.js';
 
 export interface GitLabClientInterface {
   listTags(
     projectPath: string,
-  ): Promise<Array<{ name: string; createdAt: string }>>;
+  ): Promise<RemoteTag[]>;
 
   listIssues(
     projectPath: string,
@@ -44,10 +45,15 @@ export function createGitLabClient(
   return {
     async listTags(projectPath) {
       const tags = await api.Tags.all(projectPath);
-      return tags.map((t: any) => ({
-        name: t.name,
-        createdAt: t.created_at ?? t.commit?.created_at ?? '',
-      }));
+      return tags.map((t: any) => {
+        const commitDate = t.commit?.created_at ?? '';
+        return {
+          name: t.name,
+          createdAt: commitDate,
+          commitDate,
+          dateSource: 'commit' as const,
+        };
+      });
     },
 
     async listIssues(projectPath, options) {
