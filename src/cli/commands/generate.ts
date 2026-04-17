@@ -21,9 +21,22 @@ import { createLogger } from '../logger.js';
 import { getPluginRuntime } from '../../plugins/loader.js';
 import ora from 'ora';
 import type { TagInfo, ReleaseNotesData } from '../../types.js';
+import type { ProviderClient } from '../../providers/types.js';
 
 function isTemplatePath(value: string): boolean {
   return value.includes('/') || value.includes('\\') || value.endsWith('.hbs');
+}
+
+async function upgradeTagDate(
+  client: ProviderClient,
+  projectPath: string,
+  tag: TagInfo,
+): Promise<TagInfo> {
+  if (tag.dateSource !== 'commit') return tag;
+  if (!client.resolveAnnotatedTagDate) return tag;
+  const annotated = await client.resolveAnnotatedTagDate(projectPath, tag.raw);
+  if (!annotated) return tag;
+  return { ...tag, createdAt: annotated, dateSource: 'annotated' };
 }
 
 export function registerGenerateCommand(program: Command): void {
@@ -112,12 +125,13 @@ export async function runGenerate(options: {
     })
     .filter((t): t is TagInfo => t !== null);
 
-  const currentTag = allTags.find((t) => t.raw === options.tag);
+  let currentTag = allTags.find((t) => t.raw === options.tag);
   if (!currentTag) {
     throw new Error(
       `Tag "${options.tag}" not found in remote repository.`,
     );
   }
+  currentTag = await upgradeTagDate(client, projectPath, currentTag);
   debug('Current tag:', JSON.stringify(currentTag));
 
   let previousTag: TagInfo | null;
@@ -132,6 +146,10 @@ export async function runGenerate(options: {
   } else {
     previousTag = findPreviousTag(allTags, currentTag);
     debug('Previous tag:', previousTag ? JSON.stringify(previousTag) : 'none (first release)');
+  }
+  if (previousTag) {
+    previousTag = await upgradeTagDate(client, projectPath, previousTag);
+    debug('Previous tag (resolved):', JSON.stringify(previousTag));
   }
   debug('Date range:', previousTag?.createdAt ?? 'beginning', '->', currentTag.createdAt);
 
@@ -170,6 +188,20 @@ export async function runGenerate(options: {
   }
 
   const milestone = detectMilestone(issues);
+
+  if (currentTag.dateSource === 'commit') {
+    const warningLines = [
+      `⚠️  Tag "${options.tag}" is lightweight and has no associated release,`,
+      `   so its exact creation time isn't available. Using the commit date as`,
+      `   a lower reference and the current time as the upper bound, which may`,
+      `   include any issues closed since the commit.`,
+      ``,
+      `   For precise timing, use annotated tags (\`git tag -a <name> -m "..."\`)`,
+      `   or publish the release (\`releasejet generate --publish\`) before`,
+      `   regenerating notes.`,
+    ];
+    console.error(warningLines.join('\n'));
+  }
 
   const totalCount =
     Object.values(issues.categorized).reduce(
