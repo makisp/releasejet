@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseTag, findPreviousTag, validateTag, tagFormatToRegex } from '../../src/core/tag-parser.js';
+import { parseTag, findPreviousTag, findNextSamePrefixTag, validateTag, tagFormatToRegex } from '../../src/core/tag-parser.js';
 import type { TagInfo, ReleaseJetConfig } from '../../src/types.js';
 
 describe('tagFormatToRegex', () => {
@@ -241,11 +241,11 @@ describe('parseTag with tagFormat', () => {
 
 describe('findPreviousTag', () => {
   const tags: TagInfo[] = [
-    { raw: 'mobile-v0.1.15', prefix: 'mobile', version: '0.1.15', suffix: null, createdAt: '2026-01-01T00:00:00Z' },
-    { raw: 'mobile-v0.1.16', prefix: 'mobile', version: '0.1.16', suffix: null, createdAt: '2026-02-01T00:00:00Z' },
-    { raw: 'mobile-v0.1.17', prefix: 'mobile', version: '0.1.17', suffix: null, createdAt: '2026-03-01T00:00:00Z' },
-    { raw: 'web-v1.0.0', prefix: 'web', version: '1.0.0', suffix: null, createdAt: '2026-02-15T00:00:00Z' },
-    { raw: 'v2.0.0', prefix: null, version: '2.0.0', suffix: null, createdAt: '2026-03-15T00:00:00Z' },
+    { raw: 'mobile-v0.1.15', prefix: 'mobile', version: '0.1.15', suffix: null, createdAt: '2026-01-01T00:00:00Z', commitDate: '2026-01-01T00:00:00Z', dateSource: 'commit' },
+    { raw: 'mobile-v0.1.16', prefix: 'mobile', version: '0.1.16', suffix: null, createdAt: '2026-02-01T00:00:00Z', commitDate: '2026-02-01T00:00:00Z', dateSource: 'commit' },
+    { raw: 'mobile-v0.1.17', prefix: 'mobile', version: '0.1.17', suffix: null, createdAt: '2026-03-01T00:00:00Z', commitDate: '2026-03-01T00:00:00Z', dateSource: 'commit' },
+    { raw: 'web-v1.0.0', prefix: 'web', version: '1.0.0', suffix: null, createdAt: '2026-02-15T00:00:00Z', commitDate: '2026-02-15T00:00:00Z', dateSource: 'commit' },
+    { raw: 'v2.0.0', prefix: null, version: '2.0.0', suffix: null, createdAt: '2026-03-15T00:00:00Z', commitDate: '2026-03-15T00:00:00Z', dateSource: 'commit' },
   ];
 
   it('returns the highest version below current for same prefix', () => {
@@ -274,8 +274,8 @@ describe('findPreviousTag', () => {
 
   it('handles single-client tags (null prefix)', () => {
     const singleTags: TagInfo[] = [
-      { raw: 'v1.0.0', prefix: null, version: '1.0.0', suffix: null, createdAt: '2026-01-01T00:00:00Z' },
-      { raw: 'v2.0.0', prefix: null, version: '2.0.0', suffix: null, createdAt: '2026-02-01T00:00:00Z' },
+      { raw: 'v1.0.0', prefix: null, version: '1.0.0', suffix: null, createdAt: '2026-01-01T00:00:00Z', commitDate: '2026-01-01T00:00:00Z', dateSource: 'commit' },
+      { raw: 'v2.0.0', prefix: null, version: '2.0.0', suffix: null, createdAt: '2026-02-01T00:00:00Z', commitDate: '2026-02-01T00:00:00Z', dateSource: 'commit' },
     ];
     const current = singleTags[1];
     const result = findPreviousTag(singleTags, current);
@@ -284,9 +284,9 @@ describe('findPreviousTag', () => {
 
   it('uses creation date as tiebreaker for same version', () => {
     const tiedTags: TagInfo[] = [
-      { raw: 'mobile-v1.0.0', prefix: 'mobile', version: '1.0.0', suffix: null, createdAt: '2026-01-01T00:00:00Z' },
-      { raw: 'mobile-v1.0.0', prefix: 'mobile', version: '1.0.0', suffix: null, createdAt: '2026-02-01T00:00:00Z' },
-      { raw: 'mobile-v2.0.0', prefix: 'mobile', version: '2.0.0', suffix: null, createdAt: '2026-03-01T00:00:00Z' },
+      { raw: 'mobile-v1.0.0', prefix: 'mobile', version: '1.0.0', suffix: null, createdAt: '2026-01-01T00:00:00Z', commitDate: '2026-01-01T00:00:00Z', dateSource: 'commit' },
+      { raw: 'mobile-v1.0.0', prefix: 'mobile', version: '1.0.0', suffix: null, createdAt: '2026-02-01T00:00:00Z', commitDate: '2026-02-01T00:00:00Z', dateSource: 'commit' },
+      { raw: 'mobile-v2.0.0', prefix: 'mobile', version: '2.0.0', suffix: null, createdAt: '2026-03-01T00:00:00Z', commitDate: '2026-03-01T00:00:00Z', dateSource: 'commit' },
     ];
     const current = tiedTags[2];
     const result = findPreviousTag(tiedTags, current);
@@ -295,9 +295,9 @@ describe('findPreviousTag', () => {
 
   it('skips suffixed tags (emergency/hotfix releases)', () => {
     const mixedTags: TagInfo[] = [
-      { raw: 'mobile-v0.1.0', prefix: 'mobile', version: '0.1.0', suffix: null, createdAt: '2026-01-01T00:00:00Z' },
-      { raw: 'mobile-v0.1.1-hotfix', prefix: 'mobile', version: '0.1.1', suffix: '-hotfix', createdAt: '2026-01-15T00:00:00Z' },
-      { raw: 'mobile-v0.2.0', prefix: 'mobile', version: '0.2.0', suffix: null, createdAt: '2026-02-01T00:00:00Z' },
+      { raw: 'mobile-v0.1.0', prefix: 'mobile', version: '0.1.0', suffix: null, createdAt: '2026-01-01T00:00:00Z', commitDate: '2026-01-01T00:00:00Z', dateSource: 'commit' },
+      { raw: 'mobile-v0.1.1-hotfix', prefix: 'mobile', version: '0.1.1', suffix: '-hotfix', createdAt: '2026-01-15T00:00:00Z', commitDate: '2026-01-15T00:00:00Z', dateSource: 'commit' },
+      { raw: 'mobile-v0.2.0', prefix: 'mobile', version: '0.2.0', suffix: null, createdAt: '2026-02-01T00:00:00Z', commitDate: '2026-02-01T00:00:00Z', dateSource: 'commit' },
     ];
     const current = mixedTags[2]; // mobile-v0.2.0
     const result = findPreviousTag(mixedTags, current);
@@ -419,5 +419,69 @@ describe('validateTag', () => {
   it('falls back to legacy validation when tagFormat is undefined', () => {
     const result = validateTag('v1.2.3', singleClientConfig);
     expect(result).toEqual({ tag: 'v1.2.3', valid: true });
+  });
+});
+
+describe('findNextSamePrefixTag', () => {
+  const make = (raw: string, prefix: string | null, version: string, createdAt: string): TagInfo => ({
+    raw, prefix, version, suffix: null, createdAt,
+    commitDate: createdAt, dateSource: 'commit',
+  });
+
+  it('returns the next-higher same-prefix tag by semver', () => {
+    const current = make('client2-v11.0.0', 'client2', '11.0.0', '2026-04-17T10:00:00Z');
+    const tags = [
+      make('client2-v10.1.0', 'client2', '10.1.0', '2026-04-09T00:00:00Z'),
+      current,
+      make('client2-v11.1.0', 'client2', '11.1.0', '2026-04-20T10:00:00Z'),
+      make('client2-v12.0.0', 'client2', '12.0.0', '2026-04-25T10:00:00Z'),
+    ];
+
+    const next = findNextSamePrefixTag(tags, current);
+    expect(next?.raw).toBe('client2-v11.1.0');
+  });
+
+  it('returns null when current is the latest same-prefix tag', () => {
+    const current = make('client2-v11.0.0', 'client2', '11.0.0', '2026-04-17T10:00:00Z');
+    const tags = [
+      make('client1-v15.0.0', 'client1', '15.0.0', '2026-04-09T00:00:00Z'),
+      make('client2-v10.1.0', 'client2', '10.1.0', '2026-04-01T00:00:00Z'),
+      current,
+    ];
+
+    expect(findNextSamePrefixTag(tags, current)).toBeNull();
+  });
+
+  it('ignores different-prefix tags even if semver is higher', () => {
+    const current = make('client2-v11.0.0', 'client2', '11.0.0', '2026-04-17T10:00:00Z');
+    const tags = [
+      current,
+      make('client1-v20.0.0', 'client1', '20.0.0', '2026-04-20T00:00:00Z'),
+    ];
+
+    expect(findNextSamePrefixTag(tags, current)).toBeNull();
+  });
+
+  it('handles null prefix (single-client mode)', () => {
+    const current = make('v1.0.0', null, '1.0.0', '2026-04-17T10:00:00Z');
+    const tags = [
+      current,
+      make('v1.1.0', null, '1.1.0', '2026-04-20T10:00:00Z'),
+      make('client1-v5.0.0', 'client1', '5.0.0', '2026-04-25T10:00:00Z'),
+    ];
+
+    const next = findNextSamePrefixTag(tags, current);
+    expect(next?.raw).toBe('v1.1.0');
+  });
+
+  it('ignores tags with suffix (pre-releases)', () => {
+    const current = make('v1.0.0', null, '1.0.0', '2026-04-17T10:00:00Z');
+    const tags = [
+      current,
+      { ...make('v1.1.0-beta', null, '1.1.0', '2026-04-20T10:00:00Z'), suffix: '-beta' },
+      make('v1.2.0', null, '1.2.0', '2026-04-25T10:00:00Z'),
+    ];
+
+    expect(findNextSamePrefixTag(tags, current)?.raw).toBe('v1.2.0');
   });
 });

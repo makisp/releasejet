@@ -1,5 +1,5 @@
 import { Octokit } from '@octokit/rest';
-import type { ProviderClient } from '../providers/types.js';
+import type { ProviderClient, RemoteTag } from '../providers/types.js';
 
 function parseOwnerRepo(projectPath: string): { owner: string; repo: string } {
   const [owner, repo] = projectPath.split('/');
@@ -24,14 +24,29 @@ export function createGitHubClient(
   return {
     async listTags(projectPath) {
       const { owner, repo } = parseOwnerRepo(projectPath);
-      const { data: tags } = await octokit.repos.listTags({ owner, repo, per_page: 100 });
+      const [{ data: tags }, releases] = await Promise.all([
+        octokit.repos.listTags({ owner, repo, per_page: 100 }),
+        octokit.repos.listReleases({ owner, repo, per_page: 100 })
+          .then((r) => r.data)
+          .catch(() => [] as any[]),
+      ]);
 
-      const result: Array<{ name: string; createdAt: string }> = [];
+      const releaseByTag = new Map<string, string>(
+        (releases as any[]).map((r) => [r.tag_name, r.created_at]),
+      );
+
+      const result: RemoteTag[] = [];
       for (const tag of tags) {
-        const { data: commit } = await octokit.repos.getCommit({ owner, repo, ref: tag.commit.sha });
+        const { data: commit } = await octokit.repos.getCommit({
+          owner, repo, ref: tag.commit.sha,
+        });
+        const commitDate = commit.commit.committer?.date ?? '';
+        const releaseDate = releaseByTag.get(tag.name);
         result.push({
           name: tag.name,
-          createdAt: commit.commit.committer?.date ?? '',
+          createdAt: releaseDate ?? commitDate,
+          commitDate,
+          dateSource: releaseDate ? 'release' : 'commit',
         });
       }
       return result;
@@ -133,6 +148,22 @@ export function createGitHubClient(
         title: m.title,
         state: m.state,
       }));
+    },
+
+    async resolveAnnotatedTagDate(projectPath, tagName) {
+      const { owner, repo } = parseOwnerRepo(projectPath);
+      try {
+        const { data: ref } = await octokit.git.getRef({
+          owner, repo, ref: `tags/${tagName}`,
+        });
+        if (ref.object.type !== 'tag') return null;
+        const { data: tagObj } = await octokit.git.getTag({
+          owner, repo, tag_sha: ref.object.sha,
+        });
+        return tagObj.tagger?.date ?? null;
+      } catch {
+        return null;
+      }
     },
   };
 }

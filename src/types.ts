@@ -34,8 +34,12 @@ export interface ParsedTag {
   suffix: string | null;
 }
 
+export type TagDateSource = 'annotated' | 'release' | 'commit';
+
 export interface TagInfo extends ParsedTag {
   createdAt: string;
+  commitDate: string;
+  dateSource: TagDateSource;
 }
 
 export interface Issue {

@@ -1,10 +1,11 @@
 import { Gitlab } from '@gitbeaker/rest';
 import type { Issue, Milestone } from '../types.js';
+import type { RemoteTag } from '../providers/types.js';
 
 export interface GitLabClientInterface {
   listTags(
     projectPath: string,
-  ): Promise<Array<{ name: string; createdAt: string }>>;
+  ): Promise<RemoteTag[]>;
 
   listIssues(
     projectPath: string,
@@ -43,11 +44,41 @@ export function createGitLabClient(
 
   return {
     async listTags(projectPath) {
-      const tags = await api.Tags.all(projectPath);
-      return tags.map((t: any) => ({
-        name: t.name,
-        createdAt: t.created_at ?? t.commit?.created_at ?? '',
-      }));
+      const [tags, releases] = await Promise.all([
+        api.Tags.all(projectPath),
+        (api.ProjectReleases.all(projectPath) as Promise<any[]>).catch(() => [] as any[]),
+      ]);
+
+      const releaseByTag = new Map<string, string>(
+        (releases as any[]).map((r) => [r.tag_name, r.created_at]),
+      );
+
+      return (tags as any[]).map((t) => {
+        const commitDate = t.commit?.created_at ?? '';
+        if (t.created_at) {
+          return {
+            name: t.name,
+            createdAt: t.created_at,
+            commitDate,
+            dateSource: 'annotated' as const,
+          };
+        }
+        const releaseDate = releaseByTag.get(t.name);
+        if (releaseDate) {
+          return {
+            name: t.name,
+            createdAt: releaseDate,
+            commitDate,
+            dateSource: 'release' as const,
+          };
+        }
+        return {
+          name: t.name,
+          createdAt: commitDate,
+          commitDate,
+          dateSource: 'commit' as const,
+        };
+      });
     },
 
     async listIssues(projectPath, options) {

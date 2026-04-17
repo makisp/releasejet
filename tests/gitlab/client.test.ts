@@ -4,13 +4,14 @@ const mockTagsAll = vi.fn();
 const mockIssuesAll = vi.fn();
 const mockReleasesCreate = vi.fn();
 const mockReleasesEdit = vi.fn();
+const mockReleasesAll = vi.fn();
 const mockMilestonesAll = vi.fn();
 
 vi.mock('@gitbeaker/rest', () => ({
   Gitlab: vi.fn().mockImplementation(() => ({
     Tags: { all: mockTagsAll },
     Issues: { all: mockIssuesAll },
-    ProjectReleases: { create: mockReleasesCreate, edit: mockReleasesEdit },
+    ProjectReleases: { create: mockReleasesCreate, edit: mockReleasesEdit, all: mockReleasesAll },
     ProjectMilestones: { all: mockMilestonesAll },
   })),
 }));
@@ -25,18 +26,112 @@ describe('createGitLabClient', () => {
   describe('listTags', () => {
     it('maps API response to internal format', async () => {
       mockTagsAll.mockResolvedValue([
-        { name: 'mobile-v0.1.17', commit: { created_at: '2026-04-08T10:00:00Z' } },
-        { name: 'mobile-v0.1.16', commit: { created_at: '2026-03-01T10:00:00Z' } },
+        { name: 'mobile-v0.1.17', created_at: null, commit: { created_at: '2026-04-08T10:00:00Z' } },
+        { name: 'mobile-v0.1.16', created_at: null, commit: { created_at: '2026-03-01T10:00:00Z' } },
       ]);
+      mockReleasesAll.mockResolvedValue([]);
 
       const client = createGitLabClient('https://gitlab.example.com', 'token');
       const tags = await client.listTags('mobile/app');
 
       expect(tags).toEqual([
-        { name: 'mobile-v0.1.17', createdAt: '2026-04-08T10:00:00Z' },
-        { name: 'mobile-v0.1.16', createdAt: '2026-03-01T10:00:00Z' },
+        { name: 'mobile-v0.1.17', createdAt: '2026-04-08T10:00:00Z', commitDate: '2026-04-08T10:00:00Z', dateSource: 'commit' },
+        { name: 'mobile-v0.1.16', createdAt: '2026-03-01T10:00:00Z', commitDate: '2026-03-01T10:00:00Z', dateSource: 'commit' },
       ]);
       expect(mockTagsAll).toHaveBeenCalledWith('mobile/app');
+    });
+
+    it('uses annotated tag date when top-level created_at is present', async () => {
+      mockTagsAll.mockResolvedValue([
+        {
+          name: 'v1.0.0',
+          created_at: '2026-04-10T12:00:00Z',             // annotated tagger date
+          commit: { created_at: '2026-04-01T10:00:00Z' }, // older commit
+        },
+      ]);
+      mockReleasesAll.mockResolvedValue([]);
+
+      const client = createGitLabClient('https://gitlab.example.com', 'token');
+      const tags = await client.listTags('owner/repo');
+
+      expect(tags).toEqual([{
+        name: 'v1.0.0',
+        createdAt: '2026-04-10T12:00:00Z',
+        commitDate: '2026-04-01T10:00:00Z',
+        dateSource: 'annotated',
+      }]);
+    });
+
+    it('uses release date when tag is lightweight but release exists', async () => {
+      mockTagsAll.mockResolvedValue([
+        {
+          name: 'v1.0.0',
+          created_at: null,                                // lightweight
+          commit: { created_at: '2026-04-01T10:00:00Z' },
+        },
+      ]);
+      mockReleasesAll.mockResolvedValue([
+        { tag_name: 'v1.0.0', created_at: '2026-04-12T09:00:00Z' },
+      ]);
+
+      const client = createGitLabClient('https://gitlab.example.com', 'token');
+      const tags = await client.listTags('owner/repo');
+
+      expect(tags).toEqual([{
+        name: 'v1.0.0',
+        createdAt: '2026-04-12T09:00:00Z',
+        commitDate: '2026-04-01T10:00:00Z',
+        dateSource: 'release',
+      }]);
+    });
+
+    it('falls back to commit date for lightweight tag with no release', async () => {
+      mockTagsAll.mockResolvedValue([
+        {
+          name: 'v1.0.0',
+          created_at: null,
+          commit: { created_at: '2026-04-01T10:00:00Z' },
+        },
+      ]);
+      mockReleasesAll.mockResolvedValue([]);
+
+      const client = createGitLabClient('https://gitlab.example.com', 'token');
+      const tags = await client.listTags('owner/repo');
+
+      expect(tags[0].dateSource).toBe('commit');
+      expect(tags[0].createdAt).toBe('2026-04-01T10:00:00Z');
+      expect(tags[0].commitDate).toBe('2026-04-01T10:00:00Z');
+    });
+
+    it('prefers annotated over release when both are available', async () => {
+      mockTagsAll.mockResolvedValue([
+        {
+          name: 'v1.0.0',
+          created_at: '2026-04-10T12:00:00Z',
+          commit: { created_at: '2026-04-01T10:00:00Z' },
+        },
+      ]);
+      mockReleasesAll.mockResolvedValue([
+        { tag_name: 'v1.0.0', created_at: '2026-04-15T09:00:00Z' },
+      ]);
+
+      const client = createGitLabClient('https://gitlab.example.com', 'token');
+      const tags = await client.listTags('owner/repo');
+
+      expect(tags[0].dateSource).toBe('annotated');
+      expect(tags[0].createdAt).toBe('2026-04-10T12:00:00Z');
+    });
+
+    it('degrades to commit-date fallback when ProjectReleases.all throws', async () => {
+      mockTagsAll.mockResolvedValue([
+        { name: 'v1.0.0', created_at: null, commit: { created_at: '2026-04-01T10:00:00Z' } },
+      ]);
+      mockReleasesAll.mockRejectedValue(new Error('403 Forbidden'));
+
+      const client = createGitLabClient('https://gitlab.example.com', 'token');
+      const tags = await client.listTags('owner/repo');
+
+      expect(tags[0].dateSource).toBe('commit');
     });
   });
 

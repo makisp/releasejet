@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.9.2] - 2026-04-17
+
+### Added
+- `validate` now shows a "Tag Timestamps" section that reports annotated tags, tags resolved via release object, and flags lightweight tags without a release.
+- `init` prints a tip at the end of the setup wizard explaining how to create tags that produce precise release notes (annotated tag, web UI, or `--publish`).
+- New "Tag Timestamps" section in the README, with a troubleshooting entry.
+
+### Changed
+- The lightweight-tag warning in `generate` now mentions both the annotated-tag workflow and the release-object workflow, and links to the README.
+
+## [1.9.1] - 2026-04-17
+
+### Fixed
+
+- **Lightweight tags no longer drop issues from release notes.** When a tag was created after its target commit (common with GitLab UI tagging and CI auto-tag workflows), issues closed between the commit and the tag's real creation time were silently excluded. The tool now resolves annotated tag dates and existing release dates when available, and falls back to the current time for the latest lightweight tag so recently closed issues are captured.
+- Emit a stderr warning when the current tag's date can't be resolved authoritatively, pointing users at annotated tags or `--publish` as the robust fix.
+
 ## [1.9.0] - 2026-04-16
 
 ### Added

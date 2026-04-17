@@ -376,3 +376,47 @@ describe('runInit — contributors step', () => {
     expect(config.contributors).toBeUndefined();
   });
 });
+
+describe('runInit — tag timestamp tip', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(readFile).mockRejectedValue(Object.assign(new Error('ENOENT'), { code: 'ENOENT' }));
+  });
+
+  it('prints the tag-timestamp tip before "Setup complete!"', async () => {
+    vi.mocked(select)
+      .mockResolvedValueOnce('gitlab')             // provider
+      .mockResolvedValueOnce('v{version}')         // tag format
+      .mockResolvedValueOnce('lenient')            // uncategorized
+      .mockResolvedValueOnce('defaults');          // category mode
+    vi.mocked(input)
+      .mockResolvedValueOnce('https://gitlab.example.com')  // provider URL
+      .mockResolvedValueOnce('test-token');                  // token
+    vi.mocked(confirm)
+      .mockResolvedValueOnce(false)  // multi-client?
+      .mockResolvedValueOnce(false)  // contributors?
+      .mockResolvedValueOnce(false); // setup CI?
+
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+    await runInit();
+
+    const calls = logSpy.mock.calls.map((c) => String(c[0] ?? ''));
+
+    const tipIdx = calls.findIndex((line) => line.includes('Tip — Tag timestamps'));
+    const completeIdx = calls.findIndex((line) => line.includes('Setup complete'));
+
+    expect(tipIdx).toBeGreaterThan(-1);
+    expect(completeIdx).toBeGreaterThan(-1);
+    expect(tipIdx).toBeLessThan(completeIdx);
+
+    const tipOutput = calls[tipIdx];
+    expect(tipOutput).toContain('git tag -a');
+    expect(tipOutput).toContain('GitLab:');
+    expect(tipOutput).toContain('GitHub:');
+    expect(tipOutput).toContain('--publish');
+    expect(tipOutput).toContain('https://github.com/makisp/releasejet#tag-timestamps');
+
+    logSpy.mockRestore();
+  });
+});
