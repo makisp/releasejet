@@ -160,7 +160,7 @@ export function createGitHubClient(
         const { data: tagObj } = await octokit.git.getTag({
           owner, repo, tag_sha: ref.object.sha,
         });
-        return (tagObj as any).tagger?.date ?? null;
+        return tagObj.tagger?.date ?? null;
       } catch {
         return null;
       }
