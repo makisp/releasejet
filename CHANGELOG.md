@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.9.2] - 2026-04-17
+
+### Added
+- `validate` now shows a "Tag Timestamps" section that reports annotated tags, tags resolved via release object, and flags lightweight tags without a release.
+- `init` prints a tip at the end of the setup wizard explaining how to create tags that produce precise release notes (annotated tag, web UI, or `--publish`).
+- New "Tag Timestamps" section in the README, with a troubleshooting entry.
+
+### Changed
+- The lightweight-tag warning in `generate` now mentions both the annotated-tag workflow and the release-object workflow, and links to the README.
+
 ## [1.9.1] - 2026-04-17
 
 ### Fixed
