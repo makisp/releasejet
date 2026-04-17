@@ -1,3 +1,8 @@
+/**
+ * Canonical location for the Tag Timestamps docs. Referenced by init tip,
+ * generate warning, and validate output. When adding a new touch-point,
+ * import this constant rather than hard-coding the URL.
+ */
 export const README_ANCHOR_URL =
   'https://github.com/makisp/releasejet#tag-timestamps';
 
@@ -13,6 +18,7 @@ export const TAG_TIMESTAMP_TIP = [
   '     • GitLab:  Code → Tags → New tag (fill the Message field,',
   '                e.g. "Release v1.0.0")',
   '     • GitHub:  Releases → Draft a new release',
+  '                (GitHub has no web UI for creating tags without a release)',
   '     • Or let ReleaseJet do it: releasejet generate --tag <tag> --publish',
   '',
   `   See: ${README_ANCHOR_URL}`,
