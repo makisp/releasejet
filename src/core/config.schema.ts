@@ -42,7 +42,7 @@ const ContributorsSchema = z
     enabled: z.boolean().optional().default(true),
     exclude: z
       .array(z.string())
-      .optional()
+      .default([...DEFAULT_BOT_EXCLUDE])
       .describe('Usernames to omit from the contributors section.'),
   })
   .describe('Contributors section configuration.');
@@ -62,7 +62,7 @@ export const ReleaseJetConfigSchema = z
     clients: z.array(ClientSchema).optional().default([]),
     categories: z
       .record(z.string(), z.string())
-      .optional()
+      .default({ ...DEFAULT_CATEGORIES })
       .describe('Map of issue label → section heading.'),
     uncategorized: z
       .enum(['lenient', 'strict'])
@@ -184,15 +184,11 @@ export function parseConfig(raw: unknown): ReleaseJetConfig {
     provider = { type: 'gitlab', url: '' };
   }
 
-  const categories = parsed.categories && Object.keys(parsed.categories).length > 0
-    ? parsed.categories
-    : { ...DEFAULT_CATEGORIES };
-
   let contributors: ReleaseJetConfig['contributors'];
   if (parsed.contributors) {
     contributors = {
-      enabled: parsed.contributors.enabled ?? true,
-      exclude: parsed.contributors.exclude ?? [...DEFAULT_BOT_EXCLUDE],
+      enabled: parsed.contributors.enabled,
+      exclude: parsed.contributors.exclude,
     };
   }
 
@@ -200,7 +196,7 @@ export function parseConfig(raw: unknown): ReleaseJetConfig {
     provider,
     source: parsed.source,
     clients: parsed.clients,
-    categories,
+    categories: parsed.categories,
     uncategorized: parsed.uncategorized,
     contributors,
     template: parsed.template,

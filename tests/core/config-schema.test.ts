@@ -86,4 +86,14 @@ describe('parseConfig', () => {
       'github-actions',
     ]);
   });
+
+  it('preserves an explicit empty categories object (legacy pass-through)', () => {
+    const result = parseConfig({ categories: {} });
+    expect(result.categories).toEqual({});
+  });
+
+  it('preserves an explicit empty contributors.exclude array', () => {
+    const result = parseConfig({ contributors: { enabled: true, exclude: [] } });
+    expect(result.contributors?.exclude).toEqual([]);
+  });
 });
