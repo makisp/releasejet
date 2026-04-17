@@ -273,6 +273,49 @@ describe('collectIssues — tag date resolution', () => {
       collectIssues(client, 'owner/repo', current, null, [current], { ...config, clients: [] }),
     ).rejects.toThrow(/Invalid tag date/);
   });
+
+  it('regression — 4 issues closed 27-47s after a lightweight tag are all included (GitLab UI scenario)', async () => {
+    const current: TagInfo = {
+      raw: 'client2-v11.0.0', prefix: 'client2', version: '11.0.0', suffix: null,
+      createdAt: '2026-04-17T07:20:46Z',       // commit date (wrong as "tag time")
+      commitDate: '2026-04-17T07:20:46Z',
+      dateSource: 'commit',
+    };
+    const previous: TagInfo = {
+      raw: 'client2-v10.1.0', prefix: 'client2', version: '10.1.0', suffix: null,
+      createdAt: '2026-04-09T19:52:20Z',
+      commitDate: '2026-04-09T19:52:20Z',
+      dateSource: 'commit',
+    };
+
+    vi.mocked(client.listIssues).mockResolvedValue([
+      { number: 72, title: 'Migrate API v1 endpoints', labels: ['CLIENT2', 'breaking-change'], closedAt: '2026-04-17T07:21:13.079Z', webUrl: '', milestone: null, author: null, assignee: null, closedBy: null },
+      { number: 71, title: 'Reduce dashboard initial load time', labels: ['CLIENT2', 'improvement'], closedAt: '2026-04-17T07:21:33.119Z', webUrl: '', milestone: null, author: null, assignee: null, closedBy: null },
+      { number: 70, title: 'Login fails with 500', labels: ['CLIENT2', 'bug'], closedAt: '2026-04-17T07:21:19.901Z', webUrl: '', milestone: null, author: null, assignee: null, closedBy: null },
+      { number: 69, title: 'Add dark mode toggle', labels: ['CLIENT2', 'feature'], closedAt: '2026-04-17T07:21:24.976Z', webUrl: '', milestone: null, author: null, assignee: null, closedBy: null },
+    ]);
+
+    const multiClientConfig: ReleaseJetConfig = {
+      ...config,
+      clients: [{ prefix: 'client2', label: 'CLIENT2' }],
+      categories: {
+        feature: 'New Features',
+        bug: 'Bug Fixes',
+        improvement: 'Improvements',
+        'breaking-change': 'Breaking Changes',
+      },
+    };
+
+    const result = await collectIssues(
+      client, 'owner/repo', current, previous, [previous, current], multiClientConfig,
+    );
+
+    const all = [
+      ...Object.values(result.categorized).flat(),
+      ...result.uncategorized,
+    ];
+    expect(all.map(i => i.number).sort()).toEqual([69, 70, 71, 72]);
+  });
 });
 
 describe('detectMilestone', () => {
