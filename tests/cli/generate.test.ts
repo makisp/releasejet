@@ -396,6 +396,31 @@ describe('runGenerate', () => {
     });
   });
 
+  it('prints the shared lightweight-tag warning when current tag has commit dateSource', async () => {
+    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    await runGenerate({
+      tag: 'mobile-v0.1.17',
+      publish: false,
+      dryRun: false,
+      format: 'markdown',
+      config: '.releasejet.yml',
+    });
+
+    const stderr = errorSpy.mock.calls.map((c) => c[0]).join('\n');
+    expect(stderr).toContain('"mobile-v0.1.17"');
+    expect(stderr).toContain('lightweight tag');
+    expect(stderr).toContain('git tag -a mobile-v0.1.17');
+    expect(stderr).toContain('--publish');
+    expect(stderr).toContain(
+      'https://github.com/makisp/releasejet#tag-timestamps',
+    );
+
+    consoleSpy.mockRestore();
+    errorSpy.mockRestore();
+  });
+
   describe('config template fallback', () => {
     it('uses config.template as fallback when --template is not specified', async () => {
       const { getPluginRuntime } = await import('../../src/plugins/loader.js');

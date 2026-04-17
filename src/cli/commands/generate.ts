@@ -19,6 +19,7 @@ import { promptForUncategorized } from '../prompts.js';
 import { withErrorHandler } from '../error-handler.js';
 import { createLogger } from '../logger.js';
 import { getPluginRuntime } from '../../plugins/loader.js';
+import { formatLightweightTagWarning } from '../../core/tag-timestamps.js';
 import ora from 'ora';
 import type { TagInfo, ReleaseNotesData } from '../../types.js';
 import type { ProviderClient } from '../../providers/types.js';
@@ -190,17 +191,7 @@ export async function runGenerate(options: {
   const milestone = detectMilestone(issues);
 
   if (currentTag.dateSource === 'commit') {
-    const warningLines = [
-      `⚠️  Tag "${options.tag}" is lightweight and has no associated release,`,
-      `   so its exact creation time isn't available. Using the commit date as`,
-      `   a lower reference and the current time as the upper bound, which may`,
-      `   include any issues closed since the commit.`,
-      ``,
-      `   For precise timing, use annotated tags (\`git tag -a <name> -m "..."\`)`,
-      `   or publish the release (\`releasejet generate --publish\`) before`,
-      `   regenerating notes.`,
-    ];
-    console.error(warningLines.join('\n'));
+    console.error(formatLightweightTagWarning(options.tag));
   }
 
   const totalCount =
