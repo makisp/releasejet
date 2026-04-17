@@ -39,7 +39,7 @@
     "build": "tsup",
     "test": "vitest run",
     "test:watch": "vitest",
-    "dev": "tsx src/cli/index.ts",
+    "dev": "tsx src/cli/main.ts",
     "prepublishOnly": "npm run test && npm run build"
   },
   "dependencies": {
