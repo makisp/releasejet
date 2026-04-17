@@ -5,7 +5,12 @@ import {
   getRemoteUrl,
   resolveProjectInfo,
 } from '../../core/git.js';
-import { parseTag, findPreviousTag } from '../../core/tag-parser.js';
+import {
+  parseTag,
+  findPreviousTag,
+  collectOrphanTags,
+  formatOrphanError,
+} from '../../core/tag-parser.js';
 import {
   collectIssues,
   detectMilestone,
@@ -115,16 +120,21 @@ export async function runGenerate(options: {
   }
   debug('All remote tags:', apiTags.map(t => `${t.name} (${t.createdAt})`).join(', '));
 
-  const allTags: TagInfo[] = apiTags
-    .map((t) => {
-      try {
-        const parsed = parseTag(t.name, config.tagFormat);
-        return { ...parsed, createdAt: t.createdAt, commitDate: t.commitDate, dateSource: t.dateSource };
-      } catch {
-        return null;
-      }
-    })
-    .filter((t): t is TagInfo => t !== null);
+  const allTags: TagInfo[] = [];
+  const unparseableTags: { name: string; createdAt: string }[] = [];
+  for (const t of apiTags) {
+    try {
+      const parsed = parseTag(t.name, config.tagFormat);
+      allTags.push({
+        ...parsed,
+        createdAt: t.createdAt,
+        commitDate: t.commitDate,
+        dateSource: t.dateSource,
+      });
+    } catch {
+      unparseableTags.push({ name: t.name, createdAt: t.createdAt });
+    }
+  }
 
   let currentTag = allTags.find((t) => t.raw === options.tag);
   if (!currentTag) {
@@ -147,6 +157,19 @@ export async function runGenerate(options: {
   } else {
     previousTag = findPreviousTag(allTags, currentTag);
     debug('Previous tag:', previousTag ? JSON.stringify(previousTag) : 'none (first release)');
+    if (previousTag === null) {
+      const report = collectOrphanTags(allTags, unparseableTags, currentTag);
+      if (report.formatMismatch || report.suffix) {
+        throw new Error(
+          formatOrphanError(
+            report,
+            currentTag,
+            config.tagFormat,
+            unparseableTags.length,
+          ),
+        );
+      }
+    }
   }
   if (previousTag) {
     previousTag = await upgradeTagDate(client, projectPath, previousTag);
