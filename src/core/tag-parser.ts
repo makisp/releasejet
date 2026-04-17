@@ -103,6 +103,19 @@ export function findPreviousTag(
   return candidates[0] ?? null;
 }
 
+export function findNextSamePrefixTag(
+  allTags: TagInfo[],
+  current: TagInfo,
+): TagInfo | null {
+  const candidates = allTags
+    .filter((t) => t.prefix === current.prefix && t.raw !== current.raw)
+    .filter((t) => t.suffix === null)
+    .filter((t) => semver.gt(t.version, current.version))
+    .sort((a, b) => semver.compare(a.version, b.version));
+
+  return candidates[0] ?? null;
+}
+
 export interface TagValidationResult {
   tag: string;
   valid: boolean;

@@ -5,12 +5,14 @@ import type {
   CategorizedIssues,
   Issue,
 } from '../types.js';
+import { findNextSamePrefixTag } from './tag-parser.js';
 
 export async function collectIssues(
   client: ProviderClient,
   projectPath: string,
   currentTag: TagInfo,
   previousTag: TagInfo | null,
+  allTags: TagInfo[],
   config: ReleaseJetConfig,
   debug: (...args: unknown[]) => void = () => {},
 ): Promise<CategorizedIssues> {
@@ -18,12 +20,37 @@ export async function collectIssues(
     ? config.clients.find((c) => c.prefix === currentTag.prefix)?.label
     : undefined;
 
+  // Upper bound: trust resolved createdAt for annotated/release; for commit
+  // fallback, expand to next same-prefix tag's createdAt or now().
+  let upperBoundIso: string;
+  if (currentTag.dateSource === 'commit') {
+    const next = findNextSamePrefixTag(allTags, currentTag);
+    upperBoundIso = next ? next.createdAt : new Date().toISOString();
+    debug(
+      'Upper bound:', upperBoundIso,
+      `(source: commit → ${next ? 'next same-prefix tag' : 'now()'})`,
+    );
+  } else {
+    upperBoundIso = currentTag.createdAt;
+    debug('Upper bound:', upperBoundIso, `(source: ${currentTag.dateSource})`);
+  }
+
+  // Lower bound: resolved createdAt of previous tag.
+  const lowerBoundIso = previousTag?.createdAt;
+  if (previousTag) {
+    debug('Lower bound:', lowerBoundIso, `(source: ${previousTag.dateSource})`);
+  }
+
+  // API query: use previousTag.commitDate (always ≤ actual tag time) so we
+  // don't miss issues whose updatedAt sits between commit and tag-creation.
+  const updatedAfter = previousTag?.commitDate;
+
   debug('Client label filter:', clientLabel ?? 'none (single-client)');
-  debug('API query: state=closed, updatedAfter=' + (previousTag?.createdAt ?? 'none'));
+  debug('API query: state=closed, updatedAfter=' + (updatedAfter ?? 'none'));
 
   const fetchOptions = {
     state: 'closed' as const,
-    updatedAfter: previousTag?.createdAt,
+    updatedAfter,
     labels: clientLabel,
   };
 
@@ -36,17 +63,29 @@ export async function collectIssues(
     debug(`  #${issue.number} "${issue.title}" closedAt=${issue.closedAt} labels=[${issue.labels.join(', ')}]`);
   }
 
-  // Client-side filter by closedAt — the API only supports updatedAfter/updatedBefore
-  // which is unreliable (any edit bumps updatedAt). closedAt is the real signal.
+  const upperBoundMs = new Date(upperBoundIso).getTime();
+  const lowerBoundMs = lowerBoundIso
+    ? new Date(lowerBoundIso).getTime()
+    : null;
+
+  if (Number.isNaN(upperBoundMs) || (lowerBoundMs !== null && Number.isNaN(lowerBoundMs))) {
+    throw new Error(
+      `Invalid tag date(s): upper=${upperBoundIso}, lower=${lowerBoundIso ?? 'none'}. ` +
+      `Tag dates must be ISO-8601 strings.`,
+    );
+  }
+
+  // Inverted window guard.
+  if (lowerBoundMs !== null && upperBoundMs <= lowerBoundMs) {
+    debug('Inverted window — returning empty set');
+    return { categorized: {}, uncategorized: [] };
+  }
+
   const filtered = issues.filter((issue) => {
     if (!issue.closedAt) return false;
     const closed = new Date(issue.closedAt).getTime();
-    const before = new Date(currentTag.createdAt).getTime();
-    if (closed > before) return false;
-    if (previousTag) {
-      const after = new Date(previousTag.createdAt).getTime();
-      if (closed <= after) return false;
-    }
+    if (closed > upperBoundMs) return false;
+    if (lowerBoundMs !== null && closed <= lowerBoundMs) return false;
     return true;
   });
 
@@ -57,9 +96,7 @@ export async function collectIssues(
   const uncategorized: Issue[] = [];
 
   for (const issue of filtered) {
-    const matchedLabel = issue.labels.find((l) =>
-      categoryLabels.includes(l),
-    );
+    const matchedLabel = issue.labels.find((l) => categoryLabels.includes(l));
     if (matchedLabel) {
       const heading = config.categories[matchedLabel];
       if (!categorized[heading]) categorized[heading] = [];

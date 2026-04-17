@@ -127,6 +127,32 @@ Token resolution order:
 | Multi-client | `<prefix>-v<semver>` | `mobile-v1.2.0` |
 | Single-client | `v<semver>` | `v1.2.0` |
 
+## Tag Timestamps
+
+ReleaseJet uses the tag's creation timestamp to pick which issues and pull requests belong to a release. **Annotated tags** and **tags with a release object** both give exact timing. **Plain lightweight tags** (no annotation, no release) fall back to the commit date, which may include issues closed after the commit but before the tag was pushed.
+
+### Option 1 — Annotated tag (CLI)
+
+```bash
+git tag -a v1.0.0 -m "Release v1.0.0"
+git push origin v1.0.0
+```
+
+### Option 2 — Web UI
+
+- **GitLab:** Code → Tags → New tag → fill the **Message** field (e.g. `Release v1.0.0`) → Create tag
+- **GitHub:** Releases → "Draft a new release" → choose or create the tag → Publish release
+
+  *(GitHub has no web UI for creating tags without a release — the Tags page only lists existing tags.)*
+
+### Option 3 — Let ReleaseJet do it
+
+```bash
+releasejet generate --tag v1.0.0 --publish
+```
+
+This creates a release object on the provider, which ReleaseJet can then resolve precisely on subsequent runs.
+
 ## Commands
 
 | Command | Description |
@@ -183,6 +209,10 @@ git push origin <tag>
 ### "Invalid tag format"
 
 Tags must match `v<semver>` (e.g., `v1.2.0`) or `<prefix>-v<semver>` (e.g., `mobile-v1.2.0`). Suffixes like `v1.2.0-beta` are supported but the core version must be valid semver.
+
+### "Tag is lightweight" warning in generate output
+
+ReleaseJet couldn't determine the exact time the tag was created. See [Tag Timestamps](#tag-timestamps) for how to create tags that give precise timing. To fix a release you've already cut, run `releasejet generate --tag <tag> --publish` — this creates a release object that ReleaseJet can resolve next time.
 
 ### Issues missing from release notes
 

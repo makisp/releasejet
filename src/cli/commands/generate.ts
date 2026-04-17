@@ -19,11 +19,25 @@ import { promptForUncategorized } from '../prompts.js';
 import { withErrorHandler } from '../error-handler.js';
 import { createLogger } from '../logger.js';
 import { getPluginRuntime } from '../../plugins/loader.js';
+import { formatLightweightTagWarning } from '../../core/tag-timestamps.js';
 import ora from 'ora';
 import type { TagInfo, ReleaseNotesData } from '../../types.js';
+import type { ProviderClient } from '../../providers/types.js';
 
 function isTemplatePath(value: string): boolean {
   return value.includes('/') || value.includes('\\') || value.endsWith('.hbs');
+}
+
+async function upgradeTagDate(
+  client: ProviderClient,
+  projectPath: string,
+  tag: TagInfo,
+): Promise<TagInfo> {
+  if (tag.dateSource !== 'commit') return tag;
+  if (!client.resolveAnnotatedTagDate) return tag;
+  const annotated = await client.resolveAnnotatedTagDate(projectPath, tag.raw);
+  if (!annotated) return tag;
+  return { ...tag, createdAt: annotated, dateSource: 'annotated' };
 }
 
 export function registerGenerateCommand(program: Command): void {
@@ -90,7 +104,7 @@ export async function runGenerate(options: {
   const currentParsed = parseTag(options.tag, config.tagFormat);
   debug('Parsed tag:', JSON.stringify(currentParsed));
 
-  let apiTags: Array<{ name: string; createdAt: string }>;
+  let apiTags: Awaited<ReturnType<typeof client.listTags>>;
   try {
     spinner?.start('Fetching tags...');
     apiTags = await client.listTags(projectPath);
@@ -105,19 +119,20 @@ export async function runGenerate(options: {
     .map((t) => {
       try {
         const parsed = parseTag(t.name, config.tagFormat);
-        return { ...parsed, createdAt: t.createdAt };
+        return { ...parsed, createdAt: t.createdAt, commitDate: t.commitDate, dateSource: t.dateSource };
       } catch {
         return null;
       }
     })
     .filter((t): t is TagInfo => t !== null);
 
-  const currentTag = allTags.find((t) => t.raw === options.tag);
+  let currentTag = allTags.find((t) => t.raw === options.tag);
   if (!currentTag) {
     throw new Error(
       `Tag "${options.tag}" not found in remote repository.`,
     );
   }
+  currentTag = await upgradeTagDate(client, projectPath, currentTag);
   debug('Current tag:', JSON.stringify(currentTag));
 
   let previousTag: TagInfo | null;
@@ -133,6 +148,10 @@ export async function runGenerate(options: {
     previousTag = findPreviousTag(allTags, currentTag);
     debug('Previous tag:', previousTag ? JSON.stringify(previousTag) : 'none (first release)');
   }
+  if (previousTag) {
+    previousTag = await upgradeTagDate(client, projectPath, previousTag);
+    debug('Previous tag (resolved):', JSON.stringify(previousTag));
+  }
   debug('Date range:', previousTag?.createdAt ?? 'beginning', '->', currentTag.createdAt);
 
   const sourceLabel = config.source === 'pull_requests' ? 'pull requests' : 'issues';
@@ -144,6 +163,7 @@ export async function runGenerate(options: {
       projectPath,
       currentTag,
       previousTag,
+      allTags,
       config,
       debug,
     );
@@ -169,6 +189,10 @@ export async function runGenerate(options: {
   }
 
   const milestone = detectMilestone(issues);
+
+  if (currentTag.dateSource === 'commit') {
+    console.error(formatLightweightTagWarning(options.tag));
+  }
 
   const totalCount =
     Object.values(issues.categorized).reduce(
