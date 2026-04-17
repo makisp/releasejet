@@ -15,6 +15,7 @@ import {
   DEFAULT_TAGS,
 } from '../../core/ci.js';
 import { hasActivePro } from '../../license/detect.js';
+import { TAG_TIMESTAMP_TIP } from '../../core/tag-timestamps.js';
 
 export function registerInitCommand(program: Command): void {
   program
@@ -323,6 +324,7 @@ export async function runInit(): Promise<void> {
     console.log(`✓ Token stored in ${credPath}`);
   }
 
+  console.log(TAG_TIMESTAMP_TIP);
   console.log('\nSetup complete! You can now run:');
   console.log(
     '  releasejet generate --tag <tag>          # Preview release notes',
