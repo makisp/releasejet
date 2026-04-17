@@ -116,6 +116,44 @@ export function findNextSamePrefixTag(
   return candidates[0] ?? null;
 }
 
+export interface OrphanReport {
+  formatMismatch: { name: string; createdAt: string } | null;
+  suffix: TagInfo | null;
+}
+
+export function collectOrphanTags(
+  allTags: TagInfo[],
+  unparseableTags: { name: string; createdAt: string }[],
+  currentTag: TagInfo,
+): OrphanReport {
+  const formatMismatch =
+    unparseableTags.length === 0
+      ? null
+      : unparseableTags.reduce((latest, t) =>
+          new Date(t.createdAt).getTime() > new Date(latest.createdAt).getTime()
+            ? t
+            : latest,
+        );
+
+  const suffixCandidates = allTags
+    .filter((t) => t.prefix === currentTag.prefix && t.raw !== currentTag.raw)
+    .filter((t) => t.suffix !== null)
+    .filter((t) => semver.lte(t.version, currentTag.version));
+
+  const suffix =
+    suffixCandidates.length === 0
+      ? null
+      : suffixCandidates.sort((a, b) => {
+          const cmp = semver.rcompare(a.version, b.version);
+          if (cmp !== 0) return cmp;
+          return (
+            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+          );
+        })[0];
+
+  return { formatMismatch, suffix };
+}
+
 export interface TagValidationResult {
   tag: string;
   valid: boolean;
