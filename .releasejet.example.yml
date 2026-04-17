@@ -34,6 +34,12 @@ categories:
 # "strict" — fail release generation
 uncategorized: lenient
 
+# Release notes template
+# "default"      — built-in template (free)
+# <pro-name>     — named template from @releasejet/pro (e.g. "compact")
+# ./my.hbs       — path to a custom Handlebars file (requires @releasejet/pro)
+template: default
+
 # Contributors section in release notes (disabled by default)
 # contributors:
 #   enabled: true
