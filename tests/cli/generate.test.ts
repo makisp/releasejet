@@ -52,8 +52,8 @@ const mockConfig: ReleaseJetConfig = {
 function createMockClient(): ProviderClient {
   return {
     listTags: vi.fn().mockResolvedValue([
-      { name: 'mobile-v0.1.16', createdAt: '2026-03-01T10:00:00Z' },
-      { name: 'mobile-v0.1.17', createdAt: '2026-04-08T10:00:00Z' },
+      { name: 'mobile-v0.1.16', createdAt: '2026-03-01T10:00:00Z', commitDate: '2026-03-01T10:00:00Z', dateSource: 'commit' as const },
+      { name: 'mobile-v0.1.17', createdAt: '2026-04-08T10:00:00Z', commitDate: '2026-04-08T10:00:00Z', dateSource: 'commit' as const },
     ]),
     listIssues: vi.fn().mockResolvedValue([
       { number: 1, title: 'New feature', labels: ['feature', 'MOBILE'], closedAt: '2026-04-07', webUrl: '', milestone: null, author: null, assignee: null, closedBy: null },
@@ -181,9 +181,9 @@ describe('runGenerate', () => {
   it('uses --since tag as the previous tag', async () => {
     const client = createMockClient();
     (client.listTags as ReturnType<typeof vi.fn>).mockResolvedValue([
-      { name: 'mobile-v0.1.15', createdAt: '2026-02-01T10:00:00Z' },
-      { name: 'mobile-v0.1.16', createdAt: '2026-03-01T10:00:00Z' },
-      { name: 'mobile-v0.1.17', createdAt: '2026-04-08T10:00:00Z' },
+      { name: 'mobile-v0.1.15', createdAt: '2026-02-01T10:00:00Z', commitDate: '2026-02-01T10:00:00Z', dateSource: 'commit' as const },
+      { name: 'mobile-v0.1.16', createdAt: '2026-03-01T10:00:00Z', commitDate: '2026-03-01T10:00:00Z', dateSource: 'commit' as const },
+      { name: 'mobile-v0.1.17', createdAt: '2026-04-08T10:00:00Z', commitDate: '2026-04-08T10:00:00Z', dateSource: 'commit' as const },
     ]);
     vi.mocked(createClient).mockReturnValue(client);
     const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});

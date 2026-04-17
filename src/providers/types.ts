@@ -1,9 +1,21 @@
-import type { Issue, Milestone } from '../types.js';
+import type { Issue, Milestone, TagDateSource } from '../types.js';
+
+export type { TagDateSource };
+
+export interface RemoteTag {
+  name: string;
+  createdAt: string;
+  commitDate: string;
+  dateSource: TagDateSource;
+}
 
 export interface ProviderClient {
-  listTags(
+  listTags(projectPath: string): Promise<RemoteTag[]>;
+
+  resolveAnnotatedTagDate?(
     projectPath: string,
-  ): Promise<Array<{ name: string; createdAt: string }>>;
+    tagName: string,
+  ): Promise<string | null>;
 
   listIssues(
     projectPath: string,
@@ -35,9 +47,6 @@ export interface ProviderClient {
 
   listMilestones(
     projectPath: string,
-    options?: {
-      search?: string;
-      state?: string;
-    },
+    options?: { search?: string; state?: string },
   ): Promise<Milestone[]>;
 }

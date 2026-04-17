@@ -33,8 +33,8 @@ describe('createGitLabClient', () => {
       const tags = await client.listTags('mobile/app');
 
       expect(tags).toEqual([
-        { name: 'mobile-v0.1.17', createdAt: '2026-04-08T10:00:00Z' },
-        { name: 'mobile-v0.1.16', createdAt: '2026-03-01T10:00:00Z' },
+        { name: 'mobile-v0.1.17', createdAt: '2026-04-08T10:00:00Z', commitDate: '2026-04-08T10:00:00Z', dateSource: 'commit' },
+        { name: 'mobile-v0.1.16', createdAt: '2026-03-01T10:00:00Z', commitDate: '2026-03-01T10:00:00Z', dateSource: 'commit' },
       ]);
       expect(mockTagsAll).toHaveBeenCalledWith('mobile/app');
     });

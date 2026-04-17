@@ -90,7 +90,7 @@ export async function runGenerate(options: {
   const currentParsed = parseTag(options.tag, config.tagFormat);
   debug('Parsed tag:', JSON.stringify(currentParsed));
 
-  let apiTags: Array<{ name: string; createdAt: string }>;
+  let apiTags: Awaited<ReturnType<typeof client.listTags>>;
   try {
     spinner?.start('Fetching tags...');
     apiTags = await client.listTags(projectPath);
@@ -105,7 +105,7 @@ export async function runGenerate(options: {
     .map((t) => {
       try {
         const parsed = parseTag(t.name, config.tagFormat);
-        return { ...parsed, createdAt: t.createdAt };
+        return { ...parsed, createdAt: t.createdAt, commitDate: t.commitDate, dateSource: t.dateSource };
       } catch {
         return null;
       }
