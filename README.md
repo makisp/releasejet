@@ -56,6 +56,8 @@ categories:
 
 uncategorized: lenient  # or "strict" to enforce labeling
 
+template: default       # built-in template; or a Pro template name, or "./my.hbs"
+
 # Optional: list contributors in release notes
 contributors:
   enabled: true
