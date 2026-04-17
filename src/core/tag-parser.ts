@@ -154,6 +154,81 @@ export function collectOrphanTags(
   return { formatMismatch, suffix };
 }
 
+function formatDate(iso: string): string {
+  return iso.split('T')[0];
+}
+
+function tagFormatOrLegacy(tagFormat: string | undefined): string {
+  return tagFormat ?? '<prefix>-v<semver> or v<semver>';
+}
+
+export function formatOrphanError(
+  report: OrphanReport,
+  currentTag: TagInfo,
+  tagFormat: string | undefined,
+  unparseableCount: number,
+): string {
+  const formatStr = tagFormatOrLegacy(tagFormat);
+
+  if (report.formatMismatch && !report.suffix) {
+    const orphan = report.formatMismatch;
+    const noun = unparseableCount === 1 ? 'tag' : 'tags';
+    const verb = unparseableCount === 1 ? 'does not match' : 'do not match';
+    return [
+      `Error: No previous tag found for "${currentTag.raw}", but ${unparseableCount} ${noun} in this repository`,
+      `${verb} the configured tagFormat ("${formatStr}").`,
+      '',
+      `Most recent non-matching tag: ${orphan.name} (${formatDate(orphan.createdAt)})`,
+      '',
+      'This usually means tagFormat was changed after previous releases were tagged.',
+      'To avoid publishing release notes covering every issue since the beginning of',
+      'history, either:',
+      '',
+      '  - Specify an explicit starting point:',
+      `      releasejet generate --tag ${currentTag.raw} --since ${orphan.name}`,
+      '',
+      '  - Or re-tag the previous release to match the new tagFormat and re-run',
+      '    this command.',
+      '',
+      'Aborting.',
+    ].join('\n');
+  }
+
+  if (report.suffix && !report.formatMismatch) {
+    const orphan = report.suffix;
+    return [
+      `Error: No previous tag found for "${currentTag.raw}". A same-prefix suffixed tag`,
+      `exists (${orphan.raw}, ${formatDate(orphan.createdAt)}) and suffixed tags are filtered out`,
+      'when detecting the previous release.',
+      '',
+      'To generate release notes against that tag, pass --since:',
+      '',
+      `  releasejet generate --tag ${currentTag.raw} --since ${orphan.raw}`,
+      '',
+      'Aborting.',
+    ].join('\n');
+  }
+
+  // Both present (Case C)
+  const fm = report.formatMismatch!;
+  const sf = report.suffix!;
+  return [
+    `Error: No previous tag found for "${currentTag.raw}". Multiple tags were skipped`,
+    'during previous-tag detection:',
+    '',
+    `  - Most recent non-matching tag (not in configured tagFormat "${formatStr}"):`,
+    `      ${fm.name} (${formatDate(fm.createdAt)})`,
+    '  - Most recent same-prefix suffixed tag (filtered out):',
+    `      ${sf.raw} (${formatDate(sf.createdAt)})`,
+    '',
+    'To proceed, specify an explicit starting point with --since, e.g.:',
+    '',
+    `  releasejet generate --tag ${currentTag.raw} --since ${sf.raw}`,
+    '',
+    'Aborting.',
+  ].join('\n');
+}
+
 export interface TagValidationResult {
   tag: string;
   valid: boolean;
