@@ -313,6 +313,19 @@ categories:
     expect(config.template).toBe('compact');
   });
 
+  it('parses template: default from config', async () => {
+    vi.mocked(readFile).mockResolvedValue(`
+provider:
+  type: github
+template: default
+categories:
+  bug: Bug Fixes
+` as never);
+
+    const config = await loadConfig();
+    expect(config.template).toBe('default');
+  });
+
   it('defaults template to undefined when not specified', async () => {
     vi.mocked(readFile).mockResolvedValue(`
 provider:
