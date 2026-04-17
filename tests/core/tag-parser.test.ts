@@ -1,5 +1,13 @@
 import { describe, it, expect } from 'vitest';
-import { parseTag, findPreviousTag, findNextSamePrefixTag, validateTag, tagFormatToRegex, collectOrphanTags } from '../../src/core/tag-parser.js';
+import {
+  parseTag,
+  findPreviousTag,
+  findNextSamePrefixTag,
+  validateTag,
+  tagFormatToRegex,
+  collectOrphanTags,
+  formatOrphanError,
+} from '../../src/core/tag-parser.js';
 import type { TagInfo, ReleaseJetConfig } from '../../src/types.js';
 
 describe('tagFormatToRegex', () => {
@@ -582,5 +590,112 @@ describe('collectOrphanTags', () => {
     const report = collectOrphanTags([current, beta], unparseable, current);
     expect(report.formatMismatch).toEqual(unparseable[0]);
     expect(report.suffix).toEqual(beta);
+  });
+});
+
+describe('formatOrphanError', () => {
+  function makeTag(
+    raw: string,
+    prefix: string | null,
+    version: string,
+    suffix: string | null,
+    createdAt = '2026-04-01T00:00:00Z',
+  ): TagInfo {
+    return {
+      raw,
+      prefix,
+      version,
+      suffix,
+      createdAt,
+      commitDate: createdAt,
+      dateSource: 'annotated',
+    };
+  }
+
+  const current = makeTag('release/v1.0.0', null, '1.0.0', null);
+
+  it('Case A: formats format-mismatch-only with tagFormat, count, --since and re-tag guidance', () => {
+    const report = {
+      formatMismatch: { name: 'v0.9.2', createdAt: '2026-03-15T00:00:00Z' },
+      suffix: null,
+    };
+    const msg = formatOrphanError(report, current, 'release/{version}', 12);
+    expect(msg).toContain('No previous tag found for "release/v1.0.0"');
+    expect(msg).toContain('12 tags');
+    expect(msg).toContain('do not match');
+    expect(msg).toContain('"release/{version}"');
+    expect(msg).toContain('Most recent non-matching tag: v0.9.2 (2026-03-15)');
+    expect(msg).toContain('releasejet generate --tag release/v1.0.0 --since v0.9.2');
+    expect(msg).toContain('re-tag the previous release');
+    expect(msg).toContain('Aborting.');
+  });
+
+  it('Case A: singular form when unparseableCount === 1', () => {
+    const report = {
+      formatMismatch: { name: 'v0.9.2', createdAt: '2026-03-15T00:00:00Z' },
+      suffix: null,
+    };
+    const msg = formatOrphanError(report, current, 'release/{version}', 1);
+    expect(msg).toContain('1 tag');
+    expect(msg).not.toContain('1 tags');
+    expect(msg).toContain('does not match');
+    expect(msg).not.toContain('do not match');
+  });
+
+  it('Case A: uses legacy fallback when tagFormat is undefined', () => {
+    const report = {
+      formatMismatch: { name: 'v0.9.2', createdAt: '2026-03-15T00:00:00Z' },
+      suffix: null,
+    };
+    const msg = formatOrphanError(report, current, undefined, 3);
+    expect(msg).toContain('<prefix>-v<semver> or v<semver>');
+    expect(msg).not.toContain('undefined');
+  });
+
+  it('Case B: suffix-only uses "suffixed tag" wording (not "pre-release")', () => {
+    const ertCurrent = makeTag('ert-v1.1.0', 'ert', '1.1.0', null);
+    const orphan = makeTag(
+      'ert-v1.0.0-version',
+      'ert',
+      '1.0.0',
+      '-version',
+      '2026-03-15T00:00:00Z',
+    );
+    const msg = formatOrphanError(
+      { formatMismatch: null, suffix: orphan },
+      ertCurrent,
+      '{prefix}-v{version}',
+      0,
+    );
+    expect(msg).toContain('No previous tag found for "ert-v1.1.0"');
+    expect(msg).toContain('suffixed tag');
+    expect(msg).not.toContain('pre-release');
+    expect(msg).toContain('ert-v1.0.0-version');
+    expect(msg).toContain('2026-03-15');
+    expect(msg).toContain(
+      'releasejet generate --tag ert-v1.1.0 --since ert-v1.0.0-version',
+    );
+    expect(msg).toContain('Aborting.');
+  });
+
+  it('Case C: both bullets present, remediation uses suffix orphan raw as --since', () => {
+    const rc = makeTag('release/v1.0.0-rc.1', null, '1.0.0', '-rc.1', '2026-03-16T00:00:00Z');
+    const msg = formatOrphanError(
+      {
+        formatMismatch: { name: 'v0.9.2', createdAt: '2026-03-15T00:00:00Z' },
+        suffix: rc,
+      },
+      current,
+      'release/{version}',
+      5,
+    );
+    expect(msg).toContain('Multiple tags were skipped');
+    expect(msg).toContain('Most recent non-matching tag');
+    expect(msg).toContain('v0.9.2 (2026-03-15)');
+    expect(msg).toContain('Most recent same-prefix suffixed tag');
+    expect(msg).toContain('release/v1.0.0-rc.1 (2026-03-16)');
+    expect(msg).toContain(
+      'releasejet generate --tag release/v1.0.0 --since release/v1.0.0-rc.1',
+    );
   });
 });
