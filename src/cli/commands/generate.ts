@@ -225,7 +225,7 @@ export async function runGenerate(options: {
   let output: string;
   if (options.format === 'json') {
     output = JSON.stringify(data, null, 2);
-  } else if (templateName) {
+  } else if (templateName && templateName !== 'default') {
     await pluginRuntime?.hooks.beforeFormat.run({ data, config });
     if (isTemplatePath(templateName)) {
       if (!pluginRuntime) {
