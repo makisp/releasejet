@@ -2,7 +2,7 @@ import Handlebars from 'handlebars';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import type { ReleaseNotesData, ReleaseJetConfig } from '../types.js';
-import defaultTemplateSource from './templates/default.hbs';
+import { defaultTemplate as defaultTemplateSource } from './templates/default-template.js';
 
 const builtinTemplates: Record<string, string> = {
   default: defaultTemplateSource,

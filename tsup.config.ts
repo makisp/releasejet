@@ -11,7 +11,6 @@ export default defineConfig([
     clean: true,
     banner: { js: '#!/usr/bin/env node' },
     define: { __VERSION__: JSON.stringify(pkg.version) },
-    loader: { '.hbs': 'text' },
   },
   {
     entry: { 'plugins/types': 'src/plugins/types.ts' },
