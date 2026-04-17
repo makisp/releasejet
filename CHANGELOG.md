@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.10.0-rc.0] - 2026-04-17 (prerelease)
+
+### Added
+- Docs surface: `./docs/config-schema.json` and `./docs/commands.json` exports consumed by releasejet.dev/docs (W3).
+- Internal: Zod schema at `src/core/config.schema.ts` as the single source of truth for runtime validation and docs generation.
+
+### Changed
+- Config loading now routes through the Zod schema. Behavior is unchanged — all existing error messages and legacy `gitlab:` migration are preserved.
+- Default release-notes template relocated from `src/core/templates/default.hbs` to `src/core/templates/default-template.ts` (embedded TS constant) so the docs emitter can run under tsx without a custom loader.
+
 ## [1.9.4] - 2026-04-17
 
 ### Added
