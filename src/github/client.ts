@@ -149,5 +149,21 @@ export function createGitHubClient(
         state: m.state,
       }));
     },
+
+    async resolveAnnotatedTagDate(projectPath, tagName) {
+      const { owner, repo } = parseOwnerRepo(projectPath);
+      try {
+        const { data: ref } = await octokit.git.getRef({
+          owner, repo, ref: `tags/${tagName}`,
+        });
+        if (ref.object.type !== 'tag') return null;
+        const { data: tagObj } = await octokit.git.getTag({
+          owner, repo, tag_sha: ref.object.sha,
+        });
+        return (tagObj as any).tagger?.date ?? null;
+      } catch {
+        return null;
+      }
+    },
   };
 }

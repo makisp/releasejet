@@ -9,6 +9,8 @@ const mockGetReleaseByTag = vi.fn();
 const mockUpdateRelease = vi.fn();
 const mockListMilestones = vi.fn();
 const mockListReleases = vi.fn();
+const mockGetRef = vi.fn();
+const mockGetTag = vi.fn();
 
 vi.mock('@octokit/rest', () => ({
   Octokit: vi.fn().mockImplementation(() => ({
@@ -27,7 +29,7 @@ vi.mock('@octokit/rest', () => ({
     pulls: {
       list: mockPullsList,
     },
-    git: { getRef: vi.fn(), getTag: vi.fn() },
+    git: { getRef: mockGetRef, getTag: mockGetTag },
   })),
 }));
 
@@ -283,6 +285,61 @@ describe('createGitHubClient', () => {
       expect(milestones).toEqual([
         { id: 1, title: 'v1.0', state: 'open' },
       ]);
+    });
+  });
+
+  describe('resolveAnnotatedTagDate', () => {
+    it('returns tagger date for annotated tags', async () => {
+      mockGetRef.mockResolvedValue({
+        data: { object: { type: 'tag', sha: 'tag-sha-123' } },
+      });
+      mockGetTag.mockResolvedValue({
+        data: { tagger: { date: '2026-04-10T12:00:00Z' } },
+      });
+
+      const client = createGitHubClient('https://github.com', 'token');
+      const date = await client.resolveAnnotatedTagDate!('owner/repo', 'v1.0.0');
+
+      expect(date).toBe('2026-04-10T12:00:00Z');
+      expect(mockGetRef).toHaveBeenCalledWith({
+        owner: 'owner', repo: 'repo', ref: 'tags/v1.0.0',
+      });
+      expect(mockGetTag).toHaveBeenCalledWith({
+        owner: 'owner', repo: 'repo', tag_sha: 'tag-sha-123',
+      });
+    });
+
+    it('returns null for lightweight tags (ref.object.type !== "tag")', async () => {
+      mockGetRef.mockResolvedValue({
+        data: { object: { type: 'commit', sha: 'commit-sha' } },
+      });
+
+      const client = createGitHubClient('https://github.com', 'token');
+      const date = await client.resolveAnnotatedTagDate!('owner/repo', 'v1.0.0');
+
+      expect(date).toBeNull();
+      expect(mockGetTag).not.toHaveBeenCalled();
+    });
+
+    it('returns null on API error', async () => {
+      mockGetRef.mockRejectedValue(new Error('404'));
+
+      const client = createGitHubClient('https://github.com', 'token');
+      const date = await client.resolveAnnotatedTagDate!('owner/repo', 'v1.0.0');
+
+      expect(date).toBeNull();
+    });
+
+    it('returns null when tagger is missing', async () => {
+      mockGetRef.mockResolvedValue({
+        data: { object: { type: 'tag', sha: 'tag-sha-123' } },
+      });
+      mockGetTag.mockResolvedValue({ data: {} });
+
+      const client = createGitHubClient('https://github.com', 'token');
+      const date = await client.resolveAnnotatedTagDate!('owner/repo', 'v1.0.0');
+
+      expect(date).toBeNull();
     });
   });
 });
