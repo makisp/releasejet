@@ -264,6 +264,7 @@ export async function runInit(): Promise<void> {
     tagFormat,
     categories,
     uncategorized,
+    template: 'default',
   };
 
   if (source && source !== 'issues') {

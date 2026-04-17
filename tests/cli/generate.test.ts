@@ -281,6 +281,56 @@ describe('runGenerate', () => {
     vi.mocked(getPluginRuntime).mockReturnValue(null);
   });
 
+  it('treats config.template "default" as the built-in path (free user, no Pro)', async () => {
+    const { getPluginRuntime } = await import('../../src/plugins/loader.js');
+    vi.mocked(getPluginRuntime).mockReturnValue(null);
+
+    // Override loadConfig for this test to return template: 'default'
+    vi.mocked(loadConfig).mockResolvedValue({
+      ...mockConfig,
+      template: 'default',
+    });
+
+    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+    await runGenerate({
+      tag: 'mobile-v0.1.17',
+      publish: false,
+      dryRun: false,
+      format: 'markdown',
+      config: '.releasejet.yml',
+    });
+
+    // Built-in default template renders the MOBILE title and the issue line.
+    const output = consoleSpy.mock.calls[0][0] as string;
+    expect(output).toContain('MOBILE v0.1.17');
+    expect(output).toContain('New feature');
+
+    consoleSpy.mockRestore();
+  });
+
+  it('treats --template "default" CLI flag as the built-in path (free user, no Pro)', async () => {
+    const { getPluginRuntime } = await import('../../src/plugins/loader.js');
+    vi.mocked(getPluginRuntime).mockReturnValue(null);
+
+    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+    await runGenerate({
+      tag: 'mobile-v0.1.17',
+      publish: false,
+      dryRun: false,
+      format: 'markdown',
+      template: 'default',
+      config: '.releasejet.yml',
+    });
+
+    const output = consoleSpy.mock.calls[0][0] as string;
+    expect(output).toContain('MOBILE v0.1.17');
+    expect(output).toContain('New feature');
+
+    consoleSpy.mockRestore();
+  });
+
   it('fires beforeFormat hook before formatting', async () => {
     const beforeFormatRun = vi.fn();
     const { getPluginRuntime } = await import('../../src/plugins/loader.js');

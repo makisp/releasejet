@@ -67,6 +67,27 @@ describe('runInit — category step', () => {
     expect(config.categories).toEqual(DEFAULT_CATEGORIES);
   });
 
+  it('writes template: default in the generated .releasejet.yml', async () => {
+    // Same prompt sequence as the defaults case
+    vi.mocked(select)
+      .mockResolvedValueOnce('gitlab')
+      .mockResolvedValueOnce('v{version}')
+      .mockResolvedValueOnce('lenient')
+      .mockResolvedValueOnce('defaults');
+    vi.mocked(input)
+      .mockResolvedValueOnce('https://gitlab.example.com')
+      .mockResolvedValueOnce('test-token');
+    vi.mocked(confirm)
+      .mockResolvedValueOnce(false) // multi-client
+      .mockResolvedValueOnce(false) // contributors
+      .mockResolvedValueOnce(false); // CI setup
+
+    await runInit();
+
+    const config = parseWrittenYaml();
+    expect(config.template).toBe('default');
+  });
+
   it('extends defaults with custom categories', async () => {
     vi.mocked(select)
       .mockResolvedValueOnce('gitlab')       // provider
