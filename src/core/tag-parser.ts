@@ -175,7 +175,7 @@ export function formatOrphanError(
     const noun = unparseableCount === 1 ? 'tag' : 'tags';
     const verb = unparseableCount === 1 ? 'does not match' : 'do not match';
     return [
-      `Error: No previous tag found for "${currentTag.raw}", but ${unparseableCount} ${noun} in this repository`,
+      `No previous tag found for "${currentTag.raw}", but ${unparseableCount} ${noun} in this repository`,
       `${verb} the configured tagFormat ("${formatStr}").`,
       '',
       `Most recent non-matching tag: ${orphan.name} (${formatDate(orphan.createdAt)})`,
@@ -197,7 +197,7 @@ export function formatOrphanError(
   if (report.suffix && !report.formatMismatch) {
     const orphan = report.suffix;
     return [
-      `Error: No previous tag found for "${currentTag.raw}". A same-prefix suffixed tag`,
+      `No previous tag found for "${currentTag.raw}". A same-prefix suffixed tag`,
       `exists (${orphan.raw}, ${formatDate(orphan.createdAt)}) and suffixed tags are filtered out`,
       'when detecting the previous release.',
       '',
@@ -213,7 +213,7 @@ export function formatOrphanError(
   const fm = report.formatMismatch!;
   const sf = report.suffix!;
   return [
-    `Error: No previous tag found for "${currentTag.raw}". Multiple tags were skipped`,
+    `No previous tag found for "${currentTag.raw}". Multiple tags were skipped`,
     'during previous-tag detection:',
     '',
     `  - Most recent non-matching tag (not in configured tagFormat "${formatStr}"):`,

@@ -697,5 +697,6 @@ describe('formatOrphanError', () => {
     expect(msg).toContain(
       'releasejet generate --tag release/v1.0.0 --since release/v1.0.0-rc.1',
     );
+    expect(msg).toContain('Aborting.');
   });
 });
