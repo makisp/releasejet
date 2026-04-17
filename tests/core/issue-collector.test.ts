@@ -260,6 +260,19 @@ describe('collectIssues — tag date resolution', () => {
     const all = [...Object.values(result.categorized).flat(), ...result.uncategorized];
     expect(all.map(i => i.number)).toEqual([2]);
   });
+
+  it('throws on invalid tag dates (empty string createdAt)', async () => {
+    const current: TagInfo = {
+      raw: 'v1.0.0', prefix: null, version: '1.0.0', suffix: null,
+      createdAt: '',              // invalid
+      commitDate: '',             // invalid
+      dateSource: 'annotated',   // forces createdAt to be used directly as upperBoundIso
+    };
+
+    await expect(
+      collectIssues(client, 'owner/repo', current, null, [current], { ...config, clients: [] }),
+    ).rejects.toThrow(/Invalid tag date/);
+  });
 });
 
 describe('detectMilestone', () => {

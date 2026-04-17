@@ -68,6 +68,13 @@ export async function collectIssues(
     ? new Date(lowerBoundIso).getTime()
     : null;
 
+  if (Number.isNaN(upperBoundMs) || (lowerBoundMs !== null && Number.isNaN(lowerBoundMs))) {
+    throw new Error(
+      `Invalid tag date(s): upper=${upperBoundIso}, lower=${lowerBoundIso ?? 'none'}. ` +
+      `Tag dates must be ISO-8601 strings.`,
+    );
+  }
+
   // Inverted window guard.
   if (lowerBoundMs !== null && upperBoundMs <= lowerBoundMs) {
     debug('Inverted window — returning empty set');
