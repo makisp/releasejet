@@ -507,4 +507,21 @@ describe('runGenerate', () => {
       vi.mocked(getPluginRuntime).mockReturnValue(null);
     });
   });
+
+  it('throws with actionable error when only a same-prefix suffixed tag exists (F11 orphan detection)', async () => {
+    mockClient.listTags = vi.fn().mockResolvedValue([
+      { name: 'mobile-v1.0.0-beta.1', createdAt: '2026-03-15T10:00:00Z', commitDate: '2026-03-15T10:00:00Z', dateSource: 'commit' as const },
+      { name: 'mobile-v1.0.0', createdAt: '2026-04-10T10:00:00Z', commitDate: '2026-04-10T10:00:00Z', dateSource: 'commit' as const },
+    ]);
+
+    await expect(
+      runGenerate({
+        tag: 'mobile-v1.0.0',
+        publish: false,
+        dryRun: false,
+        format: 'markdown',
+        config: '.releasejet.yml',
+      }),
+    ).rejects.toThrow(/--since mobile-v1\.0\.0-beta\.1/);
+  });
 });
