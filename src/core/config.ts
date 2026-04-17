@@ -51,6 +51,7 @@ function mergeWithDefaults(raw: Record<string, unknown>): ReleaseJetConfig {
   const categoriesRaw = raw.categories as unknown;
   const contributorsRaw = raw.contributors as unknown;
   const template = raw.template as string | undefined;
+  const tagFormat = raw.tagFormat as string | undefined;
 
   // Provider
   let provider: { type: 'gitlab' | 'github'; url: string };
@@ -92,6 +93,20 @@ function mergeWithDefaults(raw: Record<string, unknown>): ReleaseJetConfig {
     throw new Error(
       `Invalid config in .releasejet.yml\n\n  uncategorized: "${uncategorized}" is not valid. Expected "lenient" or "strict".`,
     );
+  }
+
+  // Tag format
+  if (tagFormat !== undefined) {
+    if (typeof tagFormat !== 'string') {
+      throw new Error(
+        'Invalid config in .releasejet.yml\n\n  tagFormat: expected a string (e.g., "v{version}").',
+      );
+    }
+    if (!tagFormat.includes('{version}')) {
+      throw new Error(
+        'Invalid config in .releasejet.yml\n\n  tagFormat: must contain the {version} placeholder.',
+      );
+    }
   }
 
   // Clients
@@ -167,5 +182,6 @@ function mergeWithDefaults(raw: Record<string, unknown>): ReleaseJetConfig {
     uncategorized: (uncategorized as 'lenient' | 'strict') ?? 'lenient',
     contributors,
     template,
+    tagFormat,
   };
 }

@@ -1,9 +1,64 @@
 import * as semver from 'semver';
 import type { ParsedTag, TagInfo, ReleaseJetConfig } from '../types.js';
 
-export function parseTag(tag: string): ParsedTag {
-  // Multi-client: <prefix>-v<version...>
-  // Non-greedy prefix finds first -v; coerce extracts core X.Y.Z
+export interface TagFormatRegex {
+  regex: RegExp;
+  prefixGroup: number | null;
+  versionGroup: number;
+}
+
+export function tagFormatToRegex(format: string): TagFormatRegex {
+  let prefixGroup: number | null = null;
+  let versionGroup = 0;
+  let groupIndex = 0;
+
+  const parts = format.split(/(\{prefix\}|\{version\})/);
+  let pattern = '';
+
+  for (const part of parts) {
+    if (part === '{prefix}') {
+      groupIndex++;
+      prefixGroup = groupIndex;
+      pattern += '(.+?)';
+    } else if (part === '{version}') {
+      groupIndex++;
+      versionGroup = groupIndex;
+      pattern += '(.+)';
+    } else {
+      pattern += part.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    }
+  }
+
+  if (versionGroup === 0) {
+    throw new Error('Tag format must contain {version} placeholder.');
+  }
+
+  return {
+    regex: new RegExp(`^${pattern}$`),
+    prefixGroup,
+    versionGroup,
+  };
+}
+
+export function parseTag(tag: string, tagFormat?: string): ParsedTag {
+  if (tagFormat) {
+    const { regex, prefixGroup, versionGroup } = tagFormatToRegex(tagFormat);
+    const match = tag.match(regex);
+    if (match) {
+      const prefix = prefixGroup ? match[prefixGroup] : null;
+      const versionPart = match[versionGroup];
+      const coerced = semver.coerce(versionPart);
+      if (coerced) {
+        const suffix = versionPart.slice(coerced.version.length) || null;
+        return { raw: tag, prefix, version: coerced.version, suffix };
+      }
+    }
+    throw new Error(
+      `Invalid tag format: "${tag}". Expected format: ${tagFormat}`,
+    );
+  }
+
+  // Legacy behavior: try multi-client then single-client
   const multiMatch = tag.match(/^(.+?)-v(.+)$/);
   if (multiMatch) {
     const [, prefix, versionPart] = multiMatch;
@@ -14,7 +69,6 @@ export function parseTag(tag: string): ParsedTag {
     }
   }
 
-  // Single-client: v<version...>
   const singleMatch = tag.match(/^v(.+)$/);
   if (singleMatch) {
     const [, versionPart] = singleMatch;
@@ -57,7 +111,7 @@ export interface TagValidationResult {
 
 export function validateTag(tagName: string, config: ReleaseJetConfig): TagValidationResult {
   try {
-    const parsed = parseTag(tagName);
+    const parsed = parseTag(tagName, config.tagFormat);
 
     // In multi-client mode, check that the prefix matches a configured client
     if (config.clients.length > 0 && parsed.prefix !== null) {
