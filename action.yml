@@ -1,0 +1,50 @@
+name: ReleaseJet
+author: Mavroudis Papas
+description: Generate categorized release notes from labeled issues or merged pull requests, with first-class multi-customer repo support.
+branding:
+  icon: file-text
+  color: purple
+
+inputs:
+  tag:
+    description: The git tag to generate notes for (e.g. v1.2.0 or acme-v1.2.0). Usually github.ref_name on a tag push.
+    required: true
+  publish:
+    description: Publish the release on GitHub (true/false)
+    required: false
+    default: "true"
+  config:
+    description: Path to .releasejet.yml (relative to repo root)
+    required: false
+    default: ".releasejet.yml"
+  token:
+    description: "GitHub token with contents:write permission (typically secrets.GITHUB_TOKEN)."
+    required: true
+  version:
+    description: ReleaseJet CLI version to install. Defaults to latest.
+    required: false
+    default: "latest"
+
+runs:
+  using: composite
+  steps:
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: "20"
+
+    - name: Install ReleaseJet
+      shell: bash
+      run: npm install -g @makispps/releasejet@${{ inputs.version }}
+
+    - name: Generate release notes
+      shell: bash
+      env:
+        RELEASEJET_TOKEN: ${{ inputs.token }}
+        GITHUB_TOKEN: ${{ inputs.token }}
+      run: |
+        if [ "${{ inputs.publish }}" = "true" ]; then
+          releasejet generate --tag "${{ inputs.tag }}" --config "${{ inputs.config }}" --publish
+        else
+          releasejet generate --tag "${{ inputs.tag }}" --config "${{ inputs.config }}"
+        fi

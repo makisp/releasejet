@@ -1,6 +1,10 @@
 <img width="480" height="120" alt="lockup-light-1x" src="https://github.com/user-attachments/assets/1fd84e91-86f3-4f62-bad7-8bf4b72b517f" />
 
-Automated release notes generator for GitLab and GitHub. Collects closed issues (or merged pull requests) between Git tags, categorizes them by label, and publishes formatted release notes.
+**ReleaseJet — the release notes tool for repos with many customers (and for teams that never adopted Conventional Commits).**
+
+Collects labeled issues (or merged pull requests) between Git tags, categorizes them, and publishes formatted release notes. First-class support for **multi-customer repos** (one codebase, per-customer tag tracks) on **GitHub and GitLab**. No Conventional Commits required — your team already labels issues; that's all we need.
+
+**See it live:** [releasejet-demo-multi-customer](https://github.com/makisp/releasejet-demo-multi-customer/releases) — three customer tracks, real published release pages, zero hand-editing.
 
 **Full documentation: [releasejet.dev/docs](https://releasejet.dev/docs)**
 
@@ -36,8 +40,16 @@ categories:
 
 ## CI/CD
 
-- [GitHub Actions setup](https://releasejet.dev/docs/recipes/github-issues)
-- [GitLab CI setup](https://releasejet.dev/docs/recipes/gitlab-issues)
+**GitHub Action on the Marketplace** — [marketplace/actions/releasejet](https://github.com/marketplace/actions/releasejet). Five-line setup:
+
+```yaml
+- uses: makisp/releasejet@v1
+  with:
+    tag: ${{ github.ref_name }}
+    token: ${{ secrets.GITHUB_TOKEN }}
+```
+
+Raw setup recipes: [GitHub Actions](https://releasejet.dev/docs/recipes/github-issues) · [GitLab CI](https://releasejet.dev/docs/recipes/gitlab-issues)
 
 ## Troubleshooting
 
