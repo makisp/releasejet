@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.11.0] - 2026-04-18
+
+### Added
+- **GitHub Action on the Marketplace** — `uses: makisp/releasejet@v1` for one-line CI integration. Composite action wraps the CLI, installs on Ubuntu runners, reads `.releasejet.yml`, publishes releases by default.
+- `action.yml` with Marketplace metadata (inputs: `tag`, `publish`, `config`, `token`, `version`).
+
+### Changed
+- README leads with the multi-customer wedge hook: "the release notes tool for repos with many customers (and for teams that never adopted Conventional Commits)."
+- README `## CI/CD` section surfaces the 5-line Marketplace snippet above the raw framework recipes.
+- README links to the public demo repo (`releasejet-demo-multi-customer`) for a live multi-customer example.
+
 ## [1.10.0] - 2026-04-18
 
 ### Added
