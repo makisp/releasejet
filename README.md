@@ -40,8 +40,16 @@ categories:
 
 ## CI/CD
 
-- [GitHub Actions setup](https://releasejet.dev/docs/recipes/github-issues)
-- [GitLab CI setup](https://releasejet.dev/docs/recipes/gitlab-issues)
+**GitHub Action on the Marketplace** — [marketplace/actions/releasejet](https://github.com/marketplace/actions/releasejet). Five-line setup:
+
+```yaml
+- uses: makisp/releasejet@v1
+  with:
+    tag: ${{ github.ref_name }}
+    token: ${{ secrets.GITHUB_TOKEN }}
+```
+
+Raw setup recipes: [GitHub Actions](https://releasejet.dev/docs/recipes/github-issues) · [GitLab CI](https://releasejet.dev/docs/recipes/gitlab-issues)
 
 ## Troubleshooting
 
