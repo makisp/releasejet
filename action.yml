@@ -18,7 +18,7 @@ inputs:
     required: false
     default: ".releasejet.yml"
   token:
-    description: GitHub token with `contents: write` permission. Usually ${{ secrets.GITHUB_TOKEN }}.
+    description: "GitHub token with contents:write permission (typically secrets.GITHUB_TOKEN)."
     required: true
   version:
     description: ReleaseJet CLI version to install. Defaults to latest.
