@@ -1,6 +1,6 @@
 {
   "name": "@makispps/releasejet",
-  "version": "1.9.4",
+  "version": "1.10.0",
   "description": "Automated release notes generator for GitLab and GitHub",
   "license": "MIT",
   "author": "Mavroudis Papas",
@@ -25,7 +25,9 @@
   "exports": {
     ".": "./dist/cli.js",
     "./plugin": "./dist/plugins/types.js",
-    "./plugin/templates": "./dist/plugins/template-api.js"
+    "./plugin/templates": "./dist/plugins/template-api.js",
+    "./docs/config-schema.json": "./dist/docs/config-schema.json",
+    "./docs/commands.json": "./dist/docs/commands.json"
   },
   "bin": {
     "releasejet": "./dist/cli.js"
@@ -39,7 +41,7 @@
     "build": "tsup",
     "test": "vitest run",
     "test:watch": "vitest",
-    "dev": "tsx src/cli/index.ts",
+    "dev": "tsx src/cli/main.ts",
     "prepublishOnly": "npm run test && npm run build"
   },
   "dependencies": {
@@ -51,7 +53,8 @@
     "jose": "^6.2.2",
     "ora": "^9.3.0",
     "semver": "^7.7.1",
-    "yaml": "^2.7.0"
+    "yaml": "^2.7.0",
+    "zod": "^3.25.76"
   },
   "devDependencies": {
     "@types/node": "^25.5.2",
@@ -59,7 +62,8 @@
     "tsup": "^8.4.0",
     "tsx": "^4.19.0",
     "typescript": "^5.7.0",
-    "vitest": "^3.1.0"
+    "vitest": "^3.1.0",
+    "zod-to-json-schema": "^3.25.2"
   },
   "engines": {
     "node": ">=20"

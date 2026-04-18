@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.10.0] - 2026-04-18
+
+### Added
+- `./docs/config-schema.json` and `./docs/commands.json` package exports, consumed by releasejet.dev/docs (W3).
+- Full documentation site live at https://releasejet.dev/docs.
+
+### Changed
+- README refocused on quickstart + links to full docs.
+- Config loading now routes through a Zod schema (behavior-preserving refactor).
+- Default release-notes template relocated from `src/core/templates/default.hbs` to `src/core/templates/default-template.ts` (embedded TS constant) so the docs emitter can run under tsx without a custom loader.
+
 ## [1.9.4] - 2026-04-17
 
 ### Added
