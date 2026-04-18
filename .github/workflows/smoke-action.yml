@@ -20,4 +20,5 @@ jobs:
         with:
           tag: v1.9.4
           publish: "false"
+          config: ci/smoke.releasejet.yml
           token: ${{ secrets.GITHUB_TOKEN }}
