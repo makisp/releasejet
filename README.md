@@ -1,4 +1,7 @@
-<img width="480" height="120" alt="lockup-light-1x" src="https://github.com/user-attachments/assets/1fd84e91-86f3-4f62-bad7-8bf4b72b517f" />
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="./assets/logo/lockup-dark-2x.png">
+  <img width="480" height="120" alt="ReleaseJet" src="./assets/logo/lockup-light-2x.png">
+</picture>
 
 **ReleaseJet — the release notes tool for repos with many customers (and for teams that never adopted Conventional Commits).**
 
