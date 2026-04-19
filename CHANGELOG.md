@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.11.1] - 2026-04-19
+
+### Changed
+- README header logo swapped to the finalized ReleaseJet brand lockup. Uses a `<picture>` element so GitHub renders `lockup-dark-2x.png` for dark-mode viewers and `lockup-light-2x.png` otherwise. New brand assets committed under `assets/logo/` (outside the npm tarball).
+
 ## [1.11.0] - 2026-04-18
 
 ### Added
