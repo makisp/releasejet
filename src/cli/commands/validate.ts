@@ -1,5 +1,5 @@
 import type { Command } from 'commander';
-import { loadConfig } from '../../core/config.js';
+import { loadConfig, redactConfigForLogging } from '../../core/config.js';
 import {
   getRemoteUrl,
   resolveHostUrl,
@@ -52,7 +52,7 @@ export async function runValidate(options: {
   const spinner = options.debug ? null : ora({ stream: process.stderr });
 
   const config = await loadConfig(options.config);
-  debug('Config loaded:', JSON.stringify(config, null, 2));
+  debug('Config loaded:', JSON.stringify(redactConfigForLogging(config), null, 2));
 
   const remoteUrl = getRemoteUrl();
   const hostUrl = config.provider.url || resolveHostUrl(remoteUrl);

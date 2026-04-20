@@ -51,3 +51,22 @@ export async function loadConfig(configPath = '.releasejet.yml'): Promise<Releas
 
   return parseConfig(expanded);
 }
+
+/**
+ * Returns a shallow clone of `config` safe for logging/debug output.
+ * Redacts `notifications[*].webhookUrl` (non-empty values) to `***` so
+ * resolved webhook secrets don't leak via `--debug`. Empty strings pass
+ * through so users can still see the "env var unset" state.
+ */
+export function redactConfigForLogging(config: ReleaseJetConfig): ReleaseJetConfig {
+  if (!config.notifications || config.notifications.length === 0) {
+    return { ...config };
+  }
+  return {
+    ...config,
+    notifications: config.notifications.map((ch) => ({
+      ...ch,
+      webhookUrl: ch.webhookUrl === '' ? '' : '***',
+    })),
+  };
+}

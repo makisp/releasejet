@@ -1,6 +1,6 @@
 import { writeFile } from 'node:fs/promises';
 import type { Command } from 'commander';
-import { loadConfig } from '../../core/config.js';
+import { loadConfig, redactConfigForLogging } from '../../core/config.js';
 import {
   getRemoteUrl,
   resolveProjectInfo,
@@ -99,7 +99,7 @@ export async function runGenerate(options: {
   const spinner = options.debug ? null : ora({ stream: process.stderr });
 
   const config = await loadConfig(options.config);
-  debug('Config loaded:', JSON.stringify(config, null, 2));
+  debug('Config loaded:', JSON.stringify(redactConfigForLogging(config), null, 2));
 
   const remoteUrl = process.env.CI_SERVER_URL || process.env.GITHUB_SERVER_URL ? '' : getRemoteUrl();
   const { hostUrl: detectedUrl, projectPath } = resolveProjectInfo(remoteUrl);

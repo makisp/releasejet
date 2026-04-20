@@ -2,9 +2,13 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { ProviderClient } from '../../src/providers/types.js';
 import type { ReleaseJetConfig } from '../../src/types.js';
 
-vi.mock('../../src/core/config.js', () => ({
-  loadConfig: vi.fn(),
-}));
+vi.mock('../../src/core/config.js', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../src/core/config.js')>();
+  return {
+    ...actual,
+    loadConfig: vi.fn(),
+  };
+});
 vi.mock('../../src/core/git.js', () => ({
   getRemoteUrl: vi.fn().mockReturnValue('git@github.com:acme/app.git'),
   resolveProjectInfo: vi.fn().mockReturnValue({ hostUrl: 'https://github.com', projectPath: 'acme/app' }),
@@ -149,5 +153,30 @@ describe('runGenerate — afterPublish payload', () => {
       notify: true,
     } as never);
     expect(afterPublishRun).not.toHaveBeenCalled();
+  });
+
+  it('does not print webhookUrl values in --debug output', async () => {
+    vi.mocked(loadConfig).mockResolvedValue({
+      ...baseConfig,
+      notifications: [
+        { type: 'slack', enabled: true, webhookUrl: 'https://hooks.slack.com/services/GEN_DEBUG_SECRET' },
+      ],
+    });
+    const log = vi.spyOn(console, 'log').mockImplementation(() => {});
+    const errLog = vi.spyOn(console, 'error').mockImplementation(() => {});
+    await runGenerate({
+      tag: 'v1.1.0',
+      publish: false,
+      dryRun: false,
+      format: 'markdown',
+      config: '.releasejet.yml',
+      notify: true,
+      debug: true,
+    } as never);
+    const all = [...log.mock.calls, ...errLog.mock.calls].map((c) => c.join(' ')).join('\n');
+    expect(all).not.toMatch(/GEN_DEBUG_SECRET/);
+    expect(all).not.toMatch(/hooks\.slack\.com/);
+    log.mockRestore();
+    errLog.mockRestore();
   });
 });

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { loadConfig, DEFAULT_CONFIG } from '../../src/core/config.js';
+import { loadConfig, DEFAULT_CONFIG, redactConfigForLogging } from '../../src/core/config.js';
 
 vi.mock('node:fs/promises', () => ({
   readFile: vi.fn(),
@@ -399,6 +399,56 @@ notifications:
     webhookUrl: https://outlook.office.com/webhook/abc/IncomingWebhook/xyz
 ` as never);
       await expect(loadConfig()).rejects.toThrowError(/Legacy connectors are being deprecated/);
+    });
+  });
+
+  describe('redactConfigForLogging', () => {
+    it('returns the config unchanged when notifications is absent', () => {
+      const cfg = {
+        provider: { type: 'github' as const, url: 'https://github.com' },
+        source: 'issues' as const,
+        clients: [],
+        categories: {},
+        uncategorized: 'lenient' as const,
+      };
+      const redacted = redactConfigForLogging(cfg);
+      expect(redacted).toEqual(cfg);
+      expect(redacted).not.toBe(cfg);
+    });
+
+    it('replaces notifications[*].webhookUrl with *** when the URL is non-empty', () => {
+      const cfg = {
+        provider: { type: 'github' as const, url: 'https://github.com' },
+        source: 'issues' as const,
+        clients: [],
+        categories: {},
+        uncategorized: 'lenient' as const,
+        notifications: [
+          { type: 'slack' as const, enabled: true, webhookUrl: 'https://hooks.slack.com/services/SECRET' },
+          { type: 'discord' as const, enabled: false, webhookUrl: 'https://discord.com/api/webhooks/XYZ' },
+        ],
+      };
+      const redacted = redactConfigForLogging(cfg);
+      expect(redacted.notifications).toEqual([
+        { type: 'slack', enabled: true, webhookUrl: '***' },
+        { type: 'discord', enabled: false, webhookUrl: '***' },
+      ]);
+      expect(cfg.notifications[0].webhookUrl).toBe('https://hooks.slack.com/services/SECRET');
+    });
+
+    it('preserves empty-string webhookUrl (shows "env var unset" state)', () => {
+      const cfg = {
+        provider: { type: 'github' as const, url: 'https://github.com' },
+        source: 'issues' as const,
+        clients: [],
+        categories: {},
+        uncategorized: 'lenient' as const,
+        notifications: [
+          { type: 'slack' as const, enabled: true, webhookUrl: '' },
+        ],
+      };
+      const redacted = redactConfigForLogging(cfg);
+      expect(redacted.notifications?.[0]?.webhookUrl).toBe('');
     });
   });
 });
