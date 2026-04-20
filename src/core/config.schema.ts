@@ -47,6 +47,16 @@ const ContributorsSchema = z
   })
   .describe('Contributors section configuration.');
 
+const NotificationChannelSchema = z
+  .object({
+    type: z.enum(['slack', 'discord', 'teams']).describe('Channel type.'),
+    enabled: z.boolean().describe('Whether this channel should fire.'),
+    webhookUrl: z
+      .string()
+      .describe('Webhook URL. Must be an ${ENV_VAR} reference; literal URLs are rejected before this layer.'),
+  })
+  .describe('One notification channel entry.');
+
 export const ReleaseJetConfigSchema = z
   .object({
     provider: ProviderSchema.optional(),
@@ -78,6 +88,10 @@ export const ReleaseJetConfigSchema = z
       .string()
       .optional()
       .describe('Tag format pattern (e.g., "v{version}" or "{prefix}-v{version}").'),
+    notifications: z
+      .array(NotificationChannelSchema)
+      .optional()
+      .describe('Webhook notification channels (Pro feature).'),
   })
   .describe('ReleaseJet configuration (.releasejet.yml).');
 
@@ -171,6 +185,52 @@ export function parseConfig(raw: unknown): ReleaseJetConfig {
     }
   }
 
+  if (data.notifications !== undefined) {
+    if (!Array.isArray(data.notifications)) {
+      throw new Error(
+        'Invalid config in .releasejet.yml\n\n  notifications: expected an array of channel entries.',
+      );
+    }
+    for (let i = 0; i < data.notifications.length; i++) {
+      const n = data.notifications[i] as Record<string, unknown> | null;
+      if (!n || typeof n !== 'object' || Array.isArray(n)) {
+        throw new Error(
+          `Invalid config in .releasejet.yml\n\n  notifications[${i}]: expected an object.`,
+        );
+      }
+      if (n.type === undefined) {
+        throw new Error(
+          `Invalid config in .releasejet.yml\n\n  notifications[${i}].type: required. Valid: slack, discord, teams.`,
+        );
+      }
+      if (n.type !== 'slack' && n.type !== 'discord' && n.type !== 'teams') {
+        throw new Error(
+          `Invalid config in .releasejet.yml\n\n  notifications[${i}].type: "${String(n.type)}" is not supported. Valid: slack, discord, teams.`,
+        );
+      }
+      if (n.enabled === undefined) {
+        throw new Error(
+          `Invalid config in .releasejet.yml\n\n  notifications[${i}].enabled: required. Expected true or false.`,
+        );
+      }
+      if (typeof n.enabled !== 'boolean') {
+        throw new Error(
+          `Invalid config in .releasejet.yml\n\n  notifications[${i}].enabled: expected a boolean (true or false).`,
+        );
+      }
+      if (n.webhookUrl === undefined) {
+        throw new Error(
+          `Invalid config in .releasejet.yml\n\n  notifications[${i}].webhookUrl: required.`,
+        );
+      }
+      if (typeof n.webhookUrl !== 'string') {
+        throw new Error(
+          `Invalid config in .releasejet.yml\n\n  notifications[${i}].webhookUrl: expected a string.`,
+        );
+      }
+    }
+  }
+
   const parsed = ReleaseJetConfigSchema.parse(data);
 
   // Provider selection: explicit provider wins; fall back to legacy gitlab; else default.
@@ -206,5 +266,6 @@ export function parseConfig(raw: unknown): ReleaseJetConfig {
     contributors,
     template: parsed.template,
     tagFormat: parsed.tagFormat,
+    notifications: parsed.notifications,
   };
 }

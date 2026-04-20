@@ -101,4 +101,83 @@ describe('parseConfig', () => {
     const result = parseConfig({ clients: null });
     expect(result.clients).toEqual([]);
   });
+
+  describe('notifications schema', () => {
+    it('parses a valid notifications list', () => {
+      const parsed = parseConfig({
+        provider: { type: 'gitlab', url: 'https://gitlab.example.com' },
+        notifications: [
+          { type: 'slack', enabled: true, webhookUrl: '' },
+          { type: 'discord', enabled: false, webhookUrl: 'https://hooks.slack.com/x' },
+          // ^ the literal-URL check runs BEFORE parseConfig in loadConfig, so at this
+          //   layer it just shapes through; schema only validates shape/types.
+        ],
+      });
+      expect(parsed.notifications).toEqual([
+        { type: 'slack', enabled: true, webhookUrl: '' },
+        { type: 'discord', enabled: false, webhookUrl: 'https://hooks.slack.com/x' },
+      ]);
+    });
+
+    it('defaults notifications to undefined when absent', () => {
+      const parsed = parseConfig({ provider: { type: 'gitlab', url: '' } });
+      expect(parsed.notifications).toBeUndefined();
+    });
+
+    it('rejects an unknown notification type', () => {
+      expect(() =>
+        parseConfig({
+          provider: { type: 'gitlab', url: '' },
+          notifications: [{ type: 'mattermost', enabled: true, webhookUrl: '' }],
+        }),
+      ).toThrowError(/notifications\[0\]\.type: "mattermost" is not supported/);
+    });
+
+    it('rejects a missing webhookUrl', () => {
+      expect(() =>
+        parseConfig({
+          provider: { type: 'gitlab', url: '' },
+          notifications: [{ type: 'slack', enabled: true }],
+        }),
+      ).toThrowError(/notifications\[0\]\.webhookUrl/);
+    });
+
+    it('rejects a missing type', () => {
+      expect(() =>
+        parseConfig({
+          provider: { type: 'gitlab', url: '' },
+          notifications: [{ enabled: true, webhookUrl: '' }],
+        }),
+      ).toThrowError(/notifications\[0\]\.type/);
+    });
+
+    it('rejects a non-boolean enabled', () => {
+      expect(() =>
+        parseConfig({
+          provider: { type: 'gitlab', url: '' },
+          notifications: [{ type: 'slack', enabled: 'yes', webhookUrl: '' }],
+        }),
+      ).toThrowError(/notifications\[0\]\.enabled/);
+    });
+
+    it('rejects notifications as a non-array', () => {
+      expect(() =>
+        parseConfig({
+          provider: { type: 'gitlab', url: '' },
+          notifications: { type: 'slack' },
+        }),
+      ).toThrowError(/notifications: expected an array/);
+    });
+
+    it('allows multiple entries of the same type', () => {
+      const parsed = parseConfig({
+        provider: { type: 'gitlab', url: '' },
+        notifications: [
+          { type: 'slack', enabled: true, webhookUrl: 'a' },
+          { type: 'slack', enabled: false, webhookUrl: 'b' },
+        ],
+      });
+      expect(parsed.notifications).toHaveLength(2);
+    });
+  });
 });
