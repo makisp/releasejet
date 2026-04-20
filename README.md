@@ -5,6 +5,8 @@
 
 **ReleaseJet — the release notes tool for repos with many customers (and for teams that never adopted Conventional Commits).**
 
+![ReleaseJet demo](./assets/demo.gif)
+
 Collects labeled issues (or merged pull requests) between Git tags, categorizes them, and publishes formatted release notes. First-class support for **multi-customer repos** (one codebase, per-customer tag tracks) on **GitHub and GitLab**. No Conventional Commits required — your team already labels issues; that's all we need.
 
 **See it live:** [releasejet-demo-multi-customer](https://github.com/makisp/releasejet-demo-multi-customer/releases) — three customer tracks, real published release pages, zero hand-editing.
