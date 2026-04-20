@@ -2,6 +2,8 @@ import { readFile } from 'node:fs/promises';
 import { parse as parseYaml } from 'yaml';
 import type { ReleaseJetConfig } from '../types.js';
 import { parseConfig } from './config.schema.js';
+import { expandEnvVars } from './env-expand.js';
+import { assertNoLiteralWebhookUrls } from './notification-url-validator.js';
 
 const DEFAULT_CATEGORIES: Record<string, string> = {
   feature: 'New Features',
@@ -40,5 +42,12 @@ export async function loadConfig(configPath = '.releasejet.yml'): Promise<Releas
     }
     throw err;
   }
-  return parseConfig(raw);
+  // Reject literal webhook URLs BEFORE env-var expansion, so that a legit
+  // `${SLACK_WEBHOOK_URL}` reference is not erroneously caught after expansion.
+  assertNoLiteralWebhookUrls(raw);
+
+  // Expand ${VAR} references across all string values. Unset vars → ''.
+  const expanded = expandEnvVars(raw);
+
+  return parseConfig(expanded);
 }
