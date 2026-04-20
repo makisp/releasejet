@@ -96,4 +96,19 @@ describe('validate — notifications section', () => {
     expect(all).not.toMatch(/hooks\.slack\.com/);
     log.mockRestore();
   });
+
+  it('does not print webhookUrl values when channel is disabled', async () => {
+    vi.mocked(loadConfig).mockResolvedValue({
+      ...baseConfig,
+      notifications: [
+        { type: 'discord', enabled: false, webhookUrl: 'https://hooks.slack.com/services/SECRET2' },
+      ],
+    });
+    const log = vi.spyOn(console, 'log').mockImplementation(() => {});
+    await runValidate({ config: '.releasejet.yml' });
+    const all = log.mock.calls.map((c) => c.join(' ')).join('\n');
+    expect(all).not.toMatch(/SECRET2/);
+    expect(all).not.toMatch(/hooks\.slack\.com/);
+    log.mockRestore();
+  });
 });

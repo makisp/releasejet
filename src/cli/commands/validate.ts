@@ -214,11 +214,11 @@ export async function runValidate(options: {
     console.log('Notifications');
     for (let i = 0; i < channels.length; i++) {
       const ch = channels[i];
-      const state = ch.enabled ? 'enabled' : 'disabled';
+      const stateLabel = ch.enabled ? 'enabled' : 'disabled';
       if (ch.enabled && ch.webhookUrl === '') {
-        console.log(`  \u26a0 notifications[${i}] ${ch.type} (${state}) — webhookUrl is empty (env var unset?); this channel will be silently skipped at publish time.`);
+        console.log(`  \u26a0 notifications[${i}] ${ch.type} (${stateLabel}) \u2014 webhookUrl is empty (env var unset?); this channel will be silently skipped at publish time.`);
       } else {
-        console.log(`  \u2713 notifications[${i}] ${ch.type} (${state})`);
+        console.log(`  \u2713 notifications[${i}] ${ch.type} (${stateLabel})`);
       }
     }
   }
