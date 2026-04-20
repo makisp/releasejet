@@ -59,6 +59,7 @@ export function registerGenerateCommand(program: Command): void {
     .option('--output <file>', 'Write release notes to a file')
     .option('--config <path>', 'Config file path', '.releasejet.yml')
     .option('--debug', 'Show debug information', false)
+    .option('--no-notify', 'Skip notifications for this run (overrides notifications config)')
     .addHelpText('after', `
 Examples:
   $ releasejet generate --tag v1.0.0                    Preview release notes
@@ -67,6 +68,7 @@ Examples:
   $ releasejet generate --tag v1.0.0 --format json      JSON output
   $ releasejet generate --tag v1.0.0 --output notes.md  Write to file
   $ releasejet generate --tag v2.0.0 --since v1.5.0     Notes from v1.5.0 to v2.0.0
+  $ releasejet generate --tag v1.0.0 --publish --no-notify   Skip configured notifications
 
 The --since flag overrides automatic previous tag detection. Useful for:
   - Spanning multiple versions (e.g., --since v1.5.0 to cover v1.5.0 through v2.0.0)
@@ -91,6 +93,7 @@ export async function runGenerate(options: {
   output?: string;
   config: string;
   debug?: boolean;
+  notify?: boolean;
 }): Promise<void> {
   const { debug } = createLogger(options.debug ?? false);
   const spinner = options.debug ? null : ora({ stream: process.stderr });
@@ -308,7 +311,7 @@ export async function runGenerate(options: {
         projectUrl: data.projectUrl,
         data,
         releaseUrl,
-        notifyDisabled: false,
+        notifyDisabled: options.notify === false,
       });
     }
   }
