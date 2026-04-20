@@ -11,6 +11,7 @@ import {
   collectOrphanTags,
   formatOrphanError,
 } from '../../core/tag-parser.js';
+import { buildReleaseUrl } from '../../core/release-url.js';
 import {
   collectIssues,
   detectMilestone,
@@ -295,11 +296,19 @@ export async function runGenerate(options: {
         spinner?.fail('Failed to publish release');
         throw err;
       }
+      const releaseUrl = buildReleaseUrl(
+        config.provider.type,
+        data.projectUrl,
+        options.tag,
+      );
       await pluginRuntime?.hooks.afterPublish.run({
         tagName: options.tag,
         releaseName,
         markdown: output,
         projectUrl: data.projectUrl,
+        data,
+        releaseUrl,
+        notifyDisabled: false,
       });
     }
   }

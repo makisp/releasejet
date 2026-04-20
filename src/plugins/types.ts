@@ -21,6 +21,12 @@ export interface AfterPublishPayload {
   releaseName: string;
   markdown: string;
   projectUrl: string;
+  /** Structured release-notes data (issues, counts, contributors, etc.). */
+  data: ReleaseNotesData;
+  /** Provider-specific URL to the published release page. */
+  releaseUrl: string;
+  /** True when the user passed --no-notify; plugin should skip notifications. */
+  notifyDisabled: boolean;
 }
 
 export interface PluginOption {
