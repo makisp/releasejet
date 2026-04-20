@@ -46,3 +46,26 @@ template: default
 #   exclude:
 #     - dependabot
 #     - renovate
+
+# Pro feature — webhook notifications on successful `generate --publish`.
+# Requires @releasejet/pro to be installed and a valid license.
+#
+# Each entry configures one channel. You can list multiple entries of the same type
+# (e.g., post to two different Slack channels). webhookUrl MUST be an environment
+# variable reference — literal URLs are rejected at config-load time.
+#
+# Supported types: slack, discord, teams (Power Automate workflow URL; legacy
+# Office 365 connectors are deprecated).
+#
+# notifications:
+#   - type: slack
+#     enabled: true
+#     webhookUrl: ${SLACK_WEBHOOK_URL}
+#
+#   - type: discord
+#     enabled: false
+#     webhookUrl: ${DISCORD_WEBHOOK_URL}
+#
+#   - type: teams
+#     enabled: false
+#     webhookUrl: ${TEAMS_WORKFLOW_URL}
