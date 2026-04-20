@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.12.0] - 2026-04-20
+
+### Added
+- `${VAR}` env-var expansion in `.releasejet.yml`. Applied recursively across all string values at load time; unset vars expand to empty strings.
+- `notifications` config section with `type` / `enabled` / `webhookUrl` fields. Webhook URLs must be env-var references — literal webhook URLs for Slack, Discord, and Teams (including legacy Office 365 connectors, which Microsoft is retiring on 22 May 2026) are rejected at config load.
+- `generate --no-notify` flag that propagates to the `afterPublish` plugin hook so Pro can skip notifications for a single run.
+- `AfterPublishPayload` now additionally carries `data` (the full `ReleaseNotesData`), `releaseUrl` (provider-aware URL to the release page), and `notifyDisabled`. Additive; no plugin API version bump.
+- `validate` command now reports each configured notifications channel and warns on enabled channels whose `webhookUrl` expands to empty.
+
+### Infrastructure
+- This release introduces no user-visible behaviour on its own. It prepares the core for the `@releasejet/pro` v1.x update that ships Slack webhook notifications (part of roadmap item M2).
+
 ## [1.11.1] - 2026-04-19
 
 ### Changed

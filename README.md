@@ -21,6 +21,7 @@ Collects labeled issues (or merged pull requests) between Git tags, categorizes 
 - Configurable categories — map labels to sections
 - CI/CD integration — GitLab CI and GitHub Actions
 - Strict/lenient modes, milestone detection, contributors section
+- **Webhook notifications (Pro)** — post release announcements to Slack, Discord, and Microsoft Teams (Power Automate workflows) on successful `--publish`. [Setup guide](https://www.releasejet.dev/docs/notifications).
 
 ## Quick Start
 

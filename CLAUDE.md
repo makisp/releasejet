@@ -39,6 +39,8 @@ npm run dev -- generate --tag v1.0.0  # Run a specific command in dev
 - **Semver coercion** — tags like `v1.2.3-beta` are coerced to core semver for comparison
 - **Category order preserved** — output sections follow the order defined in the YAML config, not alphabetical
 - **`__VERSION__`** — tsup injects this global from package.json at build time
+- **Env-var expansion in config** — string values in `.releasejet.yml` can contain `${VAR_NAME}` references that expand to `process.env.VAR_NAME ?? ''` at load time. Only the exact `${VAR}` form is recognised (no shell-style defaulting). Applied recursively across objects and arrays; non-string values pass through. This is the canonical mechanism for keeping secrets (webhook URLs, tokens) out of YAML.
+- **Literal webhook URLs are rejected** — `loadConfig` runs a pre-expansion scan of `notifications[*].webhookUrl` and throws if any value matches Slack/Discord/Teams URL patterns. Users must store webhook URLs in env vars.
 
 ## Config
 
