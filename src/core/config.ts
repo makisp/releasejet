@@ -2,6 +2,8 @@ import { readFile } from 'node:fs/promises';
 import { parse as parseYaml } from 'yaml';
 import type { ReleaseJetConfig } from '../types.js';
 import { parseConfig } from './config.schema.js';
+import { expandEnvVars } from './env-expand.js';
+import { assertNoLiteralWebhookUrls } from './notification-url-validator.js';
 
 const DEFAULT_CATEGORIES: Record<string, string> = {
   feature: 'New Features',
@@ -40,5 +42,31 @@ export async function loadConfig(configPath = '.releasejet.yml'): Promise<Releas
     }
     throw err;
   }
-  return parseConfig(raw);
+  // Reject literal webhook URLs BEFORE env-var expansion, so that a legit
+  // `${SLACK_WEBHOOK_URL}` reference is not erroneously caught after expansion.
+  assertNoLiteralWebhookUrls(raw);
+
+  // Expand ${VAR} references across all string values. Unset vars → ''.
+  const expanded = expandEnvVars(raw);
+
+  return parseConfig(expanded);
+}
+
+/**
+ * Returns a shallow clone of `config` safe for logging/debug output.
+ * Redacts `notifications[*].webhookUrl` (non-empty values) to `***` so
+ * resolved webhook secrets don't leak via `--debug`. Empty strings pass
+ * through so users can still see the "env var unset" state.
+ */
+export function redactConfigForLogging(config: ReleaseJetConfig): ReleaseJetConfig {
+  if (!config.notifications || config.notifications.length === 0) {
+    return { ...config };
+  }
+  return {
+    ...config,
+    notifications: config.notifications.map((ch) => ({
+      ...ch,
+      webhookUrl: ch.webhookUrl === '' ? '' : '***',
+    })),
+  };
 }

@@ -8,6 +8,12 @@ export interface ContributorsConfig {
   exclude: string[];
 }
 
+export interface NotificationChannelConfig {
+  type: 'slack' | 'discord' | 'teams';
+  enabled: boolean;
+  webhookUrl: string;
+}
+
 export interface Contributor {
   username: string;
   profileUrl: string;
@@ -25,6 +31,7 @@ export interface ReleaseJetConfig {
   contributors?: ContributorsConfig;
   template?: string;
   tagFormat?: string;
+  notifications?: NotificationChannelConfig[];
 }
 
 export interface ParsedTag {

@@ -1,5 +1,5 @@
 import type { Command } from 'commander';
-import { loadConfig } from '../../core/config.js';
+import { loadConfig, redactConfigForLogging } from '../../core/config.js';
 import {
   getRemoteUrl,
   resolveHostUrl,
@@ -17,7 +17,7 @@ import ora from 'ora';
 export function registerValidateCommand(program: Command): void {
   program
     .command('validate')
-    .description('Check issues and tags for release readiness')
+    .description('Check issues, tags, and config for release readiness')
     .option('--config <path>', 'Config file path', '.releasejet.yml')
     .option('--milestone <title>', 'Only check issues in this milestone')
     .option('--state <state>', 'Issue state: opened, closed, or all', 'opened')
@@ -52,7 +52,7 @@ export async function runValidate(options: {
   const spinner = options.debug ? null : ora({ stream: process.stderr });
 
   const config = await loadConfig(options.config);
-  debug('Config loaded:', JSON.stringify(config, null, 2));
+  debug('Config loaded:', JSON.stringify(redactConfigForLogging(config), null, 2));
 
   const remoteUrl = getRemoteUrl();
   const hostUrl = config.provider.url || resolveHostUrl(remoteUrl);
@@ -204,6 +204,22 @@ export async function runValidate(options: {
     for (const p of problems) {
       console.log(`    #${p.number} - ${p.title}`);
       console.log(`      Missing: ${p.missing.join(', ')}`);
+    }
+  }
+
+  // --- Notifications section ---
+  const channels = config.notifications ?? [];
+  if (channels.length > 0) {
+    console.log('');
+    console.log('Notifications');
+    for (let i = 0; i < channels.length; i++) {
+      const ch = channels[i];
+      const stateLabel = ch.enabled ? 'enabled' : 'disabled';
+      if (ch.enabled && ch.webhookUrl === '') {
+        console.log(`  \u26a0 notifications[${i}] ${ch.type} (${stateLabel}) \u2014 webhookUrl is empty (env var unset?); this channel will be silently skipped at publish time.`);
+      } else {
+        console.log(`  \u2713 notifications[${i}] ${ch.type} (${stateLabel})`);
+      }
     }
   }
 

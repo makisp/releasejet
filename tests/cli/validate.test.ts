@@ -2,9 +2,13 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { ProviderClient } from '../../src/providers/types.js';
 import type { ReleaseJetConfig } from '../../src/types.js';
 
-vi.mock('../../src/core/config.js', () => ({
-  loadConfig: vi.fn(),
-}));
+vi.mock('../../src/core/config.js', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../src/core/config.js')>();
+  return {
+    ...actual,
+    loadConfig: vi.fn(),
+  };
+});
 vi.mock('../../src/core/git.js', () => ({
   getRemoteUrl: vi.fn().mockReturnValue('git@gitlab.example.com:mobile/app.git'),
   resolveHostUrl: vi.fn().mockReturnValue('https://gitlab.example.com'),

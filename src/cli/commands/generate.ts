@@ -1,6 +1,6 @@
 import { writeFile } from 'node:fs/promises';
 import type { Command } from 'commander';
-import { loadConfig } from '../../core/config.js';
+import { loadConfig, redactConfigForLogging } from '../../core/config.js';
 import {
   getRemoteUrl,
   resolveProjectInfo,
@@ -11,6 +11,7 @@ import {
   collectOrphanTags,
   formatOrphanError,
 } from '../../core/tag-parser.js';
+import { buildReleaseUrl } from '../../core/release-url.js';
 import {
   collectIssues,
   detectMilestone,
@@ -58,6 +59,7 @@ export function registerGenerateCommand(program: Command): void {
     .option('--output <file>', 'Write release notes to a file')
     .option('--config <path>', 'Config file path', '.releasejet.yml')
     .option('--debug', 'Show debug information', false)
+    .option('--no-notify', 'Skip notifications for this run (overrides notifications config)')
     .addHelpText('after', `
 Examples:
   $ releasejet generate --tag v1.0.0                    Preview release notes
@@ -66,6 +68,7 @@ Examples:
   $ releasejet generate --tag v1.0.0 --format json      JSON output
   $ releasejet generate --tag v1.0.0 --output notes.md  Write to file
   $ releasejet generate --tag v2.0.0 --since v1.5.0     Notes from v1.5.0 to v2.0.0
+  $ releasejet generate --tag v1.0.0 --publish --no-notify   Skip configured notifications
 
 The --since flag overrides automatic previous tag detection. Useful for:
   - Spanning multiple versions (e.g., --since v1.5.0 to cover v1.5.0 through v2.0.0)
@@ -90,12 +93,13 @@ export async function runGenerate(options: {
   output?: string;
   config: string;
   debug?: boolean;
+  notify?: boolean;
 }): Promise<void> {
   const { debug } = createLogger(options.debug ?? false);
   const spinner = options.debug ? null : ora({ stream: process.stderr });
 
   const config = await loadConfig(options.config);
-  debug('Config loaded:', JSON.stringify(config, null, 2));
+  debug('Config loaded:', JSON.stringify(redactConfigForLogging(config), null, 2));
 
   const remoteUrl = process.env.CI_SERVER_URL || process.env.GITHUB_SERVER_URL ? '' : getRemoteUrl();
   const { hostUrl: detectedUrl, projectPath } = resolveProjectInfo(remoteUrl);
@@ -295,11 +299,19 @@ export async function runGenerate(options: {
         spinner?.fail('Failed to publish release');
         throw err;
       }
+      const releaseUrl = buildReleaseUrl(
+        config.provider.type,
+        data.projectUrl,
+        options.tag,
+      );
       await pluginRuntime?.hooks.afterPublish.run({
         tagName: options.tag,
         releaseName,
         markdown: output,
         projectUrl: data.projectUrl,
+        data,
+        releaseUrl,
+        notifyDisabled: options.notify === false,
       });
     }
   }
