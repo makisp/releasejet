@@ -2,6 +2,10 @@
 # Copy to .releasejet.yml and customize for your project.
 # Or run: releasejet init
 
+# Optional. Overrides the project name shown in notification cards.
+# When unset, derived from the last path segment of projectUrl (e.g., https://github.com/acme/repo → "repo").
+# projectName: "Test Project"
+
 # Provider settings
 # provider:
 #   type: github          # or "gitlab"
