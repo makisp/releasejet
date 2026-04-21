@@ -92,6 +92,11 @@ export const ReleaseJetConfigSchema = z
       .array(NotificationChannelSchema)
       .optional()
       .describe('Webhook notification channels (Pro feature).'),
+    projectName: z
+      .string()
+      .min(1, { message: 'projectName must be a non-empty string' })
+      .optional()
+      .describe('Human-readable project name shown in notification cards.'),
   })
   .describe('ReleaseJet configuration (.releasejet.yml).');
 
@@ -267,5 +272,6 @@ export function parseConfig(raw: unknown): ReleaseJetConfig {
     template: parsed.template,
     tagFormat: parsed.tagFormat,
     notifications: parsed.notifications,
+    projectName: parsed.projectName,
   };
 }

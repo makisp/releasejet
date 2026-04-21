@@ -32,6 +32,9 @@ export interface ReleaseJetConfig {
   template?: string;
   tagFormat?: string;
   notifications?: NotificationChannelConfig[];
+  /** Human-readable project name shown in notification cards.
+   *  When unset, derived from projectUrl's last path segment. */
+  projectName?: string;
 }
 
 export interface ParsedTag {
