@@ -1,8 +1,14 @@
 import { vi, type Mock } from 'vitest';
 import { loadConfig } from '../../src/core/config.js';
 import { createClient } from '../../src/providers/factory.js';
-import { resolveProjectInfo } from '../../src/core/git.js';
+import {
+  getRemoteUrl,
+  resolveHostUrl,
+  resolveProjectInfo,
+  resolveProjectPath,
+} from '../../src/core/git.js';
 import { runGenerate } from '../../src/cli/commands/generate.js';
+import { runValidate } from '../../src/cli/commands/validate.js';
 import type { AfterPublishPayload } from '../../src/plugins/types.js';
 import type { ProviderClient } from '../../src/providers/types.js';
 import type { ReleaseJetConfig } from '../../src/types.js';
@@ -103,4 +109,67 @@ export async function runGenerateAndCaptureAfterPublish(
     throw new Error('afterPublish.run was not invoked by runGenerate');
   }
   return afterPublishRun.mock.calls[0][0] as AfterPublishPayload;
+}
+
+/**
+ * Base config used by validate-* output tests. Callers can override fields
+ * via `configOverrides` to `runValidateAndCaptureStdout`.
+ */
+export const baseValidateConfig: ReleaseJetConfig = {
+  provider: { type: 'github', url: 'https://github.com' },
+  source: 'issues',
+  clients: [],
+  categories: { feature: 'Features' },
+  uncategorized: 'lenient',
+};
+
+export interface CaptureValidateStdoutOptions {
+  /** Overrides merged into {@link baseValidateConfig}. */
+  configOverrides?: Partial<ReleaseJetConfig>;
+  /**
+   * The effective `projectUrl` the validate pipeline should compute, i.e.
+   * `${hostUrl}/${projectPath}`. The helper mocks the git resolvers so the
+   * validate command derives this value. Pass `''` to simulate a repo with
+   * no resolvable remote.
+   */
+  projectUrl: string;
+}
+
+/**
+ * Runs `runValidate` with mocked config + git resolvers and returns
+ * everything written to stdout via `console.log` as a single string.
+ *
+ * Assumes the caller has already set up the module mocks at the top of the
+ * test file (see `validate-notifications.test.ts` for the canonical mock
+ * setup). The caller is responsible for `vi.clearAllMocks()` between tests.
+ */
+export async function runValidateAndCaptureStdout(
+  options: CaptureValidateStdoutOptions,
+): Promise<string> {
+  const { configOverrides = {}, projectUrl } = options;
+  const { hostUrl, projectPath } = splitProjectUrl(projectUrl);
+
+  vi.mocked(loadConfig).mockResolvedValue({
+    ...baseValidateConfig,
+    ...configOverrides,
+    provider: {
+      ...baseValidateConfig.provider,
+      ...(configOverrides.provider ?? {}),
+      url: hostUrl,
+    },
+  });
+  vi.mocked(getRemoteUrl).mockReturnValue(projectUrl ? `${hostUrl}/${projectPath}` : '');
+  vi.mocked(resolveHostUrl).mockReturnValue(hostUrl);
+  vi.mocked(resolveProjectPath).mockReturnValue(projectPath);
+  vi.mocked(resolveProjectInfo).mockReturnValue({ hostUrl, projectPath });
+
+  const log = vi.spyOn(console, 'log').mockImplementation(() => {});
+  let captured = '';
+  try {
+    await runValidate({ config: '.releasejet.yml' });
+    captured = log.mock.calls.map((c) => c.join(' ')).join('\n');
+  } finally {
+    log.mockRestore();
+  }
+  return captured;
 }

@@ -12,6 +12,7 @@ import { createLogger } from '../logger.js';
 import type { Issue } from '../../types.js';
 import { validateTag } from '../../core/tag-parser.js';
 import type { TagValidationResult } from '../../core/tag-parser.js';
+import { deriveProjectName } from '../../core/project-name.js';
 import ora from 'ora';
 
 export function registerValidateCommand(program: Command): void {
@@ -148,6 +149,12 @@ export async function runValidate(options: {
   // --- Output ---
   const validTags = tagResults.filter((t) => t.valid);
   const invalidTags = tagResults.filter((t) => !t.valid);
+
+  // Project identity (reported at the top so downstream sections have context)
+  const projectUrl = hostUrl && projectPath ? `${hostUrl}/${projectPath}` : '';
+  const projectName = config.projectName ?? deriveProjectName(projectUrl) ?? '(unset)';
+  console.log(`Project: ${projectName}`);
+  console.log('');
 
   // Tag Format section
   console.log('Tag Format');
