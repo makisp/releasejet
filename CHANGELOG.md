@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.13.1] - 2026-04-24
+
+### Fixed
+
+- Export `NotificationChannelConfig` from `@makispps/releasejet/plugin`. Consumers importing it as a type (e.g. `@releasejet/pro`'s dispatcher) now typecheck cleanly under `tsc --noEmit`. Runtime behaviour unchanged. `PLUGIN_API_VERSION` remains `1`.
+
+### Infrastructure
+
+- Added `npm run typecheck` (`tsc --noEmit -p tsconfig.typecheck.json`) and wired it into CI. Guards the plugin public surface via `tests/types/plugin-exports.test-d.ts` so missing re-exports from the plugin barrel fail CI instead of silently shipping.
+
 ## [1.13.0] - 2026-04-21
 
 ### Added
