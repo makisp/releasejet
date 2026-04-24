@@ -27,6 +27,10 @@ export interface AfterPublishPayload {
   releaseUrl: string;
   /** True when the user passed --no-notify; plugin should skip notifications. */
   notifyDisabled: boolean;
+  /** Project name to display above the release header in notifications.
+   *  Populated from `ReleaseJetConfig.projectName` or `deriveProjectName(projectUrl)`;
+   *  undefined when neither resolves. */
+  projectName?: string;
 }
 
 export interface PluginOption {

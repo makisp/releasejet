@@ -180,4 +180,37 @@ describe('parseConfig', () => {
       expect(parsed.notifications).toHaveLength(2);
     });
   });
+
+  describe('projectName schema', () => {
+    it('parses when projectName is a non-empty string', () => {
+      const parsed = parseConfig({
+        provider: { type: 'github', url: 'https://github.com' },
+        projectName: 'Test Project',
+      });
+      expect(parsed.projectName).toBe('Test Project');
+    });
+
+    it('leaves projectName undefined when absent', () => {
+      const parsed = parseConfig({ provider: { type: 'github', url: 'https://github.com' } });
+      expect(parsed.projectName).toBeUndefined();
+    });
+
+    it('rejects a non-string projectName', () => {
+      expect(() =>
+        parseConfig({
+          provider: { type: 'github', url: 'https://github.com' },
+          projectName: 42,
+        }),
+      ).toThrowError(/projectName/);
+    });
+
+    it('rejects an empty-string projectName (ambiguous with unset)', () => {
+      expect(() =>
+        parseConfig({
+          provider: { type: 'github', url: 'https://github.com' },
+          projectName: '',
+        }),
+      ).toThrowError(/projectName.*non-empty/i);
+    });
+  });
 });

@@ -1,6 +1,4 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import type { ProviderClient } from '../../src/providers/types.js';
-import type { ReleaseJetConfig } from '../../src/types.js';
 
 vi.mock('../../src/core/config.js', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../src/core/config.js')>();
@@ -38,35 +36,13 @@ vi.mock('../../src/plugins/loader.js', () => ({
 import { loadConfig } from '../../src/core/config.js';
 import { createClient } from '../../src/providers/factory.js';
 import { runGenerate } from '../../src/cli/commands/generate.js';
-
-const baseConfig: ReleaseJetConfig = {
-  provider: { type: 'github', url: 'https://github.com' },
-  source: 'issues',
-  clients: [],
-  categories: { feature: 'Features', bug: 'Fixes' },
-  uncategorized: 'lenient',
-};
-
-function makeClient(): ProviderClient {
-  return {
-    listTags: vi.fn().mockResolvedValue([
-      { name: 'v1.0.0', createdAt: '2026-01-01T00:00:00Z', commitDate: '2026-01-01T00:00:00Z', dateSource: 'annotated' as const },
-      { name: 'v1.1.0', createdAt: '2026-02-01T00:00:00Z', commitDate: '2026-02-01T00:00:00Z', dateSource: 'annotated' as const },
-    ]),
-    listIssues: vi.fn().mockResolvedValue([
-      { number: 1, title: 'Ship', labels: ['feature'], closedAt: '2026-01-15', webUrl: '', milestone: null, author: null, assignee: null, closedBy: null },
-    ]),
-    listPullRequests: vi.fn().mockResolvedValue([]),
-    createRelease: vi.fn().mockResolvedValue(undefined),
-    listMilestones: vi.fn().mockResolvedValue([]),
-  };
-}
+import { baseGenerateConfig, makeGenerateClient } from './_helpers.js';
 
 describe('runGenerate — afterPublish payload', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(loadConfig).mockResolvedValue(baseConfig);
-    vi.mocked(createClient).mockReturnValue(makeClient());
+    vi.mocked(loadConfig).mockResolvedValue(baseGenerateConfig);
+    vi.mocked(createClient).mockReturnValue(makeGenerateClient());
   });
 
   // Commander maps `--no-notify` to a boolean `notify` option that defaults to true.
@@ -108,7 +84,7 @@ describe('runGenerate — afterPublish payload', () => {
 
   it('uses GitLab URL shape when provider.type is gitlab', async () => {
     vi.mocked(loadConfig).mockResolvedValue({
-      ...baseConfig,
+      ...baseGenerateConfig,
       provider: { type: 'gitlab', url: 'https://gitlab.example.com' },
     });
     // Repoint git module mock for this test
@@ -157,7 +133,7 @@ describe('runGenerate — afterPublish payload', () => {
 
   it('does not print webhookUrl values in --debug output', async () => {
     vi.mocked(loadConfig).mockResolvedValue({
-      ...baseConfig,
+      ...baseGenerateConfig,
       notifications: [
         { type: 'slack', enabled: true, webhookUrl: 'https://hooks.slack.com/services/GEN_DEBUG_SECRET' },
       ],

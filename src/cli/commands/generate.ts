@@ -26,6 +26,7 @@ import { withErrorHandler } from '../error-handler.js';
 import { createLogger } from '../logger.js';
 import { getPluginRuntime } from '../../plugins/loader.js';
 import { formatLightweightTagWarning } from '../../core/tag-timestamps.js';
+import { deriveProjectName } from '../../core/project-name.js';
 import ora from 'ora';
 import type { TagInfo, ReleaseNotesData } from '../../types.js';
 import type { ProviderClient } from '../../providers/types.js';
@@ -304,6 +305,7 @@ export async function runGenerate(options: {
         data.projectUrl,
         options.tag,
       );
+      const projectName = config.projectName ?? deriveProjectName(data.projectUrl);
       await pluginRuntime?.hooks.afterPublish.run({
         tagName: options.tag,
         releaseName,
@@ -312,6 +314,7 @@ export async function runGenerate(options: {
         data,
         releaseUrl,
         notifyDisabled: options.notify === false,
+        projectName,
       });
     }
   }

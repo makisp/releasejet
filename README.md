@@ -43,6 +43,8 @@ categories:
   bug: "Bug Fixes"
 ```
 
+Optional top-level `projectName:` overrides the project name shown in notification cards. Defaults to the last path segment of `projectUrl`.
+
 ## CI/CD
 
 **GitHub Action on the Marketplace** — [marketplace/actions/releasejet](https://github.com/marketplace/actions/releasejet). Five-line setup:

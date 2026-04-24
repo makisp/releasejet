@@ -12,6 +12,7 @@ vi.mock('../../src/core/git.js', () => ({
   getRemoteUrl: vi.fn().mockReturnValue('git@github.com:acme/app.git'),
   resolveHostUrl: vi.fn().mockReturnValue('https://github.com'),
   resolveProjectPath: vi.fn().mockReturnValue('acme/app'),
+  resolveProjectInfo: vi.fn().mockReturnValue({ hostUrl: 'https://github.com', projectPath: 'acme/app' }),
 }));
 vi.mock('../../src/providers/factory.js', () => ({
   createClient: vi.fn().mockReturnValue({
@@ -25,6 +26,7 @@ vi.mock('../../src/cli/auth.js', () => ({
 
 import { loadConfig } from '../../src/core/config.js';
 import { runValidate } from '../../src/cli/commands/validate.js';
+import { runValidateAndCaptureStdout } from './_helpers.js';
 
 const baseConfig: ReleaseJetConfig = {
   provider: { type: 'github', url: 'https://github.com' },
@@ -131,5 +133,35 @@ describe('validate — notifications section', () => {
     expect(all).not.toMatch(/hooks\.slack\.com/);
     log.mockRestore();
     errLog.mockRestore();
+  });
+});
+
+describe('validate — projectName reporting', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('prints the configured projectName when set', async () => {
+    const out = await runValidateAndCaptureStdout({
+      configOverrides: { projectName: 'Test Project' },
+      projectUrl: 'https://github.com/acme/whatever',
+    });
+    expect(out).toMatch(/^Project:\s+Test Project$/m);
+  });
+
+  it('prints the derived projectName when config is unset', async () => {
+    const out = await runValidateAndCaptureStdout({
+      configOverrides: {},
+      projectUrl: 'https://github.com/acme/Derived-Name',
+    });
+    expect(out).toMatch(/^Project:\s+Derived-Name$/m);
+  });
+
+  it('prints "(unset)" when neither resolver has a value', async () => {
+    const out = await runValidateAndCaptureStdout({
+      configOverrides: {},
+      projectUrl: '',
+    });
+    expect(out).toMatch(/^Project:\s+\(unset\)$/m);
   });
 });
