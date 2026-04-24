@@ -1,5 +1,7 @@
 import type { ReleaseNotesData, ReleaseJetConfig } from '../types.js';
 
+export type { NotificationChannelConfig } from '../types.js';
+
 export const PLUGIN_API_VERSION = 1;
 
 export type FormatterFn = (

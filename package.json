@@ -1,6 +1,6 @@
 {
   "name": "@makispps/releasejet",
-  "version": "1.13.0",
+  "version": "1.13.1",
   "description": "Automated release notes generator for GitLab and GitHub",
   "license": "MIT",
   "author": "Mavroudis Papas",
@@ -41,6 +41,7 @@
     "build": "tsup",
     "test": "vitest run",
     "test:watch": "vitest",
+    "typecheck": "tsc --noEmit -p tsconfig.typecheck.json",
     "dev": "tsx src/cli/main.ts",
     "prepublishOnly": "npm run test && npm run build"
   },
