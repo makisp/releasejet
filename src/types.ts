@@ -35,6 +35,8 @@ export interface ReleaseJetConfig {
   /** Human-readable project name shown in notification cards.
    *  When unset, derived from projectUrl's last path segment. */
   projectName?: string;
+  /** Description handling: 'none' (off, default), 'extract' (F4: take cleaned first paragraph), 'ai' (Pro M3a; treated as 'none' in core). */
+  description?: 'none' | 'extract' | 'ai';
 }
 
 export interface ParsedTag {
@@ -62,6 +64,10 @@ export interface Issue {
   author: string | null;
   assignee: string | null;
   closedBy: string | null;
+  /** Raw body/description from the provider, before extraction. Null when the upstream had no body. */
+  rawBody?: string | null;
+  /** Cleaned, extracted excerpt (≤ ~200 chars). Undefined when extraction is off or the body yielded nothing after cleaning. */
+  description?: string;
 }
 
 export interface Milestone {
