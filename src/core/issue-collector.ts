@@ -6,6 +6,7 @@ import type {
   Issue,
 } from '../types.js';
 import { findNextSamePrefixTag } from './tag-parser.js';
+import { extractDescription } from './description-extractor.js';
 
 export async function collectIssues(
   client: ProviderClient,
@@ -90,6 +91,20 @@ export async function collectIssues(
   });
 
   debug(`After closedAt filter: ${filtered.length} issues remain`);
+
+  // Apply description extraction when enabled. 'ai' is reserved for Pro M3a
+  // and behaves as 'none' in core.
+  if (config.description === 'extract') {
+    for (const issue of filtered) {
+      const extracted = extractDescription(issue.rawBody);
+      if (extracted !== undefined) {
+        issue.description = extracted;
+      } else if (issue.rawBody != null && issue.rawBody.trim() !== '') {
+        // Body was present but cleaning produced nothing — debug-log per F4 spec §4.
+        debug(`skipped description for #${issue.number} (empty after cleaning)`);
+      }
+    }
+  }
 
   const categoryLabels = Object.keys(config.categories);
   const categorized: Record<string, Issue[]> = {};
