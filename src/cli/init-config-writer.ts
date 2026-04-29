@@ -43,6 +43,26 @@ export function sourceSection(source: 'issues' | 'pull_requests'): string {
   ].join('\n');
 }
 
+export function clientsSection(clients: ClientConfig[]): string {
+  if (clients.length === 0) {
+    return [
+      '# Multi-client repos: define tag prefixes and labels.',
+      '# clients:',
+      '#   - prefix: mobile',
+      '#     label: MOBILE',
+    ].join('\n');
+  }
+  const entries = clients.flatMap((c) => [
+    `  - prefix: ${c.prefix}`,
+    `    label: ${c.label}`,
+  ]);
+  return [
+    '# Define tag prefixes and labels for each client.',
+    'clients:',
+    ...entries,
+  ].join('\n');
+}
+
 export function buildConfigYaml(_answers: InitAnswers): string {
   throw new Error('not implemented');
 }

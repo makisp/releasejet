@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { parse as parseYaml } from 'yaml';
-import { buildConfigYaml, projectNameSection, providerSection, sourceSection, type InitAnswers } from '../../src/cli/init-config-writer.js';
+import { buildConfigYaml, clientsSection, projectNameSection, providerSection, sourceSection, type InitAnswers } from '../../src/cli/init-config-writer.js';
 
 const DEFAULT_CATEGORIES = {
   feature: 'New Features',
@@ -106,6 +106,31 @@ provider:
 provider:
   type: gitlab            # github | gitlab
   url: https://gitlab.example.com`,
+    );
+  });
+});
+
+describe('clientsSection', () => {
+  it('emits a commented stub when no clients are provided', () => {
+    expect(clientsSection([])).toBe(
+`# Multi-client repos: define tag prefixes and labels.
+# clients:
+#   - prefix: mobile
+#     label: MOBILE`,
+    );
+  });
+
+  it('emits an active list with multiple clients in input order', () => {
+    expect(clientsSection([
+      { prefix: 'mobile', label: 'MOBILE' },
+      { prefix: 'web', label: 'WEB' },
+    ])).toBe(
+`# Define tag prefixes and labels for each client.
+clients:
+  - prefix: mobile
+    label: MOBILE
+  - prefix: web
+    label: WEB`,
     );
   });
 });
