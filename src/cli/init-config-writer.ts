@@ -22,6 +22,18 @@ export function projectNameSection(): string {
   ].join('\n');
 }
 
+export function providerSection(
+  type: 'github' | 'gitlab',
+  url: string,
+): string {
+  return [
+    '# Which provider hosts your repository.',
+    'provider:',
+    `  type: ${type}            # github | gitlab`,
+    `  url: ${url}`,
+  ].join('\n');
+}
+
 export function buildConfigYaml(_answers: InitAnswers): string {
   throw new Error('not implemented');
 }

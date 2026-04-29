@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { parse as parseYaml } from 'yaml';
-import { buildConfigYaml, projectNameSection, type InitAnswers } from '../../src/cli/init-config-writer.js';
+import { buildConfigYaml, projectNameSection, providerSection, type InitAnswers } from '../../src/cli/init-config-writer.js';
 
 const DEFAULT_CATEGORIES = {
   feature: 'New Features',
@@ -86,6 +86,26 @@ describe('projectNameSection', () => {
 `# Optional. Overrides the project name shown in notifications.
 # Defaults to the last path segment of projectUrl.
 # projectName: "My Project"`,
+    );
+  });
+});
+
+describe('providerSection', () => {
+  it('emits github with inline enum hint and unannotated url', () => {
+    expect(providerSection('github', 'https://github.com')).toBe(
+`# Which provider hosts your repository.
+provider:
+  type: github            # github | gitlab
+  url: https://github.com`,
+    );
+  });
+
+  it('emits gitlab with the provided URL', () => {
+    expect(providerSection('gitlab', 'https://gitlab.example.com')).toBe(
+`# Which provider hosts your repository.
+provider:
+  type: gitlab            # github | gitlab
+  url: https://gitlab.example.com`,
     );
   });
 });
