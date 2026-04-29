@@ -72,6 +72,17 @@ export function tagFormatSection(format: string): string {
   ].join('\n');
 }
 
+export function categoriesSection(map: Record<string, string>): string {
+  const entries = Object.entries(map).map(
+    ([label, heading]) => `  ${label}: ${JSON.stringify(heading)}`,
+  );
+  return [
+    '# Map issue/PR labels to release-note section headings. Output order matches this map.',
+    'categories:',
+    ...entries,
+  ].join('\n');
+}
+
 export function buildConfigYaml(_answers: InitAnswers): string {
   throw new Error('not implemented');
 }
