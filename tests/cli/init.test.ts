@@ -374,7 +374,7 @@ describe('runInit — contributors step', () => {
     await runInit();
 
     const config = parseWrittenYaml();
-    expect(config.contributors).toEqual({ enabled: true });
+    expect(config.contributors).toEqual({ enabled: true, exclude: [] });
   });
 
   it('omits contributors config when user declines', async () => {
@@ -394,7 +394,7 @@ describe('runInit — contributors step', () => {
     await runInit();
 
     const config = parseWrittenYaml();
-    expect(config.contributors).toBeUndefined();
+    expect(config.contributors).toEqual({ enabled: false, exclude: [] });
   });
 });
 
