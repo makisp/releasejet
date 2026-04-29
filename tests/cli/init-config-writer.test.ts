@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { parse as parseYaml } from 'yaml';
-import { buildConfigYaml, type InitAnswers } from '../../src/cli/init-config-writer.js';
+import { buildConfigYaml, projectNameSection, type InitAnswers } from '../../src/cli/init-config-writer.js';
 
 const DEFAULT_CATEGORIES = {
   feature: 'New Features',
@@ -77,5 +77,15 @@ contributors:
     expect(parsed.description).toBe('none');
     expect(parsed.template).toBe('default');
     expect(parsed.contributors).toEqual({ enabled: false, exclude: [] });
+  });
+});
+
+describe('projectNameSection', () => {
+  it('returns a commented-out stub with explanation', () => {
+    expect(projectNameSection()).toBe(
+`# Optional. Overrides the project name shown in notifications.
+# Defaults to the last path segment of projectUrl.
+# projectName: "My Project"`,
+    );
   });
 });

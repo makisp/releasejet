@@ -14,6 +14,14 @@ export interface InitAnswers {
   contributors: { enabled: boolean; exclude: string[] };
 }
 
+export function projectNameSection(): string {
+  return [
+    '# Optional. Overrides the project name shown in notifications.',
+    '# Defaults to the last path segment of projectUrl.',
+    '# projectName: "My Project"',
+  ].join('\n');
+}
+
 export function buildConfigYaml(_answers: InitAnswers): string {
   throw new Error('not implemented');
 }
