@@ -99,6 +99,13 @@ export function descriptionSection(): string {
   ].join('\n');
 }
 
+export function templateSection(): string {
+  return [
+    '# Release notes template. "default" is built-in; named/path values require @releasejet/pro.',
+    'template: default',
+  ].join('\n');
+}
+
 export function buildConfigYaml(_answers: InitAnswers): string {
   throw new Error('not implemented');
 }

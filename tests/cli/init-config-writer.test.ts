@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { parse as parseYaml } from 'yaml';
-import { buildConfigYaml, categoriesSection, clientsSection, descriptionSection, projectNameSection, providerSection, sourceSection, tagFormatSection, uncategorizedSection, type InitAnswers } from '../../src/cli/init-config-writer.js';
+import { buildConfigYaml, categoriesSection, clientsSection, descriptionSection, projectNameSection, providerSection, sourceSection, tagFormatSection, templateSection, uncategorizedSection, type InitAnswers } from '../../src/cli/init-config-writer.js';
 
 const DEFAULT_CATEGORIES = {
   feature: 'New Features',
@@ -214,6 +214,15 @@ describe('descriptionSection', () => {
     expect(descriptionSection()).toBe(
 `# Issue/PR description rendering. Renders cleaned body as a sub-bullet under each item.
 description: none         # none | extract`,
+    );
+  });
+});
+
+describe('templateSection', () => {
+  it('emits the default template with explanation', () => {
+    expect(templateSection()).toBe(
+`# Release notes template. "default" is built-in; named/path values require @releasejet/pro.
+template: default`,
     );
   });
 });
