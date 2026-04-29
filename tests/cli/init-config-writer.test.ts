@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { parse as parseYaml } from 'yaml';
-import { buildConfigYaml, categoriesSection, clientsSection, projectNameSection, providerSection, sourceSection, tagFormatSection, type InitAnswers } from '../../src/cli/init-config-writer.js';
+import { buildConfigYaml, categoriesSection, clientsSection, projectNameSection, providerSection, sourceSection, tagFormatSection, uncategorizedSection, type InitAnswers } from '../../src/cli/init-config-writer.js';
 
 const DEFAULT_CATEGORIES = {
   feature: 'New Features',
@@ -189,6 +189,22 @@ categories:
 `# Map issue/PR labels to release-note section headings. Output order matches this map.
 categories:
   docs: "Docs \\"extras\\""`,
+    );
+  });
+});
+
+describe('uncategorizedSection', () => {
+  it('emits lenient with enum hint', () => {
+    expect(uncategorizedSection('lenient')).toBe(
+`# How to handle issues with no matching label.
+uncategorized: lenient    # lenient | strict`,
+    );
+  });
+
+  it('emits strict with enum hint', () => {
+    expect(uncategorizedSection('strict')).toBe(
+`# How to handle issues with no matching label.
+uncategorized: strict     # lenient | strict`,
     );
   });
 });

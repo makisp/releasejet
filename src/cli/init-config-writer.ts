@@ -83,6 +83,15 @@ export function categoriesSection(map: Record<string, string>): string {
   ].join('\n');
 }
 
+export function uncategorizedSection(mode: 'lenient' | 'strict'): string {
+  // Pad to width of 'lenient' (7) so '#' aligns; trailing 4 spaces before '#'.
+  const padded = mode.padEnd(7, ' ');
+  return [
+    '# How to handle issues with no matching label.',
+    `uncategorized: ${padded}    # lenient | strict`,
+  ].join('\n');
+}
+
 export function buildConfigYaml(_answers: InitAnswers): string {
   throw new Error('not implemented');
 }
