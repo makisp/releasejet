@@ -63,6 +63,15 @@ export function clientsSection(clients: ClientConfig[]): string {
   ].join('\n');
 }
 
+export function tagFormatSection(format: string): string {
+  // Pad to a minimum width of 13 so the inline comment aligns with other sections.
+  const padded = format.length < 13 ? format.padEnd(13, ' ') : format;
+  return [
+    '# How your git tags are structured. {version} is required; {prefix} is multi-client only.',
+    `tagFormat: ${padded}  # e.g. v{version}, {version}, {prefix}-v{version}`,
+  ].join('\n');
+}
+
 export function buildConfigYaml(_answers: InitAnswers): string {
   throw new Error('not implemented');
 }

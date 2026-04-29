@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { parse as parseYaml } from 'yaml';
-import { buildConfigYaml, clientsSection, projectNameSection, providerSection, sourceSection, type InitAnswers } from '../../src/cli/init-config-writer.js';
+import { buildConfigYaml, clientsSection, projectNameSection, providerSection, sourceSection, tagFormatSection, type InitAnswers } from '../../src/cli/init-config-writer.js';
 
 const DEFAULT_CATEGORIES = {
   feature: 'New Features',
@@ -147,6 +147,22 @@ source: issues            # issues | pull_requests`,
     expect(sourceSection('pull_requests')).toBe(
 `# What to summarise in release notes.
 source: pull_requests     # issues | pull_requests`,
+    );
+  });
+});
+
+describe('tagFormatSection', () => {
+  it('emits the default single-client format with hint examples', () => {
+    expect(tagFormatSection('v{version}')).toBe(
+`# How your git tags are structured. {version} is required; {prefix} is multi-client only.
+tagFormat: v{version}     # e.g. v{version}, {version}, {prefix}-v{version}`,
+    );
+  });
+
+  it('emits a custom multi-client format unchanged', () => {
+    expect(tagFormatSection('{prefix}/v{version}')).toBe(
+`# How your git tags are structured. {version} is required; {prefix} is multi-client only.
+tagFormat: {prefix}/v{version}  # e.g. v{version}, {version}, {prefix}-v{version}`,
     );
   });
 });
