@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { parse as parseYaml } from 'yaml';
-import { buildConfigYaml, projectNameSection, providerSection, type InitAnswers } from '../../src/cli/init-config-writer.js';
+import { buildConfigYaml, projectNameSection, providerSection, sourceSection, type InitAnswers } from '../../src/cli/init-config-writer.js';
 
 const DEFAULT_CATEGORIES = {
   feature: 'New Features',
@@ -106,6 +106,22 @@ provider:
 provider:
   type: gitlab            # github | gitlab
   url: https://gitlab.example.com`,
+    );
+  });
+});
+
+describe('sourceSection', () => {
+  it('emits issues with enum hint', () => {
+    expect(sourceSection('issues')).toBe(
+`# What to summarise in release notes.
+source: issues            # issues | pull_requests`,
+    );
+  });
+
+  it('emits pull_requests with enum hint', () => {
+    expect(sourceSection('pull_requests')).toBe(
+`# What to summarise in release notes.
+source: pull_requests     # issues | pull_requests`,
     );
   });
 });

@@ -34,6 +34,15 @@ export function providerSection(
   ].join('\n');
 }
 
+export function sourceSection(source: 'issues' | 'pull_requests'): string {
+  // Pad value to width 18 so the '#' aligns across all values.
+  const padded = source.padEnd(18, ' ');
+  return [
+    '# What to summarise in release notes.',
+    `source: ${padded}# issues | pull_requests`,
+  ].join('\n');
+}
+
 export function buildConfigYaml(_answers: InitAnswers): string {
   throw new Error('not implemented');
 }
