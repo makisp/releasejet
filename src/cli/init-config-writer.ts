@@ -106,6 +106,25 @@ export function templateSection(): string {
   ].join('\n');
 }
 
+export function contributorsSection(
+  cfg: { enabled: boolean; exclude: string[] },
+): string {
+  const enabledStr = String(cfg.enabled);
+  const excludeStr =
+    cfg.exclude.length === 0 ? '[]' : `[${cfg.exclude.join(', ')}]`;
+  // Ensure at least 6 spaces of gap between any value and the '#' comment,
+  // with a floor of 15 to match the visual rhythm of adjacent sections.
+  const width = Math.max(15, enabledStr.length + 6, excludeStr.length + 6);
+  const padEnabled = enabledStr.padEnd(width, ' ');
+  const padExclude = excludeStr.padEnd(width, ' ');
+  return [
+    '# Contributors section in release notes.',
+    'contributors:',
+    `  enabled: ${padEnabled}# true | false`,
+    `  exclude: ${padExclude}# usernames to skip (e.g. dependabot, renovate)`,
+  ].join('\n');
+}
+
 export function buildConfigYaml(_answers: InitAnswers): string {
   throw new Error('not implemented');
 }

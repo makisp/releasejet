@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { parse as parseYaml } from 'yaml';
-import { buildConfigYaml, categoriesSection, clientsSection, descriptionSection, projectNameSection, providerSection, sourceSection, tagFormatSection, templateSection, uncategorizedSection, type InitAnswers } from '../../src/cli/init-config-writer.js';
+import { buildConfigYaml, categoriesSection, clientsSection, contributorsSection, descriptionSection, projectNameSection, providerSection, sourceSection, tagFormatSection, templateSection, uncategorizedSection, type InitAnswers } from '../../src/cli/init-config-writer.js';
 
 const DEFAULT_CATEGORIES = {
   feature: 'New Features',
@@ -223,6 +223,38 @@ describe('templateSection', () => {
     expect(templateSection()).toBe(
 `# Release notes template. "default" is built-in; named/path values require @releasejet/pro.
 template: default`,
+    );
+  });
+});
+
+describe('contributorsSection', () => {
+  it('emits enabled: false with empty exclude list and aligned inline comments', () => {
+    expect(contributorsSection({ enabled: false, exclude: [] })).toBe(
+`# Contributors section in release notes.
+contributors:
+  enabled: false          # true | false
+  exclude: []             # usernames to skip (e.g. dependabot, renovate)`,
+    );
+  });
+
+  it('emits enabled: true while keeping exclude empty', () => {
+    expect(contributorsSection({ enabled: true, exclude: [] })).toBe(
+`# Contributors section in release notes.
+contributors:
+  enabled: true           # true | false
+  exclude: []             # usernames to skip (e.g. dependabot, renovate)`,
+    );
+  });
+
+  it('emits a populated exclude list as a flow-style array', () => {
+    expect(contributorsSection({
+      enabled: false,
+      exclude: ['dependabot', 'renovate'],
+    })).toBe(
+`# Contributors section in release notes.
+contributors:
+  enabled: false                       # true | false
+  exclude: [dependabot, renovate]      # usernames to skip (e.g. dependabot, renovate)`,
     );
   });
 });
