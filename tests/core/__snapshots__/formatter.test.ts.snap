@@ -9,16 +9,16 @@ exports[`formatReleaseNotes — description rendering (F4) > renders description
 
 #### New Features
 - Add dark mode (#101)
-  Adds a dark theme toggle in user settings, persisted across sessions.
+  - Adds a dark theme toggle in user settings, persisted across sessions.
 - Export as PDF (#102)
 
 #### Bug Fixes
 - Fix login redirect (#155)
-  Users were redirected to /login instead of their target after SSO callback so the deep link was lost completely on every sign-in attempt regardless of provider…
+  - Users were redirected to /login instead of their target after SSO callback so the deep link was lost completely on every sign-in attempt regardless of provider…
 
 #### Other
 - Bump deps (#180)
-  Routine dependency updates for the month.
+  - Routine dependency updates for the month.
 
 ---
 

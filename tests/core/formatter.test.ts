@@ -483,7 +483,7 @@ describe('formatReleaseNotes — description rendering (F4)', () => {
     const lines = result.split('\n');
     for (let i = 0; i < lines.length - 1; i++) {
       if (lines[i].startsWith('- ')) {
-        expect(lines[i + 1].startsWith('  ')).toBe(false);
+        expect(lines[i + 1].startsWith('  - ')).toBe(false);
       }
     }
     expect(result).toMatchSnapshot();

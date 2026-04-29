@@ -65,7 +65,7 @@ in `.releasejet.yml`. The cleaner strips leading HTML comments and `## Descripti
 
 ```
 - Fix login redirect bug (#142)
-  Users were redirected to /login instead of their target after SSO callback…
+  - Users were redirected to /login instead of their target after SSO callback…
 ```
 
 The `description: ai` value is reserved for AI-summarised descriptions in the Pro plugin (M3a) and is treated as `none` in core.
