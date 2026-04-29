@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { parse as parseYaml } from 'yaml';
-import { buildConfigYaml, categoriesSection, clientsSection, projectNameSection, providerSection, sourceSection, tagFormatSection, uncategorizedSection, type InitAnswers } from '../../src/cli/init-config-writer.js';
+import { buildConfigYaml, categoriesSection, clientsSection, descriptionSection, projectNameSection, providerSection, sourceSection, tagFormatSection, uncategorizedSection, type InitAnswers } from '../../src/cli/init-config-writer.js';
 
 const DEFAULT_CATEGORIES = {
   feature: 'New Features',
@@ -205,6 +205,15 @@ uncategorized: lenient    # lenient | strict`,
     expect(uncategorizedSection('strict')).toBe(
 `# How to handle issues with no matching label.
 uncategorized: strict     # lenient | strict`,
+    );
+  });
+});
+
+describe('descriptionSection', () => {
+  it('emits none with enum hint', () => {
+    expect(descriptionSection()).toBe(
+`# Issue/PR description rendering. Renders cleaned body as a sub-bullet under each item.
+description: none         # none | extract`,
     );
   });
 });

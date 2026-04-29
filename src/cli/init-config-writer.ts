@@ -92,6 +92,13 @@ export function uncategorizedSection(mode: 'lenient' | 'strict'): string {
   ].join('\n');
 }
 
+export function descriptionSection(): string {
+  return [
+    '# Issue/PR description rendering. Renders cleaned body as a sub-bullet under each item.',
+    'description: none         # none | extract',
+  ].join('\n');
+}
+
 export function buildConfigYaml(_answers: InitAnswers): string {
   throw new Error('not implemented');
 }
