@@ -16,6 +16,7 @@ import {
 } from '../../core/ci.js';
 import { hasActivePro } from '../../license/detect.js';
 import { TAG_TIMESTAMP_TIP } from '../../core/tag-timestamps.js';
+import { buildConfigYaml } from '../init-config-writer.js';
 
 export function registerInitCommand(program: Command): void {
   program
@@ -259,27 +260,16 @@ export async function runInit(): Promise<void> {
   });
 
   // 10. Write config
-  const config: Record<string, unknown> = {
-    provider: { type: providerType, url: providerUrl },
+  const yamlContent = buildConfigYaml({
+    providerType,
+    providerUrl,
+    source: providerType === 'github' ? (source ?? 'issues') : undefined,
+    clients,
     tagFormat,
     categories,
     uncategorized,
-    template: 'default',
-  };
-
-  if (source && source !== 'issues') {
-    config.source = source;
-  }
-
-  if (clients.length > 0) {
-    config.clients = clients;
-  }
-
-  if (enableContributors) {
-    config.contributors = { enabled: true };
-  }
-
-  const yamlContent = stringifyYaml(config);
+    contributors: { enabled: enableContributors, exclude: [] },
+  });
   await writeFile('.releasejet.yml', yamlContent);
   console.log('\n✓ Created .releasejet.yml');
 
