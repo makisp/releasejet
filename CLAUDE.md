@@ -25,6 +25,7 @@ npm run dev -- generate --tag v1.0.0  # Run a specific command in dev
 
 **Key modules:**
 - `src/cli/` — Commander commands (generate, init, validate, ci) and auth token resolution
+- `src/cli/init-config-writer.ts` — Renders `.releasejet.yml` for the `init` command via per-section helpers (`projectNameSection`, `providerSection`, etc.) joined by blank lines. Each non-Pro feature is surfaced with a block comment and inline value hint, even when off, for in-file discoverability.
 - `src/core/config.ts` — YAML config loading with default merging
 - `src/core/tag-parser.ts` — Parses tags using configurable `tagFormat` patterns; supports `{prefix}` and `{version}` placeholders with legacy fallback for `<prefix>-v<semver>` and `v<semver>`
 - `src/core/issue-collector.ts` — Fetches and filters issues client-side by `closedAt` (API `updatedAfter` is unreliable)

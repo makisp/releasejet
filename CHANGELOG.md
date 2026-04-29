@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.15.0] - 2026-04-29
+
+### Changed
+
+- `init` now generates a self-documenting `.releasejet.yml`. Every non-Pro feature appears in the file with explanatory block comments and inline value hints, even when off by default. New keys surfaced: `description: none`, `contributors: { enabled: false, exclude: [] }`, and a commented `projectName` stub. Existing keys gain inline enum hints (e.g. `uncategorized: lenient    # lenient | strict`). Pro features are not surfaced — see `.releasejet.example.yml` for the canonical full reference.
+
 ## [1.14.0] - 2026-04-29
 
 ### Added
