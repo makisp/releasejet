@@ -214,3 +214,24 @@ describe('parseConfig', () => {
     });
   });
 });
+
+describe('description config field', () => {
+  it('defaults to "none" when omitted', () => {
+    const config = parseConfig({});
+    expect(config.description).toBe('none');
+  });
+
+  it('accepts "extract"', () => {
+    const config = parseConfig({ description: 'extract' });
+    expect(config.description).toBe('extract');
+  });
+
+  it('accepts "ai"', () => {
+    const config = parseConfig({ description: 'ai' });
+    expect(config.description).toBe('ai');
+  });
+
+  it('rejects unknown values', () => {
+    expect(() => parseConfig({ description: 'summary' })).toThrow();
+  });
+});
