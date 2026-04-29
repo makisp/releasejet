@@ -101,6 +101,7 @@ export function createGitLabClient(
         author: i.author?.username ?? null,
         assignee: i.assignees?.[0]?.username ?? i.assignee?.username ?? null,
         closedBy: i.closed_by?.username ?? null,
+        rawBody: i.description ?? null,
       }));
     },
 
