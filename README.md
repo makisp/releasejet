@@ -45,6 +45,31 @@ categories:
 
 Optional top-level `projectName:` overrides the project name shown in notification cards. Defaults to the last path segment of `projectUrl`.
 
+### Issue / PR descriptions
+
+By default, release notes show only issue/PR titles. To also render the first paragraph of each item's body underneath its title, set:
+
+```yaml
+description: extract
+```
+
+in `.releasejet.yml`. The cleaner strips leading HTML comments and `## Description`-style headers, takes the first paragraph, collapses whitespace, and truncates to ~200 characters with an ellipsis. Items with empty bodies (or bodies that contain only headers/comments) render as before — title only, no placeholder.
+
+**Before** (default, `description: none`):
+
+```
+- Fix login redirect bug (#142)
+```
+
+**After** (`description: extract`):
+
+```
+- Fix login redirect bug (#142)
+  - Users were redirected to /login instead of their target after SSO callback…
+```
+
+The `description: ai` value is reserved for AI-summarised descriptions in the Pro plugin (M3a) and is treated as `none` in core.
+
 ## CI/CD
 
 **GitHub Action on the Marketplace** — [marketplace/actions/releasejet](https://github.com/marketplace/actions/releasejet). Five-line setup:

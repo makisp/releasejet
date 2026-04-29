@@ -145,6 +145,7 @@ describe('createGitLabClient', () => {
           closed_at: '2026-04-07T15:00:00Z',
           web_url: 'https://gitlab.example.com/mobile/app/-/issues/142',
           milestone: { title: '[MOBILE] Demo 13', web_url: 'https://gitlab.example.com/mobile/app/-/milestones/13' },
+          description: 'GitLab issue description text.',
           author: { username: 'elena' },
           assignees: [{ username: 'makisp' }],
           assignee: { username: 'makisp' },
@@ -170,6 +171,7 @@ describe('createGitLabClient', () => {
         author: 'elena',
         assignee: 'makisp',
         closedBy: 'nikos',
+        rawBody: 'GitLab issue description text.',
       });
     });
 
@@ -185,6 +187,28 @@ describe('createGitLabClient', () => {
       expect(mockIssuesAll).toHaveBeenCalledWith(
         expect.objectContaining({ labels: 'MOBILE' }),
       );
+    });
+
+    it('maps null/missing description to rawBody: null', async () => {
+      mockIssuesAll.mockResolvedValue([
+        {
+          iid: 99,
+          title: 'No description',
+          labels: [],
+          closed_at: '2026-04-07T15:00:00Z',
+          web_url: 'https://gitlab.example.com/mobile/app/-/issues/99',
+          milestone: null,
+          description: null,
+          author: { username: 'a' },
+          assignees: [],
+          assignee: null,
+          closed_by: null,
+        },
+      ]);
+
+      const client = createGitLabClient('https://gitlab.example.com', 'token');
+      const issues = await client.listIssues('mobile/app', { state: 'closed' });
+      expect(issues[0].rawBody).toBeNull();
     });
   });
 

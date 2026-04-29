@@ -413,3 +413,79 @@ describe('buildTemplateContext', () => {
     expect(ctx.categoryEntries[0].issues[0].url).toBe('https://gitlab.example.com/group/project/-/merge_requests/10');
   });
 });
+
+describe('formatReleaseNotes — description rendering (F4)', () => {
+  function mkIssue(n: number, title: string, labels: string[], description?: string) {
+    return {
+      number: n, title, labels,
+      closedAt: '', webUrl: '', milestone: null,
+      author: null, assignee: null, closedBy: null,
+      rawBody: description ?? null,
+      description,
+    };
+  }
+
+  const fixtureData: ReleaseNotesData = {
+    tagName: 'v1.0.0',
+    version: '1.0.0',
+    clientPrefix: null,
+    date: '2026-04-29',
+    milestone: null,
+    projectUrl: 'https://github.example.com/owner/app',
+    issues: {
+      categorized: {
+        'New Features': [
+          mkIssue(101, 'Add dark mode', ['feature'], 'Adds a dark theme toggle in user settings, persisted across sessions.'),
+          mkIssue(102, 'Export as PDF', ['feature']),
+        ],
+        'Bug Fixes': [
+          mkIssue(155, 'Fix login redirect', ['bug'], 'Users were redirected to /login instead of their target after SSO callback so the deep link was lost completely on every sign-in attempt regardless of provider…'),
+        ],
+      },
+      uncategorized: [
+        mkIssue(180, 'Bump deps', [], 'Routine dependency updates for the month.'),
+      ],
+    },
+    totalCount: 4,
+    uncategorizedCount: 1,
+    contributors: [],
+  };
+
+  const githubConfig: ReleaseJetConfig = {
+    provider: { type: 'github', url: 'https://github.example.com' },
+    source: 'issues',
+    clients: [],
+    categories: {
+      feature: 'New Features',
+      bug: 'Bug Fixes',
+    },
+    uncategorized: 'lenient',
+  };
+
+  it('renders descriptions indented under bullets when populated (mixed populated + empty)', () => {
+    const result = formatReleaseNotes(fixtureData, { ...githubConfig, description: 'extract' });
+    expect(result).toMatchSnapshot();
+  });
+
+  it('renders no description lines when extraction is off (regression guard)', () => {
+    const noDescData: ReleaseNotesData = {
+      ...fixtureData,
+      issues: {
+        categorized: Object.fromEntries(
+          Object.entries(fixtureData.issues.categorized).map(([k, v]) => [
+            k, v.map(i => ({ ...i, description: undefined })),
+          ]),
+        ),
+        uncategorized: fixtureData.issues.uncategorized.map(i => ({ ...i, description: undefined })),
+      },
+    };
+    const result = formatReleaseNotes(noDescData, { ...githubConfig, description: 'none' });
+    const lines = result.split('\n');
+    for (let i = 0; i < lines.length - 1; i++) {
+      if (lines[i].startsWith('- ')) {
+        expect(lines[i + 1].startsWith('  - ')).toBe(false);
+      }
+    }
+    expect(result).toMatchSnapshot();
+  });
+});

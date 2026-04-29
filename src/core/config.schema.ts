@@ -92,6 +92,13 @@ export const ReleaseJetConfigSchema = z
       .array(NotificationChannelSchema)
       .optional()
       .describe('Webhook notification channels (Pro feature).'),
+    description: z
+      .enum(['none', 'extract', 'ai'])
+      .optional()
+      .default('none')
+      .describe(
+        'Issue/PR description rendering: "none" (off, default), "extract" (cleaned first paragraph), "ai" (Pro M3a; treated as "none" in core).',
+      ),
     projectName: z
       .string()
       .min(1, { message: 'projectName must be a non-empty string' })
@@ -273,5 +280,6 @@ export function parseConfig(raw: unknown): ReleaseJetConfig {
     tagFormat: parsed.tagFormat,
     notifications: parsed.notifications,
     projectName: parsed.projectName,
+    description: parsed.description,
   };
 }

@@ -16,8 +16,8 @@ export interface TemplateContext {
   title: string;
   tagUrl: string;
   metaLine: string;
-  categoryEntries: Array<{ heading: string; issues: Array<{ title: string; number: number; url: string }> }>;
-  uncategorizedEntries: Array<{ title: string; number: number; url: string }>;
+  categoryEntries: Array<{ heading: string; issues: Array<{ title: string; number: number; url: string; description?: string }> }>;
+  uncategorizedEntries: Array<{ title: string; number: number; url: string; description?: string }>;
   showUncategorized: boolean;
   hasContributors: boolean;
   contributorsList: string;
@@ -77,6 +77,7 @@ export function buildTemplateContext(
         title: i.title,
         number: i.number,
         url: buildIssueUrl(data.projectUrl, i.number, config.provider.type, config.source),
+        description: i.description,
       })),
     }));
 
@@ -84,6 +85,7 @@ export function buildTemplateContext(
     title: i.title,
     number: i.number,
     url: buildIssueUrl(data.projectUrl, i.number, config.provider.type, config.source),
+    description: i.description,
   }));
 
   const showUncategorized =

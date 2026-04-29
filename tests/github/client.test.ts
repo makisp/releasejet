@@ -116,6 +116,7 @@ describe('createGitHubClient', () => {
             assignees: [{ login: 'makisp' }],
             assignee: { login: 'makisp' },
             closed_by: { login: 'makisp' },
+            body: 'Real issue body text.',
           },
           {
             number: 43,
@@ -151,7 +152,32 @@ describe('createGitHubClient', () => {
         author: 'elena',
         assignee: 'makisp',
         closedBy: 'makisp',
+        rawBody: 'Real issue body text.',
       });
+    });
+
+    it('maps null body to rawBody: null', async () => {
+      mockListForRepo.mockResolvedValue({
+        data: [
+          {
+            number: 99,
+            title: 'No body',
+            labels: [],
+            closed_at: '2026-04-07T15:00:00Z',
+            html_url: 'https://github.com/owner/repo/issues/99',
+            milestone: null,
+            body: null,
+            user: { login: 'a' },
+            assignees: [],
+            assignee: null,
+            closed_by: null,
+          },
+        ],
+      });
+
+      const client = createGitHubClient('https://github.com', 'token');
+      const issues = await client.listIssues('owner/repo', { state: 'closed' });
+      expect(issues[0].rawBody).toBeNull();
     });
   });
 
@@ -170,6 +196,7 @@ describe('createGitHubClient', () => {
             user: { login: 'elena' },
             assignees: [{ login: 'nikos' }],
             assignee: { login: 'nikos' },
+            body: 'PR body for #50.',
           },
           {
             number: 51,
@@ -203,6 +230,7 @@ describe('createGitHubClient', () => {
         author: 'elena',
         assignee: 'nikos',
         closedBy: null,
+        rawBody: 'PR body for #50.',
       });
     });
   });

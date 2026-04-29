@@ -77,6 +77,7 @@ export function createGitHubClient(
           author: i.user?.login ?? null,
           assignee: i.assignees?.[0]?.login ?? i.assignee?.login ?? null,
           closedBy: i.closed_by?.login ?? null,
+          rawBody: i.body ?? null,
         }));
     },
 
@@ -103,6 +104,7 @@ export function createGitHubClient(
           author: pr.user?.login ?? null,
           assignee: pr.assignees?.[0]?.login ?? pr.assignee?.login ?? null,
           closedBy: null,
+          rawBody: pr.body ?? null,
         }));
     },
 

@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { collectIssues, detectMilestone } from '../../src/core/issue-collector.js';
 import type { ProviderClient } from '../../src/providers/types.js';
-import type { TagInfo, ReleaseJetConfig, CategorizedIssues } from '../../src/types.js';
+import type { TagInfo, ReleaseJetConfig, CategorizedIssues, Issue } from '../../src/types.js';
 
 function createMockClient(): ProviderClient {
   return {
@@ -349,5 +349,143 @@ describe('detectMilestone', () => {
   it('returns null when no issues exist', () => {
     const issues: CategorizedIssues = { categorized: {}, uncategorized: [] };
     expect(detectMilestone(issues)).toBeNull();
+  });
+});
+
+describe('description extraction integration', () => {
+  function makeIssue(overrides: Partial<Issue> = {}): Issue {
+    return {
+      number: 1,
+      title: 't',
+      labels: [],
+      closedAt: '2026-04-08T10:00:00Z',
+      webUrl: '',
+      milestone: null,
+      author: null,
+      assignee: null,
+      closedBy: null,
+      ...overrides,
+    };
+  }
+
+  function makeClient(issues: Issue[]): ProviderClient {
+    return {
+      listTags: vi.fn(),
+      listIssues: vi.fn().mockResolvedValue(issues),
+      listPullRequests: vi.fn().mockResolvedValue([]),
+      createRelease: vi.fn(),
+      listMilestones: vi.fn(),
+    };
+  }
+
+  const tag = (name: string, createdAt: string): TagInfo => ({
+    raw: name, prefix: null, version: name.replace('v', ''), suffix: null,
+    createdAt, commitDate: createdAt, dateSource: 'release',
+  });
+
+  it('runs extractor when config.description === "extract" and writes to description field', async () => {
+    const issue = makeIssue({
+      number: 42,
+      rawBody: '## Description\n\nFirst paragraph here.',
+    });
+    const client = makeClient([issue]);
+    const config: ReleaseJetConfig = {
+      provider: { type: 'github', url: '' },
+      source: 'issues',
+      clients: [],
+      categories: {},
+      uncategorized: 'lenient',
+      description: 'extract',
+    };
+    const current = tag('v2.0.0', '2026-04-10T00:00:00Z');
+    const previous = tag('v1.0.0', '2026-04-01T00:00:00Z');
+
+    const result = await collectIssues(client, 'p', current, previous, [current, previous], config);
+    const all = [...Object.values(result.categorized).flat(), ...result.uncategorized];
+    expect(all[0].description).toBe('First paragraph here.');
+  });
+
+  it('does NOT run extractor when config.description === "none" (or omitted)', async () => {
+    const issue = makeIssue({
+      number: 42,
+      rawBody: 'Some prose body.',
+    });
+    const client = makeClient([issue]);
+    const config: ReleaseJetConfig = {
+      provider: { type: 'github', url: '' },
+      source: 'issues',
+      clients: [],
+      categories: {},
+      uncategorized: 'lenient',
+      // description omitted → effectively 'none'
+    };
+    const current = tag('v2.0.0', '2026-04-10T00:00:00Z');
+    const previous = tag('v1.0.0', '2026-04-01T00:00:00Z');
+
+    const result = await collectIssues(client, 'p', current, previous, [current, previous], config);
+    const all = [...Object.values(result.categorized).flat(), ...result.uncategorized];
+    expect(all[0].description).toBeUndefined();
+  });
+
+  it('treats "ai" as a no-op in core (no extraction)', async () => {
+    const issue = makeIssue({ number: 42, rawBody: 'Some prose body.' });
+    const client = makeClient([issue]);
+    const config: ReleaseJetConfig = {
+      provider: { type: 'github', url: '' },
+      source: 'issues',
+      clients: [],
+      categories: {},
+      uncategorized: 'lenient',
+      description: 'ai',
+    };
+    const current = tag('v2.0.0', '2026-04-10T00:00:00Z');
+    const previous = tag('v1.0.0', '2026-04-01T00:00:00Z');
+
+    const result = await collectIssues(client, 'p', current, previous, [current, previous], config);
+    const all = [...Object.values(result.categorized).flat(), ...result.uncategorized];
+    expect(all[0].description).toBeUndefined();
+  });
+
+  it('emits debug log when body is non-null but cleaning yields nothing', async () => {
+    const issue = makeIssue({
+      number: 7,
+      rawBody: '<!-- comment only -->\n\n## Heading only',
+    });
+    const client = makeClient([issue]);
+    const config: ReleaseJetConfig = {
+      provider: { type: 'github', url: '' },
+      source: 'issues',
+      clients: [],
+      categories: {},
+      uncategorized: 'lenient',
+      description: 'extract',
+    };
+    const debug = vi.fn();
+    const current = tag('v2.0.0', '2026-04-10T00:00:00Z');
+    const previous = tag('v1.0.0', '2026-04-01T00:00:00Z');
+
+    await collectIssues(client, 'p', current, previous, [current, previous], config, debug);
+    const calls = debug.mock.calls.map(args => args.join(' '));
+    expect(calls.some(c => c.includes('skipped description for #7'))).toBe(true);
+  });
+
+  it('does NOT emit debug log when rawBody is null/undefined (normal path)', async () => {
+    const issue = makeIssue({ number: 8, rawBody: null });
+    const client = makeClient([issue]);
+    const config: ReleaseJetConfig = {
+      provider: { type: 'github', url: '' },
+      source: 'issues',
+      clients: [],
+      categories: {},
+      uncategorized: 'lenient',
+      description: 'extract',
+    };
+    const debug = vi.fn();
+    const current = tag('v2.0.0', '2026-04-10T00:00:00Z');
+    const previous = tag('v1.0.0', '2026-04-01T00:00:00Z');
+
+    await collectIssues(client, 'p', current, previous, [current, previous], config, debug);
+    const calls = debug.mock.calls.map(args => args.join(' '));
+    expect(calls.some(c => c.includes('skipped description'))).toBe(false);
   });
 });

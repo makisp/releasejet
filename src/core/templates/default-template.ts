@@ -11,6 +11,8 @@ export const defaultTemplate = `## {{title}}
 #### {{this.heading}}
 {{#each this.issues}}
 - {{this.title}} (#{{this.number}})
+{{#if this.description}}  - {{this.description}}
+{{/if}}
 {{/each}}
 
 {{/each}}
@@ -18,6 +20,8 @@ export const defaultTemplate = `## {{title}}
 #### Other
 {{#each uncategorizedEntries}}
 - {{this.title}} (#{{this.number}})
+{{#if this.description}}  - {{this.description}}
+{{/if}}
 {{/each}}
 
 {{/if}}

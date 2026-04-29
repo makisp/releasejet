@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.14.0] - 2026-04-29
+
+### Added
+
+- New `description: 'none' | 'extract' | 'ai'` top-level config field. When set to `extract`, release notes render a cleaned, ~200-character excerpt of each issue/PR body under its title. Default is `none` (no change in output). The `ai` value is reserved for the Pro M3a plugin and is treated as `none` in core. (F4)
+
 ## [1.13.1] - 2026-04-24
 
 ### Fixed

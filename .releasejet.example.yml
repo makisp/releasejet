@@ -38,6 +38,14 @@ categories:
 # "strict" — fail release generation
 uncategorized: lenient
 
+# Issue/PR description rendering (F4):
+#   none    — title only (default; no change from previous releases)
+#   extract — render the cleaned first paragraph of each issue/PR body
+#             under its title, truncated to ~200 chars.
+#   ai      — Pro M3a (AI-summarised). Treated as "none" in core unless
+#             the Pro plugin is loaded.
+description: none
+
 # Release notes template
 # "default"      — built-in template (free)
 # <pro-name>     — named template from @releasejet/pro (e.g. "compact")
