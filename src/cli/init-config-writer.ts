@@ -125,6 +125,23 @@ export function contributorsSection(
   ].join('\n');
 }
 
-export function buildConfigYaml(_answers: InitAnswers): string {
-  throw new Error('not implemented');
+export function buildConfigYaml(answers: InitAnswers): string {
+  const parts: string[] = [
+    projectNameSection(),
+    providerSection(answers.providerType, answers.providerUrl),
+  ];
+
+  if (answers.providerType === 'github') {
+    parts.push(sourceSection(answers.source ?? 'issues'));
+  }
+
+  parts.push(clientsSection(answers.clients));
+  parts.push(tagFormatSection(answers.tagFormat));
+  parts.push(categoriesSection(answers.categories));
+  parts.push(uncategorizedSection(answers.uncategorized));
+  parts.push(descriptionSection());
+  parts.push(templateSection());
+  parts.push(contributorsSection(answers.contributors));
+
+  return parts.join('\n\n') + '\n';
 }

@@ -258,3 +258,66 @@ contributors:
     );
   });
 });
+
+describe('buildConfigYaml — variants', () => {
+  it('omits the source section for GitLab', () => {
+    const out = buildConfigYaml({
+      providerType: 'gitlab',
+      providerUrl: 'https://gitlab.example.com',
+      clients: [],
+      tagFormat: 'v{version}',
+      categories: { ...DEFAULT_CATEGORIES },
+      uncategorized: 'lenient',
+      contributors: { enabled: false, exclude: [] },
+    });
+    expect(out).not.toContain('source:');
+    expect(out).toContain('type: gitlab');
+  });
+
+  it('emits an active clients block in input order for multi-client repos', () => {
+    const out = buildConfigYaml({
+      ...defaultsGithub(),
+      clients: [
+        { prefix: 'mobile', label: 'MOBILE' },
+        { prefix: 'web', label: 'WEB' },
+      ],
+    });
+    expect(out).toContain(
+`# Define tag prefixes and labels for each client.
+clients:
+  - prefix: mobile
+    label: MOBILE
+  - prefix: web
+    label: WEB`,
+    );
+    expect(out).not.toContain('# clients:');
+  });
+
+  it('emits custom categories in input order with quoted headings', () => {
+    const out = buildConfigYaml({
+      ...defaultsGithub(),
+      categories: { docs: 'Documentation', chore: 'Chores' },
+    });
+    const parsed = parseYaml(out) as { categories: Record<string, string> };
+    expect(Object.keys(parsed.categories)).toEqual(['docs', 'chore']);
+    expect(parsed.categories).toEqual({ docs: 'Documentation', chore: 'Chores' });
+  });
+
+  it('emits contributors.enabled: true when wizard enables contributors', () => {
+    const out = buildConfigYaml({
+      ...defaultsGithub(),
+      contributors: { enabled: true, exclude: [] },
+    });
+    const parsed = parseYaml(out) as { contributors: unknown };
+    expect(parsed.contributors).toEqual({ enabled: true, exclude: [] });
+  });
+
+  it('emits a custom tagFormat verbatim', () => {
+    const out = buildConfigYaml({
+      ...defaultsGithub(),
+      tagFormat: 'release/v{version}',
+    });
+    const parsed = parseYaml(out) as { tagFormat: string };
+    expect(parsed.tagFormat).toBe('release/v{version}');
+  });
+});
