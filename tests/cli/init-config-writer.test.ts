@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { parse as parseYaml } from 'yaml';
-import { buildConfigYaml, categoriesSection, clientsSection, contributorsSection, descriptionSection, projectNameSection, providerSection, sourceSection, tagFormatSection, templateSection, uncategorizedSection, type InitAnswers } from '../../src/cli/init-config-writer.js';
+import { buildConfigYaml, categoriesSection, clientsSection, contributorsSection, descriptionSection, jiraSection, projectNameSection, providerSection, sourceSection, tagFormatSection, templateSection, uncategorizedSection, type InitAnswers } from '../../src/cli/init-config-writer.js';
 
 const DEFAULT_CATEGORIES = {
   feature: 'New Features',
@@ -66,6 +66,13 @@ template: default
 contributors:
   enabled: false          # true | false
   exclude: []             # usernames to skip (e.g. dependabot, renovate)
+
+# Jira ticket linking — append [PROJ-123] links next to each issue/PR
+# when a configured project key is detected in the title or body.
+#
+# jira:
+#   baseUrl: https://acme.atlassian.net
+#   projects: [PROJ, BUG]
 `);
   });
 
@@ -319,5 +326,68 @@ clients:
     });
     const parsed = parseYaml(out) as { tagFormat: string };
     expect(parsed.tagFormat).toBe('release/v{version}');
+  });
+});
+
+describe('jiraSection', () => {
+  it('emits a commented placeholder when jira is undefined', () => {
+    const out = jiraSection(undefined);
+    expect(out).toBe(
+`# Jira ticket linking — append [PROJ-123] links next to each issue/PR
+# when a configured project key is detected in the title or body.
+#
+# jira:
+#   baseUrl: https://acme.atlassian.net
+#   projects: [PROJ, BUG]`,
+    );
+  });
+
+  it('emits a populated block when jira is set', () => {
+    const out = jiraSection({
+      baseUrl: 'https://acme.atlassian.net',
+      projects: ['PROJ', 'BUG'],
+    });
+    expect(out).toBe(
+`# Jira ticket linking — append [PROJ-123] links next to each issue/PR
+# when a configured project key is detected in the title or body.
+jira:
+  baseUrl: https://acme.atlassian.net
+  projects: [PROJ, BUG]`,
+    );
+  });
+});
+
+describe('buildConfigYaml — jira', () => {
+  it('includes the commented jira placeholder when jira is omitted', () => {
+    const out = buildConfigYaml({
+      providerType: 'github',
+      providerUrl: 'https://github.com',
+      source: 'issues',
+      clients: [],
+      tagFormat: 'v{version}',
+      categories: { feature: 'New Features' },
+      uncategorized: 'lenient',
+      contributors: { enabled: false, exclude: [] },
+    });
+    expect(out).toContain('# Jira ticket linking — append [PROJ-123] links');
+    expect(out).toContain('# jira:');
+    expect(out).not.toMatch(/^jira:/m);
+  });
+
+  it('includes a populated jira block when jira is set', () => {
+    const out = buildConfigYaml({
+      providerType: 'github',
+      providerUrl: 'https://github.com',
+      source: 'issues',
+      clients: [],
+      tagFormat: 'v{version}',
+      categories: { feature: 'New Features' },
+      uncategorized: 'lenient',
+      contributors: { enabled: false, exclude: [] },
+      jira: { baseUrl: 'https://acme.atlassian.net', projects: ['PROJ'] },
+    });
+    expect(out).toMatch(/^jira:$/m);
+    expect(out).toContain('  baseUrl: https://acme.atlassian.net');
+    expect(out).toContain('  projects: [PROJ]');
   });
 });

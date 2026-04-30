@@ -1,4 +1,4 @@
-import type { ClientConfig } from '../types.js';
+import type { ClientConfig, JiraConfig } from '../types.js';
 
 export interface InitAnswers {
   providerType: 'github' | 'gitlab';
@@ -12,6 +12,9 @@ export interface InitAnswers {
   categories: Record<string, string>;
   uncategorized: 'lenient' | 'strict';
   contributors: { enabled: boolean; exclude: string[] };
+  /** Optional Jira ticket-linking config (F3). When undefined, the writer
+   *  emits a commented-out placeholder for discoverability. */
+  jira?: JiraConfig;
 }
 
 export function projectNameSection(): string {
@@ -125,6 +128,29 @@ export function contributorsSection(
   ].join('\n');
 }
 
+export function jiraSection(jira: JiraConfig | undefined): string {
+  const header = [
+    '# Jira ticket linking — append [PROJ-123] links next to each issue/PR',
+    '# when a configured project key is detected in the title or body.',
+  ];
+  if (!jira) {
+    return [
+      ...header,
+      '#',
+      '# jira:',
+      '#   baseUrl: https://acme.atlassian.net',
+      '#   projects: [PROJ, BUG]',
+    ].join('\n');
+  }
+  const projectsList = `[${jira.projects.join(', ')}]`;
+  return [
+    ...header,
+    'jira:',
+    `  baseUrl: ${jira.baseUrl}`,
+    `  projects: ${projectsList}`,
+  ].join('\n');
+}
+
 export function buildConfigYaml(answers: InitAnswers): string {
   const parts: string[] = [
     projectNameSection(),
@@ -142,6 +168,7 @@ export function buildConfigYaml(answers: InitAnswers): string {
   parts.push(descriptionSection());
   parts.push(templateSection());
   parts.push(contributorsSection(answers.contributors));
+  parts.push(jiraSection(answers.jira));
 
   return parts.join('\n\n') + '\n';
 }
