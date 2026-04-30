@@ -188,3 +188,138 @@ describe('runRemoveToken', () => {
       .rejects.toThrow(/No entry found for/);
   });
 });
+
+vi.mock('../../src/core/config.js', () => ({
+  loadConfig: vi.fn(),
+}));
+
+import { loadConfig } from '../../src/core/config.js';
+import { runShowToken } from '../../src/cli/commands/auth.js';
+
+describe('runShowToken', () => {
+  const originalEnv = process.env;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    process.env = { ...originalEnv };
+    delete process.env.RELEASEJET_TOKEN;
+    delete process.env.GITLAB_API_TOKEN;
+    delete process.env.GITHUB_TOKEN;
+  });
+
+  it('uses --repo arg and prints the full chain with hits and misses', async () => {
+    vi.mocked(readFile).mockImplementation(async (p: any) => {
+      if (String(p).endsWith('credentials.yml')) return 'gitlab.com: glpat-host\n' as any;
+      throw Object.assign(new Error('ENOENT'), { code: 'ENOENT' });
+    });
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    await runShowToken({ repoArg: 'gitlab.com/myorg/api' });
+    const out = logSpy.mock.calls.map((c) => String(c[0])).join('\n');
+    expect(out).toContain('Resolving token for gitlab.com/myorg/api');
+    expect(out).toMatch(/RELEASEJET_TOKEN.*not set/);
+    expect(out).toMatch(/GITLAB_API_TOKEN.*not set/);
+    expect(out).toMatch(/gitlab\.com\/myorg\/api.*not present/);
+    expect(out).toMatch(/gitlab\.com\].*match.*used/i);
+    expect(out).not.toContain('glpat-host');
+    logSpy.mockRestore();
+  });
+
+  it('reveals the resolved token with --show-tokens', async () => {
+    vi.mocked(readFile).mockImplementation(async (p: any) => {
+      if (String(p).endsWith('credentials.yml')) return 'gitlab.com: glpat-host\n' as any;
+      throw Object.assign(new Error('ENOENT'), { code: 'ENOENT' });
+    });
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    await runShowToken({ repoArg: 'gitlab.com/myorg/api', showTokens: true });
+    const out = logSpy.mock.calls.map((c) => String(c[0])).join('\n');
+    expect(out).toContain('glpat-host');
+    logSpy.mockRestore();
+  });
+
+  it('prints "No token resolved" when every step misses', async () => {
+    vi.mocked(readFile).mockRejectedValue(Object.assign(new Error('ENOENT'), { code: 'ENOENT' }));
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    await runShowToken({ repoArg: 'gitlab.com/myorg/api' });
+    const out = logSpy.mock.calls.map((c) => String(c[0])).join('\n');
+    expect(out).toMatch(/No token resolved/);
+    expect(out).toMatch(/auth set-token/);
+    logSpy.mockRestore();
+  });
+
+  it('marks env-universal as used when set, all later steps as skipped', async () => {
+    process.env.RELEASEJET_TOKEN = 'universal';
+    vi.mocked(readFile).mockResolvedValue('gitlab.com: glpat-host\n' as any);
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    await runShowToken({ repoArg: 'gitlab.com/myorg/api' });
+    const out = logSpy.mock.calls.map((c) => String(c[0])).join('\n');
+    expect(out).toMatch(/RELEASEJET_TOKEN.*used/);
+    expect(out).toMatch(/skipped/);
+    logSpy.mockRestore();
+  });
+
+  it('marks legacy as skipped when host matched but legacy entry exists', async () => {
+    vi.mocked(readFile).mockImplementation(async (p: any) => {
+      if (String(p).endsWith('credentials.yml')) return 'gitlab: legacy\ngitlab.com: host-tok\n' as any;
+      throw Object.assign(new Error('ENOENT'), { code: 'ENOENT' });
+    });
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    await runShowToken({ repoArg: 'gitlab.com/myorg/api' });
+    const out = logSpy.mock.calls.map((c) => String(c[0])).join('\n');
+    expect(out).toMatch(/\[gitlab\].*skipped/);
+    logSpy.mockRestore();
+  });
+
+  it('auto-detects host and projectPath from config + git remote when no arg passed', async () => {
+    vi.mocked(loadConfig).mockResolvedValue({
+      provider: { type: 'gitlab', url: 'https://gitlab.com' },
+    } as any);
+    vi.mocked(readFile).mockImplementation(async (p: any) => {
+      if (String(p).endsWith('credentials.yml')) return 'gitlab.com: glpat-host\n' as any;
+      throw Object.assign(new Error('ENOENT'), { code: 'ENOENT' });
+    });
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    await runShowToken({
+      gitRemoteFn: () => 'https://gitlab.com/myorg/api.git',
+    });
+    const out = logSpy.mock.calls.map((c) => String(c[0])).join('\n');
+    expect(out).toContain('Resolving token for gitlab.com/myorg/api');
+    logSpy.mockRestore();
+  });
+
+  it('falls back to host-only when git remote is unavailable', async () => {
+    vi.mocked(loadConfig).mockResolvedValue({
+      provider: { type: 'gitlab', url: 'https://gitlab.com' },
+    } as any);
+    vi.mocked(readFile).mockImplementation(async (p: any) => {
+      if (String(p).endsWith('credentials.yml')) return 'gitlab.com: glpat-host\n' as any;
+      throw Object.assign(new Error('ENOENT'), { code: 'ENOENT' });
+    });
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    await runShowToken({
+      gitRemoteFn: () => { throw new Error('not a git repo'); },
+    });
+    const out = logSpy.mock.calls.map((c) => String(c[0])).join('\n');
+    expect(out).toContain('Resolving token for gitlab.com');
+    expect(out).not.toContain('gitlab.com/');
+    logSpy.mockRestore();
+  });
+
+  it('throws auto-detect error when no arg and no config url', async () => {
+    vi.mocked(loadConfig).mockResolvedValue({ provider: {} } as any);
+    await expect(runShowToken({
+      gitRemoteFn: () => { throw new Error('no remote'); },
+    })).rejects.toThrow(/Could not auto-detect/);
+  });
+
+  it('accepts a full URL form for the repo arg', async () => {
+    vi.mocked(readFile).mockImplementation(async (p: any) => {
+      if (String(p).endsWith('credentials.yml')) return 'gitlab.com: glpat-host\n' as any;
+      throw Object.assign(new Error('ENOENT'), { code: 'ENOENT' });
+    });
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    await runShowToken({ repoArg: 'https://gitlab.com/myorg/api' });
+    const out = logSpy.mock.calls.map((c) => String(c[0])).join('\n');
+    expect(out).toContain('gitlab.com/myorg/api');
+    logSpy.mockRestore();
+  });
+});

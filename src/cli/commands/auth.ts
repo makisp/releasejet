@@ -19,8 +19,9 @@ import {
 } from '../../core/ci.js';
 import { loadConfig } from '../../core/config.js';
 import { deriveHost, deriveRepoKey, writeTokenToCredentials } from '../auth.js';
-import { readEntries, redactToken, removeEntry } from '../credentials-store.js';
+import { readEntries, redactToken, removeEntry, resolveTokenChain, type ChainStep } from '../credentials-store.js';
 import { withErrorHandler } from '../error-handler.js';
+import { getRemoteUrl, resolveProjectPath } from '../../core/git.js';
 
 const LICENSE_API_URL =
   process.env.RELEASEJET_LICENSE_API || 'https://releasejet.dev/api/license';
@@ -480,6 +481,105 @@ export async function runRemoveToken(options: RemoveTokenOptions): Promise<void>
   console.log(`Removed token for "${key}".`);
 }
 
+export interface ShowTokenOptions {
+  repoArg?: string;
+  showTokens?: boolean;
+  loadConfigFn?: typeof loadConfig;
+  gitRemoteFn?: () => string;
+}
+
+function parseRepoArg(arg: string): { host: string; projectPath: string } {
+  const stripped = arg.replace(/^[a-z]+:\/\//i, '');
+  const slashIdx = stripped.indexOf('/');
+  if (slashIdx === -1) {
+    return { host: deriveHost(stripped), projectPath: '' };
+  }
+  return {
+    host: deriveHost(stripped.slice(0, slashIdx)),
+    projectPath: stripped.slice(slashIdx + 1),
+  };
+}
+
+function describeStep(step: ChainStep): string {
+  switch (step.source) {
+    case 'env-universal': return `env RELEASEJET_TOKEN`;
+    case 'env-provider':  return `env ${step.key}`;
+    case 'repo':          return `credentials.yml [${step.key ?? '<no-repo>'}]`;
+    case 'host':          return `credentials.yml [${step.key ?? '<no-host>'}]`;
+    case 'legacy':        return `credentials.yml [${step.key}]`;
+    case 'legacy-file':   return `~/.releasejet/credentials`;
+  }
+}
+
+function formatChain(steps: ChainStep[], showTokens: boolean): string[] {
+  const lines: string[] = [];
+  steps.forEach((step, idx) => {
+    const num = idx + 1;
+    const label = describeStep(step);
+    let status: string;
+    if (step.status === 'hit') {
+      const value = showTokens && step.value ? step.value : redactToken(step.value ?? '');
+      status = `match (${value})  ← used`;
+    } else if (step.status === 'skipped') {
+      status = step.source === 'legacy' ? '(skipped, host matched)' : '(skipped)';
+    } else {
+      status = step.source === 'env-universal' || step.source === 'env-provider'
+        ? 'not set'
+        : 'not present';
+    }
+    lines.push(`  ${num}. ${label.padEnd(45, ' ')} — ${status}`);
+  });
+  return lines;
+}
+
+export async function runShowToken(options: ShowTokenOptions): Promise<void> {
+  let host: string;
+  let projectPath: string;
+  let providerType: 'gitlab' | 'github';
+
+  if (options.repoArg) {
+    const parsed = parseRepoArg(options.repoArg);
+    host = parsed.host;
+    projectPath = parsed.projectPath;
+    providerType = host.includes('github') ? 'github' : 'gitlab';
+  } else {
+    const loader = options.loadConfigFn ?? loadConfig;
+    const config = await loader();
+    if (!config?.provider?.url) {
+      throw new Error(
+        'Could not auto-detect host. Run from a repo with .releasejet.yml configured, or pass <repo> explicitly.',
+      );
+    }
+    host = deriveHost(config.provider.url);
+    providerType = config.provider.type === 'github' ? 'github' : 'gitlab';
+
+    // Try to derive projectPath from git remote so the chain reflects what `generate` would resolve.
+    const getRemote = options.gitRemoteFn ?? getRemoteUrl;
+    try {
+      const remoteUrl = getRemote();
+      projectPath = resolveProjectPath(remoteUrl);
+    } catch {
+      // No git remote — fall back to host-only diagnosis.
+      projectPath = '';
+    }
+  }
+
+  const display = projectPath ? `${host}/${projectPath}` : host;
+  const chain = await resolveTokenChain(providerType, host, projectPath);
+
+  console.log(`Resolving token for ${display}`);
+  console.log('');
+  for (const line of formatChain(chain, options.showTokens === true)) {
+    console.log(line);
+  }
+
+  const winner = chain.find((s) => s.status === 'hit');
+  if (!winner) {
+    console.log('');
+    console.log('No token resolved. Run `releasejet auth set-token` to configure.');
+  }
+}
+
 export function registerAuthCommand(program: Command): void {
   const auth = program
     .command('auth')
@@ -544,5 +644,13 @@ export function registerAuthCommand(program: Command): void {
         legacy: opts.legacy as 'gitlab' | 'github' | undefined,
         yes: opts.yes,
       });
+    }));
+
+  auth
+    .command('show-token [repo]')
+    .description('Show the lookup chain for a repo (auto-detects from .releasejet.yml when omitted)')
+    .option('--show-tokens', 'Reveal the resolved token instead of masking it')
+    .action(withErrorHandler(async (repoArg: string | undefined, opts: { showTokens?: boolean }) => {
+      await runShowToken({ repoArg, showTokens: opts.showTokens });
     }));
 }
