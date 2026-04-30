@@ -1,8 +1,8 @@
 import type { Command } from 'commander';
-import { readFile, writeFile } from 'node:fs/promises';
+import { readFile, writeFile, access } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
-import { password } from '@inquirer/prompts';
+import { password, confirm } from '@inquirer/prompts';
 import { readLicense, writeLicense, removeLicense } from '../../license/store.js';
 import { verifyLicense } from '../../license/validator.js';
 import { isNpmrcConfigured, writeNpmrcConfig, removeNpmrcConfig } from '../../license/npmrc.js';
@@ -19,7 +19,7 @@ import {
 } from '../../core/ci.js';
 import { loadConfig } from '../../core/config.js';
 import { deriveHost, deriveRepoKey, writeTokenToCredentials } from '../auth.js';
-import { readEntries, redactToken } from '../credentials-store.js';
+import { readEntries, redactToken, removeEntry } from '../credentials-store.js';
 import { withErrorHandler } from '../error-handler.js';
 
 const LICENSE_API_URL =
@@ -416,6 +416,70 @@ export async function runListTokens(options: ListTokensOptions): Promise<void> {
   }
 }
 
+export interface RemoveTokenOptions {
+  host?: string;
+  repo?: string;
+  legacy?: 'gitlab' | 'github';
+  yes?: boolean;
+  confirmFn?: (message: string) => Promise<boolean>;
+}
+
+export async function runRemoveToken(options: RemoveTokenOptions): Promise<void> {
+  const flagCount = [options.host, options.repo, options.legacy].filter((v) => v !== undefined).length;
+  if (flagCount !== 1) {
+    throw new Error(
+      'Pass exactly one of --host, --repo, or --legacy. They are mutually exclusive.',
+    );
+  }
+
+  let key: string;
+  if (options.legacy) {
+    if (options.legacy !== 'gitlab' && options.legacy !== 'github') {
+      throw new Error(`--legacy must be either "gitlab" or "github", got "${options.legacy}"`);
+    }
+    key = options.legacy;
+  } else if (options.repo) {
+    const stripped = options.repo.replace(/^[a-z]+:\/\//i, '');
+    const slashIdx = stripped.indexOf('/');
+    if (slashIdx === -1) {
+      throw new Error(`--repo expects "<host>/<path>", got "${options.repo}"`);
+    }
+    const hostPart = stripped.slice(0, slashIdx);
+    const pathPart = stripped.slice(slashIdx + 1);
+    key = deriveRepoKey(deriveHost(hostPart), pathPart);
+  } else {
+    key = deriveHost(options.host!);
+  }
+
+  // Pre-check: surface "file missing entirely" with a clearer message
+  // before the confirm prompt. removeEntry would otherwise just return false
+  // and the user would see "No entry found" instead.
+  const credPath = join(homedir(), '.releasejet', 'credentials.yml');
+  try {
+    await access(credPath);
+  } catch {
+    throw new Error(
+      `No credentials file at ${credPath} — nothing to remove.`,
+    );
+  }
+
+  // Confirm unless --yes.
+  if (!options.yes) {
+    const confirmFn = options.confirmFn ?? ((message) => confirm({ message, default: false }));
+    const ok = await confirmFn(`Remove token for "${key}"?`);
+    if (!ok) {
+      console.log('Aborted. No changes were made.');
+      return;
+    }
+  }
+
+  const removed = await removeEntry(key);
+  if (!removed) {
+    throw new Error(`No entry found for "${key}".`);
+  }
+  console.log(`Removed token for "${key}".`);
+}
+
 export function registerAuthCommand(program: Command): void {
   const auth = program
     .command('auth')
@@ -464,5 +528,21 @@ export function registerAuthCommand(program: Command): void {
     .option('--show-tokens', 'Reveal raw tokens instead of masks')
     .action(withErrorHandler(async (opts: { showTokens?: boolean }) => {
       await runListTokens({ showTokens: opts.showTokens });
+    }));
+
+  auth
+    .command('remove-token')
+    .description('Remove a token entry by host, repo, or legacy provider key')
+    .option('--host <host>', 'Host key to remove (e.g. gitlab.com)')
+    .option('--repo <repo>', 'Repo key to remove (e.g. gitlab.com/myorg/api)')
+    .option('--legacy <provider>', 'Legacy provider-type key to remove ("gitlab" or "github")')
+    .option('-y, --yes', 'Skip confirmation prompt')
+    .action(withErrorHandler(async (opts: { host?: string; repo?: string; legacy?: string; yes?: boolean }) => {
+      await runRemoveToken({
+        host: opts.host,
+        repo: opts.repo,
+        legacy: opts.legacy as 'gitlab' | 'github' | undefined,
+        yes: opts.yes,
+      });
     }));
 }
