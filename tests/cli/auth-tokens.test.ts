@@ -410,6 +410,19 @@ describe('runMigrateTokens', () => {
     logSpy.mockRestore();
   });
 
+  it('does not prompt to delete legacy when no copies succeeded (all targets declined)', async () => {
+    setupStatefulCredentials('gitlab: glpat-legacy\ngitlab.com: glpat-existing\n');
+    vi.mocked(input).mockResolvedValue('gitlab.com');
+    // Single confirm = overwrite? -> false. If a second prompt fires we'll see it.
+    vi.mocked(confirm).mockResolvedValue(false);
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    await runMigrateTokens({});
+    // confirm should be called exactly once (the overwrite prompt). The
+    // delete-legacy prompt must be suppressed because nothing was copied.
+    expect(vi.mocked(confirm).mock.calls).toHaveLength(1);
+    logSpy.mockRestore();
+  });
+
   it('copies to multiple hosts in one prompt response', async () => {
     setupStatefulCredentials('gitlab: glpat-legacy\n');
     vi.mocked(input).mockResolvedValue('gitlab.com, company.gitlab.com');

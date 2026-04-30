@@ -136,12 +136,7 @@ export async function writeEntry(key: string, token: string): Promise<void> {
 
 export async function removeEntry(key: string): Promise<boolean> {
   const lookup = key.toLowerCase();
-  let raw: Record<string, unknown>;
-  try {
-    raw = await loadRawYamlForWrite();
-  } catch (err) {
-    throw err;
-  }
+  const raw = await loadRawYamlForWrite();
   if (!(lookup in raw)) {
     return false;
   }

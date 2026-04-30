@@ -665,7 +665,7 @@ export async function runMigrateTokens(options: MigrateTokensOptions): Promise<v
 
   console.log('');
   for (const v of visited) {
-    if (v.copied.length === 0 && v.skipped.length === 0) continue;
+    if (v.copied.length === 0) continue;
     const ok = await promptDeleteLegacy(v.key);
     if (ok) {
       await removeEntry(v.key);
