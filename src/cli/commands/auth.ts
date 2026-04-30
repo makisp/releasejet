@@ -1,5 +1,8 @@
 import type { Command } from 'commander';
 import { readFile, writeFile } from 'node:fs/promises';
+import { homedir } from 'node:os';
+import { join } from 'node:path';
+import { password } from '@inquirer/prompts';
 import { readLicense, writeLicense, removeLicense } from '../../license/store.js';
 import { verifyLicense } from '../../license/validator.js';
 import { isNpmrcConfigured, writeNpmrcConfig, removeNpmrcConfig } from '../../license/npmrc.js';
@@ -14,6 +17,8 @@ import {
   GITHUB_ACTIONS_PATH,
   GITLAB_CI_PATH,
 } from '../../core/ci.js';
+import { loadConfig } from '../../core/config.js';
+import { deriveHost, deriveRepoKey, writeTokenToCredentials } from '../auth.js';
 import { withErrorHandler } from '../error-handler.js';
 
 const LICENSE_API_URL =
@@ -315,6 +320,56 @@ export async function runDeactivate(options?: DeactivateOptions): Promise<void> 
   await handleCiDowngrade(options ?? {});
 }
 
+export interface SetTokenOptions {
+  host?: string;
+  repo?: string;
+  promptToken?: () => Promise<string>;
+  loadConfigFn?: typeof loadConfig;
+}
+
+export async function runSetToken(options: SetTokenOptions): Promise<void> {
+  if (options.host && options.repo) {
+    throw new Error(
+      'Flags --host and --repo are mutually exclusive. Pass at most one.',
+    );
+  }
+
+  let key: string;
+  if (options.repo) {
+    // Repo arg may be "host/path" or "https://host/path".
+    const stripped = options.repo.replace(/^[a-z]+:\/\//i, '');
+    const slashIdx = stripped.indexOf('/');
+    if (slashIdx === -1) {
+      throw new Error(`--repo expects "<host>/<path>", got "${options.repo}"`);
+    }
+    const hostPart = stripped.slice(0, slashIdx);
+    const pathPart = stripped.slice(slashIdx + 1);
+    key = deriveRepoKey(deriveHost(hostPart), pathPart);
+  } else if (options.host) {
+    key = deriveHost(options.host);
+  } else {
+    // Auto-detect from current repo's config.
+    const loader = options.loadConfigFn ?? loadConfig;
+    const config = await loader();
+    if (!config?.provider?.url) {
+      throw new Error(
+        'Could not auto-detect host. Run from a repo with .releasejet.yml configured, or pass --host explicitly.',
+      );
+    }
+    key = deriveHost(config.provider.url);
+  }
+
+  const promptFn = options.promptToken ?? (() => password({ message: 'API token:', mask: '*' }));
+  const token = (await promptFn()).trim();
+  if (!token) {
+    throw new Error('No token provided. Aborting.');
+  }
+
+  await writeTokenToCredentials(key, token);
+  const credPath = join(homedir(), '.releasejet', 'credentials.yml');
+  console.log(`✓ Token stored in ${credPath} under "${key}"`);
+}
+
 export function registerAuthCommand(program: Command): void {
   const auth = program
     .command('auth')
@@ -346,5 +401,14 @@ export function registerAuthCommand(program: Command): void {
     .description('Remove the license key')
     .action(withErrorHandler(async () => {
       await runDeactivate();
+    }));
+
+  auth
+    .command('set-token')
+    .description('Store a provider API token under a host or repo key in ~/.releasejet/credentials.yml')
+    .option('--host <host>', 'Host to store the token under (e.g. gitlab.com or https://gitlab.com)')
+    .option('--repo <repo>', 'Repo path to store the token under (e.g. gitlab.com/myorg/api)')
+    .action(withErrorHandler(async (opts: { host?: string; repo?: string }) => {
+      await runSetToken({ host: opts.host, repo: opts.repo });
     }));
 }

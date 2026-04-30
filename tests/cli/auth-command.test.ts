@@ -264,6 +264,77 @@ describe('runDeactivate', () => {
   });
 });
 
+import { runSetToken } from '../../src/cli/commands/auth.js';
+import { loadConfig } from '../../src/core/config.js';
+
+vi.mock('../../src/core/config.js', () => ({
+  loadConfig: vi.fn(),
+}));
+
+vi.mock('@inquirer/prompts', () => ({
+  password: vi.fn(),
+}));
+
+import { password } from '@inquirer/prompts';
+
+describe('runSetToken', () => {
+  beforeEach(() => {
+    vi.mocked(password).mockResolvedValue('glpat-from-prompt');
+    vi.mocked(readFile).mockRejectedValue(Object.assign(new Error('ENOENT'), { code: 'ENOENT' }));
+  });
+
+  it('writes under host derived from current repo when no flag is passed', async () => {
+    vi.mocked(loadConfig).mockResolvedValue({
+      provider: { type: 'gitlab', url: 'https://gitlab.com' },
+    } as any);
+
+    await runSetToken({});
+
+    const written = vi.mocked(writeFile).mock.calls.find(c => String(c[0]).endsWith('credentials.yml'));
+    expect(String(written![1])).toContain('gitlab.com: glpat-from-prompt');
+  });
+
+  it('writes under --host when provided', async () => {
+    await runSetToken({ host: 'company.gitlab.com' });
+    const written = vi.mocked(writeFile).mock.calls.find(c => String(c[0]).endsWith('credentials.yml'));
+    expect(String(written![1])).toContain('company.gitlab.com: glpat-from-prompt');
+  });
+
+  it('writes under --repo when provided', async () => {
+    await runSetToken({ repo: 'gitlab.com/myorg/api' });
+    const written = vi.mocked(writeFile).mock.calls.find(c => String(c[0]).endsWith('credentials.yml'));
+    expect(String(written![1])).toContain('gitlab.com/myorg/api: glpat-from-prompt');
+  });
+
+  it('accepts a full URL form for --host and --repo', async () => {
+    await runSetToken({ host: 'https://company.gitlab.com/' });
+    const written = vi.mocked(writeFile).mock.calls.find(c => String(c[0]).endsWith('credentials.yml'));
+    expect(String(written![1])).toContain('company.gitlab.com: glpat-from-prompt');
+  });
+
+  it('rejects when both --host and --repo are passed', async () => {
+    await expect(runSetToken({ host: 'gitlab.com', repo: 'gitlab.com/x/y' }))
+      .rejects.toThrow(/mutually exclusive|either.*--host.*or.*--repo/i);
+  });
+
+  it('preserves existing entries (other host, pro block, legacy)', async () => {
+    vi.mocked(readFile).mockResolvedValue(
+      'github.com: ghp_other\n' +
+      'gitlab: glpat-legacy\n' +
+      'pro:\n  token: jwt\n  expiresAt: 2026-12-31\n' as any,
+    );
+
+    await runSetToken({ host: 'gitlab.com' });
+
+    const written = String(vi.mocked(writeFile).mock.calls.find(c => String(c[0]).endsWith('credentials.yml'))![1]);
+    expect(written).toContain('github.com: ghp_other');
+    expect(written).toContain('gitlab: glpat-legacy');
+    expect(written).toContain('pro:');
+    expect(written).toContain('token: jwt');
+    expect(written).toContain('gitlab.com: glpat-from-prompt');
+  });
+});
+
 describe('runStatus — npm registry', () => {
   it('shows configured when npmrc has releasejet lines', async () => {
     vi.mocked(readLicense).mockResolvedValue({
