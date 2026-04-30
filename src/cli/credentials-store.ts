@@ -134,11 +134,6 @@ export async function writeEntry(key: string, token: string): Promise<void> {
   await writeFile(credYamlPath(), stringifyYaml(existing), { mode: 0o600 });
 }
 
-export async function writeRawMap(map: Record<string, string>): Promise<void> {
-  await mkdir(credDir(), { recursive: true });
-  await writeFile(credYamlPath(), stringifyYaml(map), { mode: 0o600 });
-}
-
 export async function removeEntry(key: string): Promise<boolean> {
   const lookup = key.toLowerCase();
   let raw: Record<string, unknown>;

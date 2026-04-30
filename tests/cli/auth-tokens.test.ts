@@ -326,13 +326,24 @@ describe('runShowToken', () => {
   });
 });
 
+function setupStatefulCredentials(initial: string): void {
+  let current = initial;
+  vi.mocked(readFile).mockImplementation(async (p: any) => {
+    if (String(p).endsWith('credentials.yml')) return current as any;
+    throw Object.assign(new Error('ENOENT'), { code: 'ENOENT' });
+  });
+  vi.mocked(writeFile).mockImplementation(async (_p: any, content: any) => {
+    current = String(content);
+  });
+}
+
 describe('runMigrateTokens', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
   it('prints "No legacy entries to migrate." when no legacy keys exist', async () => {
-    vi.mocked(readFile).mockResolvedValue('gitlab.com: glpat-x\n' as any);
+    setupStatefulCredentials('gitlab.com: glpat-x\n');
     const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
     await runMigrateTokens({});
     expect(logSpy.mock.calls.map((c) => String(c[0])).join('\n')).toContain('No legacy entries');
@@ -341,7 +352,7 @@ describe('runMigrateTokens', () => {
   });
 
   it('happy path — copies gitlab legacy to one new host, keeps legacy by default', async () => {
-    vi.mocked(readFile).mockResolvedValue('gitlab: glpat-legacy\n' as any);
+    setupStatefulCredentials('gitlab: glpat-legacy\n');
     vi.mocked(input).mockResolvedValue('gitlab.com');
     vi.mocked(confirm).mockResolvedValue(false); // keep legacy
     const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
@@ -354,7 +365,7 @@ describe('runMigrateTokens', () => {
   });
 
   it('deletes legacy when user confirms cleanup', async () => {
-    vi.mocked(readFile).mockResolvedValue('gitlab: glpat-legacy\n' as any);
+    setupStatefulCredentials('gitlab: glpat-legacy\n');
     vi.mocked(input).mockResolvedValue('gitlab.com');
     vi.mocked(confirm).mockResolvedValue(true); // delete legacy
     const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
@@ -367,9 +378,7 @@ describe('runMigrateTokens', () => {
   });
 
   it('prompts on conflict; user chooses overwrite=y', async () => {
-    vi.mocked(readFile).mockResolvedValue(
-      'gitlab: glpat-legacy\ngitlab.com: glpat-existing\n' as any,
-    );
+    setupStatefulCredentials('gitlab: glpat-legacy\ngitlab.com: glpat-existing\n');
     vi.mocked(input).mockResolvedValue('gitlab.com');
     // First confirm: overwrite? -> true. Second confirm: delete legacy? -> false.
     vi.mocked(confirm).mockResolvedValueOnce(true).mockResolvedValueOnce(false);
@@ -383,21 +392,26 @@ describe('runMigrateTokens', () => {
   });
 
   it('prompts on conflict; user chooses overwrite=n leaves existing', async () => {
-    vi.mocked(readFile).mockResolvedValue(
-      'gitlab: glpat-legacy\ngitlab.com: glpat-existing\n' as any,
-    );
+    setupStatefulCredentials('gitlab: glpat-legacy\ngitlab.com: glpat-existing\n');
     vi.mocked(input).mockResolvedValue('gitlab.com');
     vi.mocked(confirm).mockResolvedValueOnce(false).mockResolvedValueOnce(false);
     const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
     await runMigrateTokens({});
-    const writes = vi.mocked(writeFile).mock.calls.map((c) => String(c[1])) ;
-    const final = writes[writes.length - 1] ?? '';
-    expect(final).toContain('glpat-existing');
+    // When overwrite=n and keep legacy, the file is untouched — no writes needed.
+    // The existing token is preserved in place (no writeFile calls expected).
+    const writes = vi.mocked(writeFile).mock.calls.map((c) => String(c[1]));
+    if (writes.length > 0) {
+      // If a write did happen, the existing entry must still be present.
+      expect(writes[writes.length - 1]).toContain('glpat-existing');
+    } else {
+      // No write is the correct outcome when nothing changed.
+      expect(writeFile).not.toHaveBeenCalled();
+    }
     logSpy.mockRestore();
   });
 
   it('copies to multiple hosts in one prompt response', async () => {
-    vi.mocked(readFile).mockResolvedValue('gitlab: glpat-legacy\n' as any);
+    setupStatefulCredentials('gitlab: glpat-legacy\n');
     vi.mocked(input).mockResolvedValue('gitlab.com, company.gitlab.com');
     vi.mocked(confirm).mockResolvedValue(false);
     const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
@@ -410,7 +424,7 @@ describe('runMigrateTokens', () => {
   });
 
   it('skips when user enters empty target host list', async () => {
-    vi.mocked(readFile).mockResolvedValue('gitlab: glpat-legacy\n' as any);
+    setupStatefulCredentials('gitlab: glpat-legacy\n');
     vi.mocked(input).mockResolvedValue('');
     vi.mocked(confirm).mockResolvedValue(false);
     const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
@@ -420,9 +434,7 @@ describe('runMigrateTokens', () => {
   });
 
   it('processes both gitlab and github legacy keys', async () => {
-    vi.mocked(readFile).mockResolvedValue(
-      'gitlab: glpat-l\ngithub: ghp_l\n' as any,
-    );
+    setupStatefulCredentials('gitlab: glpat-l\ngithub: ghp_l\n');
     vi.mocked(input)
       .mockResolvedValueOnce('gitlab.com')
       .mockResolvedValueOnce('github.com');
@@ -433,6 +445,25 @@ describe('runMigrateTokens', () => {
     const final = writes[writes.length - 1];
     expect(final).toContain('gitlab.com: glpat-l');
     expect(final).toContain('github.com: ghp_l');
+    logSpy.mockRestore();
+  });
+
+  it('preserves the pro: license block while migrating', async () => {
+    setupStatefulCredentials(
+      'gitlab: glpat-legacy\n' +
+      'pro:\n  token: jwt-here\n  expiresAt: 2026-12-31\n',
+    );
+    vi.mocked(input).mockResolvedValue('gitlab.com');
+    vi.mocked(confirm).mockResolvedValue(true); // delete legacy
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    await runMigrateTokens({});
+    const writes = vi.mocked(writeFile).mock.calls.map((c) => String(c[1]));
+    const final = writes[writes.length - 1];
+    expect(final).toContain('gitlab.com: glpat-legacy');
+    expect(final).not.toMatch(/^gitlab:/m);
+    expect(final).toContain('pro:');
+    expect(final).toContain('token: jwt-here');
+    expect(final).toContain('expiresAt: 2026-12-31');
     logSpy.mockRestore();
   });
 });

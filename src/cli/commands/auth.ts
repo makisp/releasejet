@@ -19,7 +19,7 @@ import {
 } from '../../core/ci.js';
 import { loadConfig } from '../../core/config.js';
 import { deriveHost, deriveRepoKey, writeTokenToCredentials } from '../auth.js';
-import { readEntries, redactToken, removeEntry, resolveTokenChain, writeRawMap, type ChainStep } from '../credentials-store.js';
+import { readEntries, redactToken, removeEntry, resolveTokenChain, writeEntry, type ChainStep } from '../credentials-store.js';
 import { withErrorHandler } from '../error-handler.js';
 import { getRemoteUrl, resolveProjectPath } from '../../core/git.js';
 
@@ -617,15 +617,7 @@ export async function runMigrateTokens(options: MigrateTokensOptions): Promise<v
   const promptDeleteLegacy: (legacyKey: string) => Promise<boolean> = options.promptDeleteLegacy
     ?? ((legacyKey: string) => confirm({ message: `Delete legacy '${legacyKey}' entry now?`, default: false }));
 
-  // Build an in-memory snapshot of all entries so we can accumulate mutations and
-  // do a single final write, avoiding the stale-read problem of individual writeEntry calls.
-  const snapshot: Record<string, string> = {};
-  for (const e of entries) {
-    snapshot[e.key] = e.token;
-  }
-
   const visited: Array<{ key: 'gitlab' | 'github'; copied: string[]; skipped: string[] }> = [];
-  let dirty = false;
 
   for (const provider of LEGACY_PROVIDER_ORDER) {
     const legacy = legacyEntries.find((e) => e.key === provider);
@@ -648,17 +640,21 @@ export async function runMigrateTokens(options: MigrateTokensOptions): Promise<v
     const copied: string[] = [];
     const skipped: string[] = [];
 
+    // Re-read entries each iteration to reflect prior writes within the same migration run.
+    let currentEntries = (await readEntries()).entries;
+
     for (const target of targetHosts) {
-      if (target in snapshot) {
+      const conflict = currentEntries.find((e) => e.key === target);
+      if (conflict) {
         const overwrite = await promptOverwrite(target);
         if (!overwrite) {
           skipped.push(target);
           continue;
         }
       }
-      snapshot[target] = legacy.token;
+      await writeEntry(target, legacy.token);
       copied.push(target);
-      dirty = true;
+      currentEntries = (await readEntries()).entries;
     }
 
     if (copied.length > 0) console.log(`Copied to: ${copied.join(', ')}`);
@@ -672,16 +668,11 @@ export async function runMigrateTokens(options: MigrateTokensOptions): Promise<v
     if (v.copied.length === 0 && v.skipped.length === 0) continue;
     const ok = await promptDeleteLegacy(v.key);
     if (ok) {
-      delete snapshot[v.key];
-      dirty = true;
+      await removeEntry(v.key);
       console.log(`Deleted legacy '${v.key}' entry.`);
     } else {
       console.log(`Kept legacy '${v.key}' entry.`);
     }
-  }
-
-  if (dirty || visited.some((v) => v.copied.length > 0 || v.skipped.length > 0)) {
-    await writeRawMap(snapshot as Record<string, string>);
   }
 
   console.log('');
