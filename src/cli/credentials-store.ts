@@ -150,6 +150,114 @@ export async function removeEntry(key: string): Promise<boolean> {
   return true;
 }
 
+const ENV_PROVIDER_VARS = {
+  github: 'GITHUB_TOKEN',
+  gitlab: 'GITLAB_API_TOKEN',
+} as const;
+
+export async function resolveTokenChain(
+  providerType: 'gitlab' | 'github',
+  hostUrl: string,
+  projectPath: string,
+): Promise<ChainStep[]> {
+  const chain: ChainStep[] = [];
+  let winnerFound = false;
+
+  const finalize = (step: ChainStep): void => {
+    if (winnerFound) {
+      chain.push({ ...step, status: 'skipped' });
+    } else if (step.status === 'hit') {
+      winnerFound = true;
+      chain.push(step);
+    } else {
+      chain.push(step);
+    }
+  };
+
+  // Step 1: env-universal
+  const envUniversal = process.env.RELEASEJET_TOKEN;
+  finalize({
+    source: 'env-universal',
+    key: 'RELEASEJET_TOKEN',
+    status: envUniversal ? 'hit' : 'miss',
+    value: envUniversal || undefined,
+  });
+
+  // Step 2: env-provider
+  const providerEnvName = ENV_PROVIDER_VARS[providerType];
+  const envProvider = process.env[providerEnvName];
+  finalize({
+    source: 'env-provider',
+    key: providerEnvName,
+    status: envProvider ? 'hit' : 'miss',
+    value: envProvider || undefined,
+  });
+
+  // Read YAML once for steps 3, 4, 5.
+  const host = (() => {
+    try { return deriveHost(hostUrl); } catch { return ''; }
+  })();
+  const repoKey = projectPath && host ? deriveRepoKey(host, projectPath) : null;
+
+  let yaml: Record<string, unknown> | null = null;
+  try {
+    yaml = await loadRawYaml();
+  } catch (err) {
+    // Re-throw — malformed YAML is a hard error, same as resolveToken today.
+    throw err;
+  }
+
+  // Step 3: repo
+  const repoVal = repoKey && yaml ? yaml[repoKey] : undefined;
+  finalize({
+    source: 'repo',
+    key: repoKey ?? undefined,
+    status: typeof repoVal === 'string' && repoVal.length > 0 ? 'hit' : 'miss',
+    value: typeof repoVal === 'string' && repoVal.length > 0 ? repoVal : undefined,
+  });
+
+  // Step 4: host
+  const hostVal = host && yaml ? yaml[host] : undefined;
+  const hostHit = typeof hostVal === 'string' && hostVal.length > 0;
+  finalize({
+    source: 'host',
+    key: host || undefined,
+    status: hostHit ? 'hit' : 'miss',
+    value: hostHit ? (hostVal as string) : undefined,
+  });
+
+  // Step 5: legacy provider-type — only fires when host did NOT match (mirrors existing behavior)
+  const hostStep = chain[3];
+  const legacyVal = yaml ? yaml[providerType] : undefined;
+  const legacyHit =
+    hostStep.status !== 'hit' &&
+    typeof legacyVal === 'string' &&
+    legacyVal.length > 0;
+  finalize({
+    source: 'legacy',
+    key: providerType,
+    status: legacyHit ? 'hit' : (typeof legacyVal === 'string' && legacyVal.length > 0 ? 'skipped' : 'miss'),
+    value: legacyHit ? (legacyVal as string) : undefined,
+  });
+
+  // Step 6: legacy-file
+  let bareText: string | null = null;
+  try {
+    const content = await readFile(credLegacyPath(), 'utf-8');
+    const trimmed = content.trim();
+    if (trimmed) bareText = trimmed;
+  } catch {
+    // Not present — fall through.
+  }
+  finalize({
+    source: 'legacy-file',
+    status: bareText ? 'hit' : 'miss',
+    value: bareText ?? undefined,
+  });
+
+  return chain;
+}
+
 export async function readEntries(): Promise<ReadResult> {
   const raw = await loadRawYaml();
   if (!raw) return { entries: [], malformed: [] };
