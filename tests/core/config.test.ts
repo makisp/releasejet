@@ -402,6 +402,133 @@ notifications:
     });
   });
 
+  it('parses a valid jira block', async () => {
+    vi.mocked(readFile).mockResolvedValue(`
+provider:
+  type: github
+  url: https://github.com
+jira:
+  baseUrl: https://acme.atlassian.net
+  projects: [PROJ, BUG]
+` as never);
+    const config = await loadConfig();
+    expect(config.jira).toEqual({
+      baseUrl: 'https://acme.atlassian.net',
+      projects: ['PROJ', 'BUG'],
+    });
+  });
+
+  it('strips trailing slash from jira.baseUrl', async () => {
+    vi.mocked(readFile).mockResolvedValue(`
+jira:
+  baseUrl: https://acme.atlassian.net/
+  projects: [PROJ]
+` as never);
+    const config = await loadConfig();
+    expect(config.jira?.baseUrl).toBe('https://acme.atlassian.net');
+  });
+
+  it('expands ${VAR} in jira.baseUrl via env-var expansion', async () => {
+    process.env.JIRA_URL = 'https://acme.atlassian.net';
+    vi.mocked(readFile).mockResolvedValue(`
+jira:
+  baseUrl: \${JIRA_URL}
+  projects: [PROJ]
+` as never);
+    try {
+      const config = await loadConfig();
+      expect(config.jira?.baseUrl).toBe('https://acme.atlassian.net');
+    } finally {
+      delete process.env.JIRA_URL;
+    }
+  });
+
+  it('uppercases jira.projects entries at load time', async () => {
+    // Defensive: while wizard already uppercases, hand-edited YAML may not.
+    vi.mocked(readFile).mockResolvedValue(`
+jira:
+  baseUrl: https://acme.atlassian.net
+  projects: [PROJ, BUG]
+` as never);
+    const config = await loadConfig();
+    expect(config.jira?.projects).toEqual(['PROJ', 'BUG']);
+  });
+
+  it('throws when jira.baseUrl is missing', async () => {
+    vi.mocked(readFile).mockResolvedValue(`
+jira:
+  projects: [PROJ]
+` as never);
+    await expect(loadConfig()).rejects.toThrow(
+      /jira\.baseUrl is required when jira section is present/,
+    );
+  });
+
+  it('throws when jira.baseUrl is empty after trim', async () => {
+    vi.mocked(readFile).mockResolvedValue(`
+jira:
+  baseUrl: "   "
+  projects: [PROJ]
+` as never);
+    await expect(loadConfig()).rejects.toThrow(
+      /jira\.baseUrl is required when jira section is present/,
+    );
+  });
+
+  it('throws when jira.projects is missing or empty', async () => {
+    vi.mocked(readFile).mockResolvedValue(`
+jira:
+  baseUrl: https://acme.atlassian.net
+  projects: []
+` as never);
+    await expect(loadConfig()).rejects.toThrow(
+      /jira\.projects must be a non-empty array of project keys/,
+    );
+  });
+
+  it('throws when a project key is not uppercase', async () => {
+    vi.mocked(readFile).mockResolvedValue(`
+jira:
+  baseUrl: https://acme.atlassian.net
+  projects: [proj]
+` as never);
+    await expect(loadConfig()).rejects.toThrow(
+      /jira\.projects\[0\] 'proj' is not a valid project key/,
+    );
+  });
+
+  it('throws when a project key starts with a digit', async () => {
+    vi.mocked(readFile).mockResolvedValue(`
+jira:
+  baseUrl: https://acme.atlassian.net
+  projects: [123ABC]
+` as never);
+    await expect(loadConfig()).rejects.toThrow(
+      /jira\.projects\[0\] '123ABC' is not a valid project key/,
+    );
+  });
+
+  it('throws when a project key contains underscore', async () => {
+    vi.mocked(readFile).mockResolvedValue(`
+jira:
+  baseUrl: https://acme.atlassian.net
+  projects: [ABC_X]
+` as never);
+    await expect(loadConfig()).rejects.toThrow(
+      /jira\.projects\[0\] 'ABC_X' is not a valid project key/,
+    );
+  });
+
+  it('leaves config.jira undefined when block is absent', async () => {
+    vi.mocked(readFile).mockResolvedValue(`
+provider:
+  type: github
+  url: https://github.com
+` as never);
+    const config = await loadConfig();
+    expect(config.jira).toBeUndefined();
+  });
+
   describe('redactConfigForLogging', () => {
     it('returns the config unchanged when notifications is absent', () => {
       const cfg = {
