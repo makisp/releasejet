@@ -7,6 +7,7 @@ import type {
 } from '../types.js';
 import { findNextSamePrefixTag } from './tag-parser.js';
 import { extractDescription } from './description-extractor.js';
+import { extractJiraTickets } from './jira-extractor.js';
 
 export async function collectIssues(
   client: ProviderClient,
@@ -103,6 +104,14 @@ export async function collectIssues(
         // Body was present but cleaning produced nothing — debug-log per F4 spec §4.
         debug(`skipped description for #${issue.number} (empty after cleaning)`);
       }
+    }
+  }
+
+  if (config.jira) {
+    for (const issue of filtered) {
+      const text = issue.title + '\n' + (issue.rawBody ?? '');
+      const tickets = extractJiraTickets(text, config.jira.projects);
+      if (tickets.length > 0) issue.jiraTickets = tickets;
     }
   }
 

@@ -57,6 +57,15 @@ const NotificationChannelSchema = z
   })
   .describe('One notification channel entry.');
 
+const JiraSchema = z
+  .object({
+    baseUrl: z.string().describe('Jira instance root URL (e.g., https://acme.atlassian.net).'),
+    projects: z
+      .array(z.string())
+      .describe('Allowlist of Jira project keys (uppercase, e.g., ["PROJ", "BUG"]).'),
+  })
+  .describe('Jira ticket linking configuration (F3).');
+
 export const ReleaseJetConfigSchema = z
   .object({
     provider: ProviderSchema.optional(),
@@ -104,6 +113,7 @@ export const ReleaseJetConfigSchema = z
       .min(1, { message: 'projectName must be a non-empty string' })
       .optional()
       .describe('Human-readable project name shown in notification cards.'),
+    jira: JiraSchema.optional().describe('Jira ticket linking (F3).'),
   })
   .describe('ReleaseJet configuration (.releasejet.yml).');
 
@@ -243,7 +253,45 @@ export function parseConfig(raw: unknown): ReleaseJetConfig {
     }
   }
 
+  if (data.jira !== undefined) {
+    if (typeof data.jira !== 'object' || data.jira === null || Array.isArray(data.jira)) {
+      throw new Error(
+        'Invalid config in .releasejet.yml\n\n  jira: expected an object with "baseUrl" and "projects" fields.',
+      );
+    }
+    const jiraRec = data.jira as Record<string, unknown>;
+    const baseUrl = jiraRec.baseUrl;
+    if (baseUrl === undefined || typeof baseUrl !== 'string' || baseUrl.trim() === '') {
+      throw new Error(
+        'Invalid config in .releasejet.yml\n\n  jira.baseUrl is required when jira section is present (non-empty string).',
+      );
+    }
+    const projects = jiraRec.projects;
+    if (!Array.isArray(projects) || projects.length === 0) {
+      throw new Error(
+        'Invalid config in .releasejet.yml\n\n  jira.projects must be a non-empty array of project keys.',
+      );
+    }
+    for (let i = 0; i < projects.length; i++) {
+      const key = projects[i];
+      if (typeof key !== 'string' || !/^[A-Z][A-Z0-9]+$/.test(key)) {
+        throw new Error(
+          `Invalid config in .releasejet.yml\n\n  jira.projects[${i}] '${String(key)}' is not a valid project key (expected uppercase letters and digits, e.g. PROJ).`,
+        );
+      }
+    }
+  }
+
   const parsed = ReleaseJetConfigSchema.parse(data);
+
+  let jira: ReleaseJetConfig['jira'];
+  if (parsed.jira) {
+    const trimmed = parsed.jira.baseUrl.trim().replace(/\/+$/, '');
+    jira = {
+      baseUrl: trimmed,
+      projects: parsed.jira.projects.map((p) => p.toUpperCase()),
+    };
+  }
 
   // Provider selection: explicit provider wins; fall back to legacy gitlab; else default.
   let provider: { type: 'gitlab' | 'github'; url: string };
@@ -281,5 +329,6 @@ export function parseConfig(raw: unknown): ReleaseJetConfig {
     notifications: parsed.notifications,
     projectName: parsed.projectName,
     description: parsed.description,
+    jira,
   };
 }

@@ -81,3 +81,14 @@ template: default
 #   - type: teams
 #     enabled: false
 #     webhookUrl: ${TEAMS_WORKFLOW_URL}
+
+# Optional — Jira ticket linking (F3). When configured, ReleaseJet scans
+# issue/PR titles and bodies for ticket IDs matching one of the listed
+# project keys, and renders them inline as clickable links next to each
+# issue line in the release notes.
+#
+# baseUrl can be a literal URL or an ${ENV_VAR} reference.
+#
+# jira:
+#   baseUrl: https://acme.atlassian.net
+#   projects: [PROJ, BUG]

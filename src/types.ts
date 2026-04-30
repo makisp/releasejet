@@ -14,6 +14,11 @@ export interface NotificationChannelConfig {
   webhookUrl: string;
 }
 
+export interface JiraConfig {
+  baseUrl: string;
+  projects: string[];
+}
+
 export interface Contributor {
   username: string;
   profileUrl: string;
@@ -37,6 +42,9 @@ export interface ReleaseJetConfig {
   projectName?: string;
   /** Description handling: 'none' (off, default), 'extract' (F4: take cleaned first paragraph), 'ai' (Pro M3a; treated as 'none' in core). */
   description?: 'none' | 'extract' | 'ai';
+  /** Jira ticket linking (F3). When present, detected ticket IDs in issue/PR
+   *  text are rendered as inline links beside each issue line. */
+  jira?: JiraConfig;
 }
 
 export interface ParsedTag {
@@ -68,6 +76,10 @@ export interface Issue {
   rawBody?: string | null;
   /** Cleaned, extracted excerpt (≤ ~200 chars). Undefined when extraction is off or the body yielded nothing after cleaning. */
   description?: string;
+  /** Detected Jira ticket IDs (e.g. ["PROJ-123", "PROJ-124"]),
+   *  ordered by first appearance in title-then-body, deduped.
+   *  Undefined when jira config is unset or no matches found. */
+  jiraTickets?: string[];
 }
 
 export interface Milestone {

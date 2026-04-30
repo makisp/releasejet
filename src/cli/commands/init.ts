@@ -259,6 +259,42 @@ export async function runInit(): Promise<void> {
     default: false,
   });
 
+  // 9b. Jira ticket linking (F3)
+  const enableJira = await confirm({
+    message: 'Set up Jira ticket linking?',
+    default: false,
+  });
+
+  let jira: { baseUrl: string; projects: string[] } | undefined;
+  if (enableJira) {
+    const baseUrlInput = await input({
+      message: 'Jira base URL (e.g., https://acme.atlassian.net or ${JIRA_URL}):',
+      validate: (val) => val.trim().length > 0 || 'Required (literal URL or ${ENV_VAR} reference)',
+    });
+
+    let projects: string[] = [];
+    while (projects.length === 0) {
+      const raw = await input({
+        message: 'Jira project keys (comma-separated, e.g. PROJ,BUG):',
+      });
+      projects = Array.from(new Set(
+        raw
+          .split(',')
+          .map((s) => s.trim())
+          .filter((s) => s.length > 0)
+          .map((s) => s.toUpperCase()),
+      ));
+      if (projects.length === 0) {
+        console.log('  ⚠ At least one project key is required.');
+      }
+    }
+
+    jira = {
+      baseUrl: baseUrlInput.trim().replace(/\/+$/, ''),
+      projects,
+    };
+  }
+
   // 10. Write config
   const yamlContent = buildConfigYaml({
     providerType,
@@ -269,6 +305,7 @@ export async function runInit(): Promise<void> {
     categories,
     uncategorized,
     contributors: { enabled: enableContributors, exclude: [] },
+    jira,
   });
   await writeFile('.releasejet.yml', yamlContent);
   console.log('\n✓ Created .releasejet.yml');

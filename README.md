@@ -70,6 +70,29 @@ in `.releasejet.yml`. The cleaner strips leading HTML comments and `## Descripti
 
 The `description: ai` value is reserved for AI-summarised descriptions in the Pro plugin (M3a) and is treated as `none` in core.
 
+### Jira ticket linking
+
+When your team puts Jira ticket IDs in PR/issue titles or descriptions
+(e.g., "Fix login PROJ-123"), ReleaseJet can detect them and render
+clickable links beside each issue line in the release notes — without
+calling the Jira API.
+
+```yaml
+jira:
+  baseUrl: https://acme.atlassian.net
+  projects: [PROJ, BUG]
+```
+
+Output line:
+
+```
+- Fix login (#42) — [PROJ-123](https://acme.atlassian.net/browse/PROJ-123)
+```
+
+`baseUrl` accepts `${ENV_VAR}` references for self-hosted Jira instances.
+`projects` is a required allowlist that prevents false positives like
+`HTTP-2` or `IPV-6`.
+
 ## CI/CD
 
 **GitHub Action on the Marketplace** — [marketplace/actions/releasejet](https://github.com/marketplace/actions/releasejet). Five-line setup:
