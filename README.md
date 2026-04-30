@@ -83,6 +83,40 @@ The `description: ai` value is reserved for AI-summarised descriptions in the Pr
 
 Raw setup recipes: [GitHub Actions](https://releasejet.dev/docs/recipes/github-issues) · [GitLab CI](https://releasejet.dev/docs/recipes/gitlab-issues)
 
+## Authentication
+
+ReleaseJet looks up your provider API token in this order. The **first** match wins:
+
+1. `RELEASEJET_TOKEN` environment variable (universal — works for both GitLab and GitHub).
+2. Provider-specific environment variable: `GITHUB_TOKEN` (for GitHub) or `GITLAB_API_TOKEN` (for GitLab).
+3. **Per-repo entry** in `~/.releasejet/credentials.yml`, keyed as `<host>/<projectPath>` (e.g. `gitlab.com/myorg/api`).
+4. **Host entry** in `~/.releasejet/credentials.yml`, keyed by host (e.g. `gitlab.com`, `company.gitlab.com`).
+5. **Legacy provider-type entry** (`gitlab:` or `github:`) — kept indefinitely as a fallback for hosts that don't have an explicit host entry.
+6. The pre-YAML bare-text file `~/.releasejet/credentials` (legacy format, still supported).
+
+Host keys are case-insensitive and default ports (`80`, `443`) are stripped. Non-default ports are preserved (e.g. `gitlab.example.com:8443`).
+
+### Example credentials.yml
+
+```yaml
+gitlab.com: glpat-aaaaaaaaaaaaaaaaaaaa             # default for gitlab.com repos
+company.gitlab.com: glpat-bbbbbbbbbbbbbbbb         # different host
+github.com: ghp_cccccccccccccccccccc               # default for github.com
+gitlab.com/personal/sideproject: glpat-dddd        # per-repo override
+```
+
+### Setting tokens
+
+The interactive `releasejet init` flow stores a token under the configured host. To add or update a token without re-running `init`:
+
+```bash
+releasejet auth set-token              # prompts; uses the current repo's host
+releasejet auth set-token --host company.gitlab.com
+releasejet auth set-token --repo gitlab.com/myorg/api
+```
+
+For CI, set `RELEASEJET_TOKEN`, `GITHUB_TOKEN`, or `GITLAB_API_TOKEN` as a secret — env vars always win over the file.
+
 ## Troubleshooting
 
 Common issues:
