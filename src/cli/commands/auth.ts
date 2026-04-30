@@ -2,7 +2,7 @@ import type { Command } from 'commander';
 import { readFile, writeFile, access } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
-import { password, confirm } from '@inquirer/prompts';
+import { password, confirm, input } from '@inquirer/prompts';
 import { readLicense, writeLicense, removeLicense } from '../../license/store.js';
 import { verifyLicense } from '../../license/validator.js';
 import { isNpmrcConfigured, writeNpmrcConfig, removeNpmrcConfig } from '../../license/npmrc.js';
@@ -19,7 +19,7 @@ import {
 } from '../../core/ci.js';
 import { loadConfig } from '../../core/config.js';
 import { deriveHost, deriveRepoKey, writeTokenToCredentials } from '../auth.js';
-import { readEntries, redactToken, removeEntry, resolveTokenChain, type ChainStep } from '../credentials-store.js';
+import { readEntries, redactToken, removeEntry, resolveTokenChain, writeRawMap, type ChainStep } from '../credentials-store.js';
 import { withErrorHandler } from '../error-handler.js';
 import { getRemoteUrl, resolveProjectPath } from '../../core/git.js';
 
@@ -580,6 +580,114 @@ export async function runShowToken(options: ShowTokenOptions): Promise<void> {
   }
 }
 
+export interface MigrateTokensOptions {
+  promptHosts?: (legacyKey: string, suggestions: string[]) => Promise<string>;
+  promptOverwrite?: (host: string) => Promise<boolean>;
+  promptDeleteLegacy?: (legacyKey: string) => Promise<boolean>;
+}
+
+const LEGACY_PROVIDER_ORDER: Array<'gitlab' | 'github'> = ['gitlab', 'github'];
+
+function hostBelongsTo(host: string, provider: 'gitlab' | 'github'): boolean {
+  return host.toLowerCase().includes(provider);
+}
+
+export async function runMigrateTokens(options: MigrateTokensOptions): Promise<void> {
+  const { entries } = await readEntries();
+  const legacyEntries = entries.filter((e) => e.kind === 'legacy');
+  if (legacyEntries.length === 0) {
+    console.log('No legacy entries to migrate.');
+    return;
+  }
+
+  const promptHosts = options.promptHosts ?? (async (legacyKey: string, suggestions: string[]) => {
+    const hint = suggestions.length > 0
+      ? `Suggestions: ${suggestions.join(', ')}`
+      : '(no existing host entries detected)';
+    console.log(hint);
+    return input({
+      message: `Copy '${legacyKey}' token to which hosts? (comma-separated, or empty to skip)`,
+      default: suggestions.join(', '),
+    });
+  });
+
+  const promptOverwrite: (host: string) => Promise<boolean> = options.promptOverwrite
+    ?? ((host: string) => confirm({ message: `${host} already has a token. Overwrite?`, default: false }));
+
+  const promptDeleteLegacy: (legacyKey: string) => Promise<boolean> = options.promptDeleteLegacy
+    ?? ((legacyKey: string) => confirm({ message: `Delete legacy '${legacyKey}' entry now?`, default: false }));
+
+  // Build an in-memory snapshot of all entries so we can accumulate mutations and
+  // do a single final write, avoiding the stale-read problem of individual writeEntry calls.
+  const snapshot: Record<string, string> = {};
+  for (const e of entries) {
+    snapshot[e.key] = e.token;
+  }
+
+  const visited: Array<{ key: 'gitlab' | 'github'; copied: string[]; skipped: string[] }> = [];
+  let dirty = false;
+
+  for (const provider of LEGACY_PROVIDER_ORDER) {
+    const legacy = legacyEntries.find((e) => e.key === provider);
+    if (!legacy) continue;
+
+    const suggestions = entries
+      .filter((e) => e.kind === 'host' && hostBelongsTo(e.key, provider))
+      .map((e) => e.key);
+
+    console.log('');
+    console.log(`Processing legacy '${provider}' entry…`);
+    const raw = (await promptHosts(provider, suggestions)).trim();
+    if (!raw) {
+      console.log(`Skipped '${provider}'.`);
+      visited.push({ key: provider, copied: [], skipped: [] });
+      continue;
+    }
+
+    const targetHosts = raw.split(',').map((h) => h.trim()).filter(Boolean).map((h) => deriveHost(h));
+    const copied: string[] = [];
+    const skipped: string[] = [];
+
+    for (const target of targetHosts) {
+      if (target in snapshot) {
+        const overwrite = await promptOverwrite(target);
+        if (!overwrite) {
+          skipped.push(target);
+          continue;
+        }
+      }
+      snapshot[target] = legacy.token;
+      copied.push(target);
+      dirty = true;
+    }
+
+    if (copied.length > 0) console.log(`Copied to: ${copied.join(', ')}`);
+    if (skipped.length > 0) console.log(`Skipped (kept existing): ${skipped.join(', ')}`);
+
+    visited.push({ key: provider, copied, skipped });
+  }
+
+  console.log('');
+  for (const v of visited) {
+    if (v.copied.length === 0 && v.skipped.length === 0) continue;
+    const ok = await promptDeleteLegacy(v.key);
+    if (ok) {
+      delete snapshot[v.key];
+      dirty = true;
+      console.log(`Deleted legacy '${v.key}' entry.`);
+    } else {
+      console.log(`Kept legacy '${v.key}' entry.`);
+    }
+  }
+
+  if (dirty || visited.some((v) => v.copied.length > 0 || v.skipped.length > 0)) {
+    await writeRawMap(snapshot as Record<string, string>);
+  }
+
+  console.log('');
+  console.log('Migration complete.');
+}
+
 export function registerAuthCommand(program: Command): void {
   const auth = program
     .command('auth')
@@ -652,5 +760,12 @@ export function registerAuthCommand(program: Command): void {
     .option('--show-tokens', 'Reveal the resolved token instead of masking it')
     .action(withErrorHandler(async (repoArg: string | undefined, opts: { showTokens?: boolean }) => {
       await runShowToken({ repoArg, showTokens: opts.showTokens });
+    }));
+
+  auth
+    .command('migrate-tokens')
+    .description('Interactive walkthrough to move legacy gitlab/github keys into host keys')
+    .action(withErrorHandler(async () => {
+      await runMigrateTokens({});
     }));
 }
