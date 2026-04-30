@@ -1,7 +1,7 @@
-import { readFile } from 'node:fs/promises';
+import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
-import { parse as parseYaml } from 'yaml';
+import { stringify as stringifyYaml, parse as parseYaml } from 'yaml';
 
 const DEFAULT_PORTS: Record<string, string> = { 'http:': '80', 'https:': '443' };
 
@@ -41,6 +41,26 @@ export function deriveRepoKey(host: string, projectPath: string): string {
     throw new Error(`Cannot derive repo key from empty project path`);
   }
   return `${host}/${path}`.toLowerCase();
+}
+
+export async function writeTokenToCredentials(key: string, token: string): Promise<void> {
+  const credDir = join(homedir(), '.releasejet');
+  await mkdir(credDir, { recursive: true });
+  const credPath = join(credDir, 'credentials.yml');
+
+  let existing: Record<string, unknown> = {};
+  try {
+    const content = await readFile(credPath, 'utf-8');
+    const parsed = parseYaml(content);
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+      existing = parsed as Record<string, unknown>;
+    }
+  } catch {
+    // File missing or unreadable — start fresh.
+  }
+
+  existing[key.toLowerCase()] = token;
+  await writeFile(credPath, stringifyYaml(existing), { mode: 0o600 });
 }
 
 export async function resolveToken(providerType: 'gitlab' | 'github'): Promise<string> {

@@ -1,10 +1,16 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
-vi.mock('node:fs/promises', () => ({
-  readFile: vi.fn(),
-}));
+vi.mock('node:fs/promises', async () => {
+  const actual = await vi.importActual<typeof import('node:fs/promises')>('node:fs/promises');
+  return {
+    ...actual,
+    readFile: vi.fn(),
+    writeFile: vi.fn().mockResolvedValue(undefined),
+    mkdir: vi.fn().mockResolvedValue(undefined),
+  };
+});
 
-import { readFile } from 'node:fs/promises';
+import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { resolveToken } from '../../src/cli/auth.js';
 
 describe('resolveToken', () => {
@@ -111,5 +117,63 @@ describe('deriveRepoKey', () => {
   it('throws on empty path', () => {
     expect(() => deriveRepoKey('gitlab.com', '')).toThrow(/empty/i);
     expect(() => deriveRepoKey('gitlab.com', '   ')).toThrow(/empty/i);
+  });
+});
+
+import { writeTokenToCredentials } from '../../src/cli/auth.js';
+
+describe('writeTokenToCredentials', () => {
+  beforeEach(() => {
+    vi.mocked(writeFile).mockClear();
+    vi.mocked(mkdir).mockClear();
+  });
+
+  it('creates a new credentials file with the given key/value', async () => {
+    vi.mocked(readFile).mockRejectedValue(Object.assign(new Error('ENOENT'), { code: 'ENOENT' }));
+
+    await writeTokenToCredentials('gitlab.com', 'glpat-new');
+
+    expect(mkdir).toHaveBeenCalled();
+    const writeCall = vi.mocked(writeFile).mock.calls[0];
+    expect(writeCall[0]).toMatch(/credentials\.yml$/);
+    expect(writeCall[1]).toContain('gitlab.com: glpat-new');
+    expect(writeCall[2]).toEqual({ mode: 0o600 });
+  });
+
+  it('preserves all existing top-level entries', async () => {
+    vi.mocked(readFile).mockResolvedValue(
+      'gitlab: glpat-legacy\n' +
+      'github.com: ghp_other\n' +
+      'pro:\n  token: jwt-here\n  expiresAt: 2026-12-31\n' as any,
+    );
+
+    await writeTokenToCredentials('gitlab.com', 'glpat-new');
+
+    const written = vi.mocked(writeFile).mock.calls[0][1] as string;
+    expect(written).toContain('gitlab: glpat-legacy');
+    expect(written).toContain('github.com: ghp_other');
+    expect(written).toContain('pro:');
+    expect(written).toContain('token: jwt-here');
+    expect(written).toContain('gitlab.com: glpat-new');
+  });
+
+  it('overwrites an existing key in place', async () => {
+    vi.mocked(readFile).mockResolvedValue('gitlab.com: glpat-old\n' as any);
+
+    await writeTokenToCredentials('gitlab.com', 'glpat-new');
+
+    const written = vi.mocked(writeFile).mock.calls[0][1] as string;
+    expect(written).toContain('gitlab.com: glpat-new');
+    expect(written).not.toContain('glpat-old');
+  });
+
+  it('lowercases the key before writing', async () => {
+    vi.mocked(readFile).mockRejectedValue(Object.assign(new Error('ENOENT'), { code: 'ENOENT' }));
+
+    await writeTokenToCredentials('GitLab.COM', 'glpat-new');
+
+    const written = vi.mocked(writeFile).mock.calls[0][1] as string;
+    expect(written).toContain('gitlab.com: glpat-new');
+    expect(written).not.toContain('GitLab.COM');
   });
 });
