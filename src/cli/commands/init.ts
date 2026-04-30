@@ -4,8 +4,8 @@ import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { input, confirm, select } from '@inquirer/prompts';
-import { stringify as stringifyYaml, parse as parseYaml } from 'yaml';
 import { getRemoteUrl, resolveHostUrl, detectProviderFromRemote } from '../../core/git.js';
+import { deriveHost, writeTokenToCredentials } from '../auth.js';
 import type { ClientConfig } from '../../types.js';
 import {
   generateCiBlock,
@@ -297,22 +297,11 @@ export async function runInit(): Promise<void> {
 
   // 13. Store token
   if (token) {
-    const credDir = join(homedir(), '.releasejet');
-    await mkdir(credDir, { recursive: true });
-    const credPath = join(credDir, 'credentials.yml');
-
-    let existingCreds: Record<string, string> = {};
-    try {
-      const content = await readFile(credPath, 'utf-8');
-      existingCreds = parseYaml(content) ?? {};
-    } catch {
-      // No existing file
-    }
-
-    existingCreds[providerType] = token;
-    const yamlCreds = stringifyYaml(existingCreds);
-    await writeFile(credPath, yamlCreds, { mode: 0o600 });
-    console.log(`✓ Token stored in ${credPath}`);
+    const host = deriveHost(providerUrl || (providerType === 'github' ? 'https://github.com' : 'https://gitlab.com'));
+    await writeTokenToCredentials(host, token);
+    const credPath = join(homedir(), '.releasejet', 'credentials.yml');
+    console.log(`✓ Token stored in ${credPath} under "${host}"`);
+    console.log(`  (For per-repo tokens: releasejet auth set-token --repo <host>/<path>)`);
   }
 
   console.log(TAG_TIMESTAMP_TIP);

@@ -441,3 +441,63 @@ describe('runInit — tag timestamp tip', () => {
     logSpy.mockRestore();
   });
 });
+
+// Helper: drives the gitlab-default init flow end-to-end with a configurable token.
+function stubInitForGitlabCom(token: string) {
+  vi.mocked(select)
+    .mockResolvedValueOnce('gitlab')          // 1. provider
+    .mockResolvedValueOnce('v{version}')      // 2. tag format
+    .mockResolvedValueOnce('lenient')         // 3. uncategorized
+    .mockResolvedValueOnce('defaults');       // 4. category mode
+  vi.mocked(input)
+    .mockResolvedValueOnce('https://gitlab.com') // 1. provider URL
+    .mockResolvedValueOnce(token);               // 2. token
+  vi.mocked(confirm)
+    .mockResolvedValueOnce(false)             // 1. multi-client
+    .mockResolvedValueOnce(false)             // 2. contributors
+    .mockResolvedValueOnce(false);            // 3. CI setup
+}
+
+describe('runInit — host-keyed credentials (F12)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.spyOn(console, 'log').mockImplementation(() => {});
+  });
+
+  it('writes credentials.yml under the host key, preserving other entries', async () => {
+    const initialYaml = 'gitlab: glpat-legacy\ngithub.com: ghp_other\n';
+    vi.mocked(readFile).mockImplementation(async (p: any) => {
+      if (String(p).endsWith('credentials.yml')) return initialYaml as any;
+      throw Object.assign(new Error('ENOENT'), { code: 'ENOENT' });
+    });
+    stubInitForGitlabCom('glpat-new');
+
+    await runInit();
+
+    const credCall = vi.mocked(writeFile).mock.calls.find(
+      (c) => String(c[0]).endsWith('credentials.yml'),
+    );
+    expect(credCall).toBeDefined();
+    const written = String(credCall![1]);
+    expect(written).toContain('gitlab.com: glpat-new');
+    expect(written).toContain('gitlab: glpat-legacy');
+    expect(written).toContain('github.com: ghp_other');
+  });
+
+  it('overwrites the same host on a second init run', async () => {
+    vi.mocked(readFile).mockImplementation(async (p: any) => {
+      if (String(p).endsWith('credentials.yml')) return 'gitlab.com: glpat-old\n' as any;
+      throw Object.assign(new Error('ENOENT'), { code: 'ENOENT' });
+    });
+    stubInitForGitlabCom('glpat-new');
+
+    await runInit();
+
+    const credCall = vi.mocked(writeFile).mock.calls.find(
+      (c) => String(c[0]).endsWith('credentials.yml'),
+    );
+    const written = String(credCall![1]);
+    expect(written).toContain('gitlab.com: glpat-new');
+    expect(written).not.toContain('glpat-old');
+  });
+});
