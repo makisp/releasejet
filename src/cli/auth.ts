@@ -3,6 +3,38 @@ import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { parse as parseYaml } from 'yaml';
 
+const DEFAULT_PORTS: Record<string, string> = { 'http:': '80', 'https:': '443' };
+
+export function deriveHost(hostUrl: string): string {
+  const trimmed = (hostUrl ?? '').trim();
+  if (!trimmed) {
+    throw new Error(`Cannot derive host from empty value: "${hostUrl}"`);
+  }
+
+  // Try as URL first; fall back to bare-hostname interpretation.
+  let hostname: string;
+  let port: string;
+  try {
+    const withScheme = /^[a-z]+:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+    const parsed = new URL(withScheme);
+    hostname = parsed.hostname;
+    port = parsed.port;
+    // Strip default ports for the protocol when explicitly present.
+    if (port && DEFAULT_PORTS[parsed.protocol] === port) {
+      port = '';
+    }
+  } catch {
+    throw new Error(`Cannot derive host from invalid value: "${hostUrl}"`);
+  }
+
+  if (!hostname) {
+    throw new Error(`Cannot derive host from invalid value: "${hostUrl}"`);
+  }
+
+  const result = port ? `${hostname}:${port}` : hostname;
+  return result.toLowerCase();
+}
+
 export async function resolveToken(providerType: 'gitlab' | 'github'): Promise<string> {
   // 1. Universal env var
   const envToken = process.env.RELEASEJET_TOKEN;

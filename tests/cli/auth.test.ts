@@ -61,3 +61,30 @@ describe('resolveToken', () => {
     await expect(resolveToken('gitlab')).rejects.toThrow('GitLab');
   });
 });
+
+import { deriveHost } from '../../src/cli/auth.js';
+
+describe('deriveHost', () => {
+  it('strips protocol and trailing slash, lowercases', () => {
+    expect(deriveHost('https://gitlab.com/')).toBe('gitlab.com');
+    expect(deriveHost('http://gitlab.com')).toBe('gitlab.com');
+    expect(deriveHost('GITLAB.COM')).toBe('gitlab.com');
+  });
+
+  it('preserves non-default ports, strips default ports', () => {
+    expect(deriveHost('https://gitlab.example.com:8443')).toBe('gitlab.example.com:8443');
+    expect(deriveHost('http://gitlab.example.com:8080')).toBe('gitlab.example.com:8080');
+    expect(deriveHost('https://gitlab.example.com:443')).toBe('gitlab.example.com');
+    expect(deriveHost('http://gitlab.example.com:80')).toBe('gitlab.example.com');
+  });
+
+  it('accepts a bare hostname', () => {
+    expect(deriveHost('gitlab.com')).toBe('gitlab.com');
+    expect(deriveHost('company.gitlab.com:8443')).toBe('company.gitlab.com:8443');
+  });
+
+  it('throws on empty or malformed input', () => {
+    expect(() => deriveHost('')).toThrow(/empty|invalid/i);
+    expect(() => deriveHost('   ')).toThrow(/empty|invalid/i);
+  });
+});
