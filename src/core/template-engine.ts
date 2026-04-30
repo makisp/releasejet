@@ -16,8 +16,23 @@ export interface TemplateContext {
   title: string;
   tagUrl: string;
   metaLine: string;
-  categoryEntries: Array<{ heading: string; issues: Array<{ title: string; number: number; url: string; description?: string }> }>;
-  uncategorizedEntries: Array<{ title: string; number: number; url: string; description?: string }>;
+  categoryEntries: Array<{
+    heading: string;
+    issues: Array<{
+      title: string;
+      number: number;
+      url: string;
+      description?: string;
+      jiraLinks?: Array<{ id: string; url: string }>;
+    }>;
+  }>;
+  uncategorizedEntries: Array<{
+    title: string;
+    number: number;
+    url: string;
+    description?: string;
+    jiraLinks?: Array<{ id: string; url: string }>;
+  }>;
   showUncategorized: boolean;
   hasContributors: boolean;
   contributorsList: string;
@@ -38,6 +53,17 @@ function buildIssueUrl(
       ? `${projectUrl}/-/merge_requests/${number}`
       : `${projectUrl}/-/issues/${number}`;
   }
+}
+
+function buildJiraLinks(
+  issue: { jiraTickets?: string[] },
+  config: ReleaseJetConfig,
+): Array<{ id: string; url: string }> | undefined {
+  if (!config.jira || !issue.jiraTickets || issue.jiraTickets.length === 0) {
+    return undefined;
+  }
+  const base = config.jira.baseUrl;
+  return issue.jiraTickets.map((id) => ({ id, url: `${base}/browse/${id}` }));
 }
 
 export function buildTemplateContext(
@@ -78,6 +104,7 @@ export function buildTemplateContext(
         number: i.number,
         url: buildIssueUrl(data.projectUrl, i.number, config.provider.type, config.source),
         description: i.description,
+        jiraLinks: buildJiraLinks(i, config),
       })),
     }));
 
@@ -86,6 +113,7 @@ export function buildTemplateContext(
     number: i.number,
     url: buildIssueUrl(data.projectUrl, i.number, config.provider.type, config.source),
     description: i.description,
+    jiraLinks: buildJiraLinks(i, config),
   }));
 
   const showUncategorized =
