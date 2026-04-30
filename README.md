@@ -105,15 +105,29 @@ github.com: ghp_cccccccccccccccccccc               # default for github.com
 gitlab.com/personal/sideproject: glpat-dddd        # per-repo override
 ```
 
-### Setting tokens
+### Managing tokens
 
-The interactive `releasejet init` flow stores a token under the configured host. To add or update a token without re-running `init`:
+The interactive `releasejet init` flow stores a token under the configured host. Once set, manage tokens directly with the `auth` subcommands:
 
 ```bash
 releasejet auth set-token              # prompts; uses the current repo's host
 releasejet auth set-token --host company.gitlab.com
 releasejet auth set-token --repo gitlab.com/myorg/api
+
+releasejet auth list-tokens            # show every stored token (masked)
+releasejet auth list-tokens --show-tokens
+
+releasejet auth show-token             # explain which token resolves for the current repo
+releasejet auth show-token gitlab.com/myorg/api
+
+releasejet auth remove-token --host gitlab.com
+releasejet auth remove-token --repo gitlab.com/myorg/api
+releasejet auth remove-token --legacy gitlab    # remove a legacy provider-type entry
+
+releasejet auth migrate-tokens         # interactive: move legacy gitlab/github keys to host keys
 ```
+
+`show-token` is the diagnostic to reach for when "the wrong token is being used." It prints every step in the lookup chain — env vars, repo key, host key, legacy key, bare-text file — and marks which one was used.
 
 For CI, set `RELEASEJET_TOKEN`, `GITHUB_TOKEN`, or `GITLAB_API_TOKEN` as a secret — env vars always win over the file.
 
