@@ -19,6 +19,8 @@ Collects labeled issues (or merged pull requests) between Git tags, categorizes 
 - Issues or Pull Requests — closed issues (default) or merged PRs (GitHub)
 - Multi-client repos (e.g., `mobile-v1.0.0`, `web-v2.0.0`)
 - Configurable categories — map labels to sections
+- Issue/PR description extraction — render the first paragraph beneath each title
+- Jira ticket linking — inline links to PROJ-123 IDs detected in titles/bodies, no API calls
 - CI/CD integration — GitLab CI and GitHub Actions
 - Strict/lenient modes, milestone detection, contributors section
 
