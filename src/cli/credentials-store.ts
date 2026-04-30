@@ -108,6 +108,32 @@ async function loadRawYaml(): Promise<Record<string, unknown> | null> {
   }
 }
 
+async function loadRawYamlForWrite(): Promise<Record<string, unknown>> {
+  try {
+    const content = await readFile(credYamlPath(), 'utf-8');
+    const parsed = parseYaml(content);
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+      return parsed as Record<string, unknown>;
+    }
+    return {};
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
+      return {};
+    }
+    throw new Error(
+      `Could not read existing credentials at ${credYamlPath()}: ${(err as Error).message}. ` +
+      `Refusing to overwrite to avoid data loss. Fix or remove the file and try again.`,
+    );
+  }
+}
+
+export async function writeEntry(key: string, token: string): Promise<void> {
+  await mkdir(credDir(), { recursive: true });
+  const existing = await loadRawYamlForWrite();
+  existing[key.toLowerCase()] = token;
+  await writeFile(credYamlPath(), stringifyYaml(existing), { mode: 0o600 });
+}
+
 export async function readEntries(): Promise<ReadResult> {
   const raw = await loadRawYaml();
   if (!raw) return { entries: [], malformed: [] };
