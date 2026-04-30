@@ -134,6 +134,22 @@ export async function writeEntry(key: string, token: string): Promise<void> {
   await writeFile(credYamlPath(), stringifyYaml(existing), { mode: 0o600 });
 }
 
+export async function removeEntry(key: string): Promise<boolean> {
+  const lookup = key.toLowerCase();
+  let raw: Record<string, unknown>;
+  try {
+    raw = await loadRawYamlForWrite();
+  } catch (err) {
+    throw err;
+  }
+  if (!(lookup in raw)) {
+    return false;
+  }
+  delete raw[lookup];
+  await writeFile(credYamlPath(), stringifyYaml(raw), { mode: 0o600 });
+  return true;
+}
+
 export async function readEntries(): Promise<ReadResult> {
   const raw = await loadRawYaml();
   if (!raw) return { entries: [], malformed: [] };

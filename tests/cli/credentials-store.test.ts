@@ -160,3 +160,62 @@ describe('writeEntry', () => {
     expect(writeFile).not.toHaveBeenCalled();
   });
 });
+
+import { removeEntry } from '../../src/cli/credentials-store.js';
+
+describe('removeEntry', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('returns false and does not write when file does not exist', async () => {
+    vi.mocked(readFile).mockRejectedValue(Object.assign(new Error('ENOENT'), { code: 'ENOENT' }));
+    const result = await removeEntry('gitlab.com');
+    expect(result).toBe(false);
+    expect(writeFile).not.toHaveBeenCalled();
+  });
+
+  it('returns false and does not write when key is not present', async () => {
+    vi.mocked(readFile).mockResolvedValue('github.com: ghp_x\n' as any);
+    const result = await removeEntry('gitlab.com');
+    expect(result).toBe(false);
+    expect(writeFile).not.toHaveBeenCalled();
+  });
+
+  it('returns true and removes the key when present', async () => {
+    vi.mocked(readFile).mockResolvedValue(
+      'gitlab.com: glpat-target\ngithub.com: ghp_keep\n' as any,
+    );
+    const result = await removeEntry('gitlab.com');
+    expect(result).toBe(true);
+    const written = String(vi.mocked(writeFile).mock.calls[0][1]);
+    expect(written).not.toContain('gitlab.com');
+    expect(written).toContain('github.com: ghp_keep');
+  });
+
+  it('lowercases the lookup key before matching', async () => {
+    vi.mocked(readFile).mockResolvedValue('gitlab.com: glpat-x\n' as any);
+    const result = await removeEntry('GitLab.COM');
+    expect(result).toBe(true);
+  });
+
+  it('preserves the pro block and legacy keys when removing a host', async () => {
+    vi.mocked(readFile).mockResolvedValue(
+      'gitlab.com: glpat-target\n' +
+      'gitlab: glpat-legacy\n' +
+      'pro:\n  token: jwt\n  expiresAt: 2026-12-31\n' as any,
+    );
+    await removeEntry('gitlab.com');
+    const written = String(vi.mocked(writeFile).mock.calls[0][1]);
+    expect(written).toContain('gitlab: glpat-legacy');
+    expect(written).toContain('pro:');
+    expect(written).toContain('token: jwt');
+    expect(written).not.toContain('gitlab.com');
+  });
+
+  it('writes mode 0600 when removing', async () => {
+    vi.mocked(readFile).mockResolvedValue('gitlab.com: x\n' as any);
+    await removeEntry('gitlab.com');
+    expect(vi.mocked(writeFile).mock.calls[0][2]).toEqual({ mode: 0o600 });
+  });
+});
