@@ -489,3 +489,104 @@ describe('description extraction integration', () => {
     expect(calls.some(c => c.includes('skipped description'))).toBe(false);
   });
 });
+
+describe('collectIssues — jira ticket detection (F3)', () => {
+  let client: ProviderClient;
+
+  beforeEach(() => {
+    client = createMockClient();
+  });
+
+  const jiraConfig: ReleaseJetConfig = {
+    ...config,
+    jira: { baseUrl: 'https://acme.atlassian.net', projects: ['PROJ', 'BUG'] },
+  };
+
+  it('populates jiraTickets from title and body', async () => {
+    vi.mocked(client.listIssues).mockResolvedValue([
+      {
+        number: 1, title: 'Fix login PROJ-1', labels: ['feature', 'MOBILE'],
+        closedAt: '2026-04-07', webUrl: '', milestone: null, author: null,
+        assignee: null, closedBy: null, rawBody: 'Body mentions BUG-2',
+      },
+    ]);
+
+    const result = await collectIssues(client, 'mobile/app', currentTag, previousTag, [previousTag, currentTag], jiraConfig);
+
+    expect(result.categorized['New Features'][0].jiraTickets).toEqual(['PROJ-1', 'BUG-2']);
+  });
+
+  it('leaves jiraTickets undefined when no IDs found', async () => {
+    vi.mocked(client.listIssues).mockResolvedValue([
+      {
+        number: 1, title: 'Refactor', labels: ['feature', 'MOBILE'],
+        closedAt: '2026-04-07', webUrl: '', milestone: null, author: null,
+        assignee: null, closedBy: null, rawBody: 'No tickets here',
+      },
+    ]);
+
+    const result = await collectIssues(client, 'mobile/app', currentTag, previousTag, [previousTag, currentTag], jiraConfig);
+
+    expect(result.categorized['New Features'][0].jiraTickets).toBeUndefined();
+  });
+
+  it('does nothing when config.jira is unset', async () => {
+    vi.mocked(client.listIssues).mockResolvedValue([
+      {
+        number: 1, title: 'PROJ-1 fix', labels: ['feature', 'MOBILE'],
+        closedAt: '2026-04-07', webUrl: '', milestone: null, author: null,
+        assignee: null, closedBy: null, rawBody: 'mentions BUG-2',
+      },
+    ]);
+
+    const result = await collectIssues(client, 'mobile/app', currentTag, previousTag, [previousTag, currentTag], config);
+
+    expect(result.categorized['New Features'][0].jiraTickets).toBeUndefined();
+  });
+
+  it('applies to uncategorized issues too', async () => {
+    vi.mocked(client.listIssues).mockResolvedValue([
+      {
+        number: 9, title: 'Misc PROJ-9', labels: ['MOBILE'],
+        closedAt: '2026-04-07', webUrl: '', milestone: null, author: null,
+        assignee: null, closedBy: null, rawBody: null,
+      },
+    ]);
+
+    const result = await collectIssues(client, 'mobile/app', currentTag, previousTag, [previousTag, currentTag], jiraConfig);
+
+    expect(result.uncategorized[0].jiraTickets).toEqual(['PROJ-9']);
+  });
+
+  it('coexists with description: extract', async () => {
+    vi.mocked(client.listIssues).mockResolvedValue([
+      {
+        number: 1, title: 'Fix BUG-7', labels: ['feature', 'MOBILE'],
+        closedAt: '2026-04-07', webUrl: '', milestone: null, author: null,
+        assignee: null, closedBy: null, rawBody: 'First paragraph of the body.',
+      },
+    ]);
+
+    const cfg = { ...jiraConfig, description: 'extract' as const };
+    const result = await collectIssues(client, 'mobile/app', currentTag, previousTag, [previousTag, currentTag], cfg);
+
+    const issue = result.categorized['New Features'][0];
+    expect(issue.jiraTickets).toEqual(['BUG-7']);
+    expect(issue.description).toBe('First paragraph of the body.');
+  });
+
+  it('handles missing rawBody (treats as empty)', async () => {
+    vi.mocked(client.listIssues).mockResolvedValue([
+      {
+        number: 1, title: 'Title only PROJ-3', labels: ['feature', 'MOBILE'],
+        closedAt: '2026-04-07', webUrl: '', milestone: null, author: null,
+        assignee: null, closedBy: null,
+        // no rawBody field
+      },
+    ]);
+
+    const result = await collectIssues(client, 'mobile/app', currentTag, previousTag, [previousTag, currentTag], jiraConfig);
+
+    expect(result.categorized['New Features'][0].jiraTickets).toEqual(['PROJ-3']);
+  });
+});
