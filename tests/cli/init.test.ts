@@ -234,9 +234,10 @@ describe('runInit — CI setup step', () => {
       vi.mocked(input).mockResolvedValueOnce(val);
     }
 
-    // confirm calls: (1) multi-client -> false, (2) contributors -> false, (3) CI setup
+    // confirm calls: (1) multi-client -> false, (2) contributors -> false, (3) jira -> false, (4) CI setup
     vi.mocked(confirm).mockResolvedValueOnce(false);   // multi-client
     vi.mocked(confirm).mockResolvedValueOnce(false);   // contributors
+    vi.mocked(confirm).mockResolvedValueOnce(false);   // jira
     vi.mocked(confirm).mockResolvedValueOnce(ciSetup); // CI
   }
 
@@ -338,6 +339,7 @@ describe('runInit — provider selection', () => {
     vi.mocked(confirm)
       .mockResolvedValueOnce(false)  // multi-client
       .mockResolvedValueOnce(false)  // contributors
+      .mockResolvedValueOnce(false)  // jira
       .mockResolvedValueOnce(true);  // CI setup
 
     await runInit();
