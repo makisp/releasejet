@@ -69,37 +69,73 @@ export async function writeTokenToCredentials(key: string, token: string): Promi
   await writeFile(credPath, stringifyYaml(existing), { mode: 0o600 });
 }
 
-export async function resolveToken(providerType: 'gitlab' | 'github'): Promise<string> {
+export async function resolveToken(
+  providerType: 'gitlab' | 'github',
+  hostUrl: string,
+  projectPath: string,
+): Promise<string> {
   // 1. Universal env var
-  const envToken = process.env.RELEASEJET_TOKEN;
-  if (envToken) return envToken;
+  if (process.env.RELEASEJET_TOKEN) return process.env.RELEASEJET_TOKEN;
 
   // 2. Provider-specific env var
   const providerEnvVar = providerType === 'github' ? 'GITHUB_TOKEN' : 'GITLAB_API_TOKEN';
-  const providerToken = process.env[providerEnvVar];
-  if (providerToken) return providerToken;
+  const providerEnvValue = process.env[providerEnvVar];
+  if (providerEnvValue) return providerEnvValue;
 
-  // 3. Provider-keyed credentials file
+  const host = deriveHost(hostUrl);
+  const repoKey = projectPath ? deriveRepoKey(host, projectPath) : null;
+  const credPath = join(homedir(), '.releasejet', 'credentials.yml');
+
+  // 3-5. credentials.yml lookups
+  let yamlEntries: Record<string, unknown> | null = null;
   try {
-    const credPath = join(homedir(), '.releasejet', 'credentials.yml');
-    const content = (await readFile(credPath, 'utf-8')).trim();
-    const creds = parseYaml(content) as Record<string, string>;
-    if (creds?.[providerType]) return creds[providerType];
+    const content = await readFile(credPath, 'utf-8');
+    const parsed = parseYaml(content);
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+      yamlEntries = parsed as Record<string, unknown>;
+    }
   } catch {
-    // credentials.yml not found, try legacy
+    // File missing — try legacy bare-text below.
   }
 
-  // 4. Legacy bare credentials file (backward compat)
+  if (yamlEntries) {
+    // 3. Repo key
+    if (repoKey) {
+      const repoVal = yamlEntries[repoKey];
+      if (typeof repoVal === 'string' && repoVal.length > 0) return repoVal;
+    }
+
+    // 4. Host key
+    const hostVal = yamlEntries[host];
+    if (typeof hostVal === 'string' && hostVal.length > 0) return hostVal;
+
+    // 5. Legacy provider-type key — only when no host key matched
+    const legacyVal = yamlEntries[providerType];
+    if (typeof legacyVal === 'string' && legacyVal.length > 0) return legacyVal;
+  }
+
+  // 6. Bare-text legacy file
   try {
     const legacyPath = join(homedir(), '.releasejet', 'credentials');
     const stored = (await readFile(legacyPath, 'utf-8')).trim();
     if (stored) return stored;
   } catch {
-    // No stored credentials
+    // Not present — fall through to error.
   }
 
+  // TODO(F13): tokens migrate command — guide users to host-keyed entries.
   const providerName = providerType === 'github' ? 'GitHub' : 'GitLab';
+  const providerEnvName = providerType === 'github' ? 'GITHUB_TOKEN' : 'GITLAB_API_TOKEN';
+  const repoKeyDisplay = repoKey ?? `${host}/<projectPath>`;
   throw new Error(
-    `${providerName} API token not found. Set RELEASEJET_TOKEN environment variable or run \`releasejet init\`.`,
+    `${providerName} API token not found for ${repoKey ?? host}.\n` +
+      `Tried (in order):\n` +
+      `  - env: RELEASEJET_TOKEN, ${providerEnvName}\n` +
+      `  - ~/.releasejet/credentials.yml: ${repoKeyDisplay}, ${host}, ${providerType} (legacy)\n` +
+      `  - ~/.releasejet/credentials (legacy file)\n` +
+      `\n` +
+      `To configure, run one of:\n` +
+      `  releasejet auth set-token              # default — token for this repo's host\n` +
+      `  releasejet auth set-token --repo <path> # token for this repo specifically`,
   );
 }

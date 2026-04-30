@@ -15,56 +15,121 @@ import { resolveToken } from '../../src/cli/auth.js';
 
 describe('resolveToken', () => {
   const originalEnv = process.env;
+  const GL = 'https://gitlab.com';
+  const GH = 'https://github.com';
+  const PATH = 'myorg/api';
 
   beforeEach(() => {
-    vi.restoreAllMocks();
+    vi.clearAllMocks();
     process.env = { ...originalEnv };
     delete process.env.RELEASEJET_TOKEN;
     delete process.env.GITLAB_API_TOKEN;
     delete process.env.GITHUB_TOKEN;
+    vi.mocked(readFile).mockRejectedValue(Object.assign(new Error('ENOENT'), { code: 'ENOENT' }));
   });
 
   afterEach(() => {
     process.env = originalEnv;
   });
 
-  it('returns RELEASEJET_TOKEN for any provider', async () => {
-    process.env.RELEASEJET_TOKEN = 'universal-token';
-    expect(await resolveToken('gitlab')).toBe('universal-token');
-    expect(await resolveToken('github')).toBe('universal-token');
+  // Step 1
+  it('returns RELEASEJET_TOKEN ahead of provider env and file', async () => {
+    process.env.RELEASEJET_TOKEN = 'universal';
+    process.env.GITHUB_TOKEN = 'gh-env';
+    vi.mocked(readFile).mockResolvedValue('github.com: ghp_file\n' as any);
+    expect(await resolveToken('github', GH, PATH)).toBe('universal');
+  });
+
+  // Step 2
+  it('returns provider env when RELEASEJET_TOKEN is absent', async () => {
+    process.env.GITHUB_TOKEN = 'gh-env';
+    vi.mocked(readFile).mockResolvedValue('github.com: ghp_file\n' as any);
+    expect(await resolveToken('github', GH, PATH)).toBe('gh-env');
   });
 
   it('returns GITLAB_API_TOKEN for gitlab provider', async () => {
-    process.env.GITLAB_API_TOKEN = 'gl-token';
-    expect(await resolveToken('gitlab')).toBe('gl-token');
+    process.env.GITLAB_API_TOKEN = 'gl-env';
+    expect(await resolveToken('gitlab', GL, PATH)).toBe('gl-env');
   });
 
-  it('returns GITHUB_TOKEN for github provider', async () => {
-    process.env.GITHUB_TOKEN = 'gh-token';
-    expect(await resolveToken('github')).toBe('gh-token');
-  });
-
-  it('reads provider key from credentials.yml', async () => {
-    vi.mocked(readFile).mockImplementation(async (path: any) => {
-      if (path.includes('credentials.yml')) return 'gitlab: gl-stored\ngithub: gh-stored\n' as any;
+  // Step 3 vs Step 4
+  it('repo key wins over host key', async () => {
+    vi.mocked(readFile).mockImplementation(async (p: any) => {
+      if (String(p).endsWith('credentials.yml')) {
+        return 'gitlab.com: host-token\ngitlab.com/myorg/api: repo-token\n' as any;
+      }
       throw Object.assign(new Error('ENOENT'), { code: 'ENOENT' });
     });
-    expect(await resolveToken('github')).toBe('gh-stored');
+    expect(await resolveToken('gitlab', GL, PATH)).toBe('repo-token');
   });
 
-  it('falls back to legacy credentials file', async () => {
-    vi.mocked(readFile).mockImplementation(async (path: any) => {
-      if (path.includes('credentials.yml')) throw Object.assign(new Error('ENOENT'), { code: 'ENOENT' });
-      if (path.includes('credentials')) return 'legacy-token\n' as any;
+  // Step 4 vs Step 5
+  it('host key wins over legacy provider-type key', async () => {
+    vi.mocked(readFile).mockImplementation(async (p: any) => {
+      if (String(p).endsWith('credentials.yml')) {
+        return 'gitlab: legacy-token\ngitlab.com: host-token\n' as any;
+      }
       throw Object.assign(new Error('ENOENT'), { code: 'ENOENT' });
     });
-    expect(await resolveToken('gitlab')).toBe('legacy-token');
+    expect(await resolveToken('gitlab', GL, PATH)).toBe('host-token');
   });
 
-  it('throws with provider-aware message when no token found', async () => {
+  // Step 5 — wildcard fallback
+  it('legacy key resolves any host without an explicit host entry', async () => {
+    vi.mocked(readFile).mockImplementation(async (p: any) => {
+      if (String(p).endsWith('credentials.yml')) {
+        return 'gitlab: legacy-wildcard\n' as any;
+      }
+      throw Object.assign(new Error('ENOENT'), { code: 'ENOENT' });
+    });
+    expect(await resolveToken('gitlab', GL, PATH)).toBe('legacy-wildcard');
+    expect(await resolveToken('gitlab', 'https://company.gitlab.com', 'team/repo')).toBe('legacy-wildcard');
+  });
+
+  // Step 5 — does NOT fire when host key matches
+  it('legacy key does not fire for hosts that have an explicit host entry', async () => {
+    vi.mocked(readFile).mockImplementation(async (p: any) => {
+      if (String(p).endsWith('credentials.yml')) {
+        return 'gitlab: legacy-old\ngitlab.com: gl-com-new\n' as any;
+      }
+      throw Object.assign(new Error('ENOENT'), { code: 'ENOENT' });
+    });
+    expect(await resolveToken('gitlab', GL, PATH)).toBe('gl-com-new');
+  });
+
+  // Step 6 — bare-text legacy file
+  it('falls back to bare-text legacy credentials file when YAML is absent', async () => {
+    vi.mocked(readFile).mockImplementation(async (p: any) => {
+      const path = String(p);
+      if (path.endsWith('credentials.yml')) {
+        throw Object.assign(new Error('ENOENT'), { code: 'ENOENT' });
+      }
+      if (path.endsWith('credentials')) return 'bare-text-token\n' as any;
+      throw Object.assign(new Error('ENOENT'), { code: 'ENOENT' });
+    });
+    expect(await resolveToken('gitlab', GL, PATH)).toBe('bare-text-token');
+  });
+
+  // Casing
+  it('matches host key case-insensitively', async () => {
+    vi.mocked(readFile).mockResolvedValue('gitlab.com: gl-token\n' as any);
+    expect(await resolveToken('gitlab', 'https://GITLAB.COM/', PATH)).toBe('gl-token');
+  });
+
+  // Default-port stripping
+  it('strips default ports when matching host key', async () => {
+    vi.mocked(readFile).mockResolvedValue('gitlab.com: gl-token\n' as any);
+    expect(await resolveToken('gitlab', 'https://gitlab.com:443/', PATH)).toBe('gl-token');
+  });
+
+  // Error message
+  it('throws an error listing every key that was tried', async () => {
     vi.mocked(readFile).mockRejectedValue(Object.assign(new Error('ENOENT'), { code: 'ENOENT' }));
-    await expect(resolveToken('github')).rejects.toThrow('GitHub');
-    await expect(resolveToken('gitlab')).rejects.toThrow('GitLab');
+    await expect(resolveToken('github', GH, PATH)).rejects.toThrow(/github\.com\/myorg\/api/);
+    await expect(resolveToken('github', GH, PATH)).rejects.toThrow(/github\.com/);
+    await expect(resolveToken('github', GH, PATH)).rejects.toThrow(/github \(legacy\)/);
+    await expect(resolveToken('github', GH, PATH)).rejects.toThrow(/RELEASEJET_TOKEN/);
+    await expect(resolveToken('github', GH, PATH)).rejects.toThrow(/auth set-token/);
   });
 });
 
