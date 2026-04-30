@@ -80,3 +80,52 @@ const credYamlPath = (): string => join(credDir(), 'credentials.yml');
 const credLegacyPath = (): string => join(credDir(), 'credentials');
 
 export const PATHS = { credDir, credYamlPath, credLegacyPath };
+
+const LEGACY_KEYS = new Set(['gitlab', 'github']);
+
+function classifyKey(key: string): EntryKind {
+  if (LEGACY_KEYS.has(key)) return 'legacy';
+  if (key.includes('/')) return 'repo';
+  return 'host';
+}
+
+async function loadRawYaml(): Promise<Record<string, unknown> | null> {
+  try {
+    const content = await readFile(credYamlPath(), 'utf-8');
+    const parsed = parseYaml(content);
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+      return parsed as Record<string, unknown>;
+    }
+    return null;
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
+      return null;
+    }
+    throw new Error(
+      `Could not read credentials at ${credYamlPath()}: ${(err as Error).message}. ` +
+      `Fix or remove the file and try again.`,
+    );
+  }
+}
+
+export async function readEntries(): Promise<ReadResult> {
+  const raw = await loadRawYaml();
+  if (!raw) return { entries: [], malformed: [] };
+
+  const entries: Entry[] = [];
+  const malformed: string[] = [];
+
+  for (const [rawKey, rawValue] of Object.entries(raw)) {
+    if (typeof rawValue !== 'string') {
+      malformed.push(rawKey);
+      continue;
+    }
+    if (rawValue.length === 0) {
+      continue;
+    }
+    const key = rawKey.toLowerCase();
+    entries.push({ key, kind: classifyKey(key), token: rawValue });
+  }
+
+  return { entries, malformed };
+}
