@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.17.0] - 2026-04-30
+
+### Added
+
+- **auth:** Four new subcommands for managing `~/.releasejet/credentials.yml` from the CLI (F13):
+  - `auth list-tokens [--show-tokens]` — inventory of stored entries grouped by host/repo/legacy, masked by default.
+  - `auth remove-token [--host | --repo | --legacy <gitlab|github>] [--yes]` — delete a specific entry; mutually exclusive flags; confirmation prompt unless `--yes`.
+  - `auth show-token [<repo>] [--show-tokens]` — debug the token lookup chain for a given repo; auto-detects from the current `.releasejet.yml` when no arg is supplied. Prints all six resolution steps with hit/miss/skipped status.
+  - `auth migrate-tokens` — interactive walkthrough that moves legacy `gitlab:` / `github:` entries into host-keyed entries. Recommended path off legacy keys after F12.
+
+### Changed
+
+- `src/cli/auth.ts` — `resolveToken` and `writeTokenToCredentials` now delegate to the new `src/cli/credentials-store.ts` module that owns all credentials-file I/O and the resolution chain. Public signatures and resolution behavior unchanged.
+
 ## [1.16.0] - 2026-04-30
 
 ### Added

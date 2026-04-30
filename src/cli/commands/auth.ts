@@ -1,8 +1,8 @@
 import type { Command } from 'commander';
-import { readFile, writeFile } from 'node:fs/promises';
+import { readFile, writeFile, access } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
-import { password } from '@inquirer/prompts';
+import { password, confirm, input } from '@inquirer/prompts';
 import { readLicense, writeLicense, removeLicense } from '../../license/store.js';
 import { verifyLicense } from '../../license/validator.js';
 import { isNpmrcConfigured, writeNpmrcConfig, removeNpmrcConfig } from '../../license/npmrc.js';
@@ -19,7 +19,9 @@ import {
 } from '../../core/ci.js';
 import { loadConfig } from '../../core/config.js';
 import { deriveHost, deriveRepoKey, writeTokenToCredentials } from '../auth.js';
+import { readEntries, redactToken, removeEntry, resolveTokenChain, writeEntry, type ChainStep } from '../credentials-store.js';
 import { withErrorHandler } from '../error-handler.js';
+import { getRemoteUrl, resolveProjectPath } from '../../core/git.js';
 
 const LICENSE_API_URL =
   process.env.RELEASEJET_LICENSE_API || 'https://releasejet.dev/api/license';
@@ -370,6 +372,313 @@ export async function runSetToken(options: SetTokenOptions): Promise<void> {
   console.log(`✓ Token stored in ${credPath} under "${key}"`);
 }
 
+export interface ListTokensOptions {
+  showTokens?: boolean;
+}
+
+export async function runListTokens(options: ListTokensOptions): Promise<void> {
+  const { entries, malformed } = await readEntries();
+
+  if (entries.length === 0) {
+    console.log('No tokens stored.');
+    if (malformed.length > 0) {
+      console.error(`\n${malformed.length} entr${malformed.length === 1 ? 'y' : 'ies'} skipped (non-string values): ${malformed.join(', ')}`);
+    }
+    return;
+  }
+
+  const groups: Record<'host' | 'repo' | 'legacy', typeof entries> = { host: [], repo: [], legacy: [] };
+  for (const e of entries) groups[e.kind].push(e);
+
+  const render = (token: string): string => options.showTokens ? token : redactToken(token);
+  const PAD = (s: string, w: number): string => s.padEnd(w, ' ');
+
+  const sections: Array<[string, typeof entries, string?]> = [
+    ['Host', groups.host],
+    ['Repo', groups.repo],
+    ['Legacy', groups.legacy, '(deprecated — run `releasejet auth migrate-tokens`)'],
+  ];
+
+  let first = true;
+  for (const [label, list, suffix] of sections) {
+    if (list.length === 0) continue;
+    if (!first) console.log('');
+    first = false;
+    console.log(`${label} entries (${list.length}):`);
+    const width = Math.max(...list.map((e) => e.key.length));
+    for (const e of list) {
+      const line = `  ${PAD(e.key, width)}  ${render(e.token)}`;
+      console.log(suffix ? `${line}  ${suffix}` : line);
+    }
+  }
+
+  if (malformed.length > 0) {
+    console.error(`\n${malformed.length} entr${malformed.length === 1 ? 'y' : 'ies'} skipped (non-string values): ${malformed.join(', ')}`);
+  }
+}
+
+export interface RemoveTokenOptions {
+  host?: string;
+  repo?: string;
+  legacy?: 'gitlab' | 'github';
+  yes?: boolean;
+  confirmFn?: (message: string) => Promise<boolean>;
+}
+
+export async function runRemoveToken(options: RemoveTokenOptions): Promise<void> {
+  const flagCount = [options.host, options.repo, options.legacy].filter((v) => v !== undefined).length;
+  if (flagCount !== 1) {
+    throw new Error(
+      'Pass exactly one of --host, --repo, or --legacy. They are mutually exclusive.',
+    );
+  }
+
+  let key: string;
+  if (options.legacy) {
+    if (options.legacy !== 'gitlab' && options.legacy !== 'github') {
+      throw new Error(`--legacy must be either "gitlab" or "github", got "${options.legacy}"`);
+    }
+    key = options.legacy;
+  } else if (options.repo) {
+    const stripped = options.repo.replace(/^[a-z]+:\/\//i, '');
+    const slashIdx = stripped.indexOf('/');
+    if (slashIdx === -1) {
+      throw new Error(`--repo expects "<host>/<path>", got "${options.repo}"`);
+    }
+    const hostPart = stripped.slice(0, slashIdx);
+    const pathPart = stripped.slice(slashIdx + 1);
+    key = deriveRepoKey(deriveHost(hostPart), pathPart);
+  } else {
+    key = deriveHost(options.host!);
+  }
+
+  // Pre-check: surface "file missing entirely" with a clearer message
+  // before the confirm prompt. removeEntry would otherwise just return false
+  // and the user would see "No entry found" instead.
+  const credPath = join(homedir(), '.releasejet', 'credentials.yml');
+  try {
+    await access(credPath);
+  } catch {
+    throw new Error(
+      `No credentials file at ${credPath} — nothing to remove.`,
+    );
+  }
+
+  // Confirm unless --yes.
+  if (!options.yes) {
+    const confirmFn = options.confirmFn ?? ((message) => confirm({ message, default: false }));
+    const ok = await confirmFn(`Remove token for "${key}"?`);
+    if (!ok) {
+      console.log('Aborted. No changes were made.');
+      return;
+    }
+  }
+
+  const removed = await removeEntry(key);
+  if (!removed) {
+    throw new Error(`No entry found for "${key}".`);
+  }
+  console.log(`Removed token for "${key}".`);
+}
+
+export interface ShowTokenOptions {
+  repoArg?: string;
+  showTokens?: boolean;
+  loadConfigFn?: typeof loadConfig;
+  gitRemoteFn?: () => string;
+}
+
+function parseRepoArg(arg: string): { host: string; projectPath: string } {
+  const stripped = arg.replace(/^[a-z]+:\/\//i, '');
+  const slashIdx = stripped.indexOf('/');
+  if (slashIdx === -1) {
+    return { host: deriveHost(stripped), projectPath: '' };
+  }
+  return {
+    host: deriveHost(stripped.slice(0, slashIdx)),
+    projectPath: stripped.slice(slashIdx + 1),
+  };
+}
+
+function describeStep(step: ChainStep): string {
+  switch (step.source) {
+    case 'env-universal': return `env RELEASEJET_TOKEN`;
+    case 'env-provider':  return `env ${step.key}`;
+    case 'repo':          return `credentials.yml [${step.key ?? '<no-repo>'}]`;
+    case 'host':          return `credentials.yml [${step.key ?? '<no-host>'}]`;
+    case 'legacy':        return `credentials.yml [${step.key}]`;
+    case 'legacy-file':   return `~/.releasejet/credentials`;
+  }
+}
+
+function formatChain(steps: ChainStep[], showTokens: boolean): string[] {
+  const lines: string[] = [];
+  steps.forEach((step, idx) => {
+    const num = idx + 1;
+    const label = describeStep(step);
+    let status: string;
+    if (step.status === 'hit') {
+      const value = showTokens && step.value ? step.value : redactToken(step.value ?? '');
+      status = `match (${value})  ← used`;
+    } else if (step.status === 'skipped') {
+      status = step.source === 'legacy' ? '(skipped, host matched)' : '(skipped)';
+    } else {
+      status = step.source === 'env-universal' || step.source === 'env-provider'
+        ? 'not set'
+        : 'not present';
+    }
+    lines.push(`  ${num}. ${label.padEnd(45, ' ')} — ${status}`);
+  });
+  return lines;
+}
+
+export async function runShowToken(options: ShowTokenOptions): Promise<void> {
+  let host: string;
+  let projectPath: string;
+  let providerType: 'gitlab' | 'github';
+
+  if (options.repoArg) {
+    const parsed = parseRepoArg(options.repoArg);
+    host = parsed.host;
+    projectPath = parsed.projectPath;
+    providerType = host.includes('github') ? 'github' : 'gitlab';
+  } else {
+    const loader = options.loadConfigFn ?? loadConfig;
+    const config = await loader();
+    if (!config?.provider?.url) {
+      throw new Error(
+        'Could not auto-detect host. Run from a repo with .releasejet.yml configured, or pass <repo> explicitly.',
+      );
+    }
+    host = deriveHost(config.provider.url);
+    providerType = config.provider.type === 'github' ? 'github' : 'gitlab';
+
+    // Try to derive projectPath from git remote so the chain reflects what `generate` would resolve.
+    const getRemote = options.gitRemoteFn ?? getRemoteUrl;
+    try {
+      const remoteUrl = getRemote();
+      projectPath = resolveProjectPath(remoteUrl);
+    } catch {
+      // No git remote — fall back to host-only diagnosis.
+      projectPath = '';
+    }
+  }
+
+  const display = projectPath ? `${host}/${projectPath}` : host;
+  const chain = await resolveTokenChain(providerType, host, projectPath);
+
+  console.log(`Resolving token for ${display}`);
+  console.log('');
+  for (const line of formatChain(chain, options.showTokens === true)) {
+    console.log(line);
+  }
+
+  const winner = chain.find((s) => s.status === 'hit');
+  if (!winner) {
+    console.log('');
+    console.log('No token resolved. Run `releasejet auth set-token` to configure.');
+  }
+}
+
+export interface MigrateTokensOptions {
+  promptHosts?: (legacyKey: string, suggestions: string[]) => Promise<string>;
+  promptOverwrite?: (host: string) => Promise<boolean>;
+  promptDeleteLegacy?: (legacyKey: string) => Promise<boolean>;
+}
+
+const LEGACY_PROVIDER_ORDER: Array<'gitlab' | 'github'> = ['gitlab', 'github'];
+
+function hostBelongsTo(host: string, provider: 'gitlab' | 'github'): boolean {
+  return host.toLowerCase().includes(provider);
+}
+
+export async function runMigrateTokens(options: MigrateTokensOptions): Promise<void> {
+  const { entries } = await readEntries();
+  const legacyEntries = entries.filter((e) => e.kind === 'legacy');
+  if (legacyEntries.length === 0) {
+    console.log('No legacy entries to migrate.');
+    return;
+  }
+
+  const promptHosts = options.promptHosts ?? (async (legacyKey: string, suggestions: string[]) => {
+    const hint = suggestions.length > 0
+      ? `Suggestions: ${suggestions.join(', ')}`
+      : '(no existing host entries detected)';
+    console.log(hint);
+    return input({
+      message: `Copy '${legacyKey}' token to which hosts? (comma-separated, or empty to skip)`,
+      default: suggestions.join(', '),
+    });
+  });
+
+  const promptOverwrite: (host: string) => Promise<boolean> = options.promptOverwrite
+    ?? ((host: string) => confirm({ message: `${host} already has a token. Overwrite?`, default: false }));
+
+  const promptDeleteLegacy: (legacyKey: string) => Promise<boolean> = options.promptDeleteLegacy
+    ?? ((legacyKey: string) => confirm({ message: `Delete legacy '${legacyKey}' entry now?`, default: false }));
+
+  const visited: Array<{ key: 'gitlab' | 'github'; copied: string[]; skipped: string[] }> = [];
+
+  for (const provider of LEGACY_PROVIDER_ORDER) {
+    const legacy = legacyEntries.find((e) => e.key === provider);
+    if (!legacy) continue;
+
+    const suggestions = entries
+      .filter((e) => e.kind === 'host' && hostBelongsTo(e.key, provider))
+      .map((e) => e.key);
+
+    console.log('');
+    console.log(`Processing legacy '${provider}' entry…`);
+    const raw = (await promptHosts(provider, suggestions)).trim();
+    if (!raw) {
+      console.log(`Skipped '${provider}'.`);
+      visited.push({ key: provider, copied: [], skipped: [] });
+      continue;
+    }
+
+    const targetHosts = raw.split(',').map((h) => h.trim()).filter(Boolean).map((h) => deriveHost(h));
+    const copied: string[] = [];
+    const skipped: string[] = [];
+
+    // Re-read entries each iteration to reflect prior writes within the same migration run.
+    let currentEntries = (await readEntries()).entries;
+
+    for (const target of targetHosts) {
+      const conflict = currentEntries.find((e) => e.key === target);
+      if (conflict) {
+        const overwrite = await promptOverwrite(target);
+        if (!overwrite) {
+          skipped.push(target);
+          continue;
+        }
+      }
+      await writeEntry(target, legacy.token);
+      copied.push(target);
+      currentEntries = (await readEntries()).entries;
+    }
+
+    if (copied.length > 0) console.log(`Copied to: ${copied.join(', ')}`);
+    if (skipped.length > 0) console.log(`Skipped (kept existing): ${skipped.join(', ')}`);
+
+    visited.push({ key: provider, copied, skipped });
+  }
+
+  console.log('');
+  for (const v of visited) {
+    if (v.copied.length === 0) continue;
+    const ok = await promptDeleteLegacy(v.key);
+    if (ok) {
+      await removeEntry(v.key);
+      console.log(`Deleted legacy '${v.key}' entry.`);
+    } else {
+      console.log(`Kept legacy '${v.key}' entry.`);
+    }
+  }
+
+  console.log('');
+  console.log('Migration complete.');
+}
+
 export function registerAuthCommand(program: Command): void {
   const auth = program
     .command('auth')
@@ -410,5 +719,44 @@ export function registerAuthCommand(program: Command): void {
     .option('--repo <repo>', 'Repo path to store the token under (e.g. gitlab.com/myorg/api)')
     .action(withErrorHandler(async (opts: { host?: string; repo?: string }) => {
       await runSetToken({ host: opts.host, repo: opts.repo });
+    }));
+
+  auth
+    .command('list-tokens')
+    .description('List stored provider tokens (masked by default)')
+    .option('--show-tokens', 'Reveal raw tokens instead of masks')
+    .action(withErrorHandler(async (opts: { showTokens?: boolean }) => {
+      await runListTokens({ showTokens: opts.showTokens });
+    }));
+
+  auth
+    .command('remove-token')
+    .description('Remove a token entry by host, repo, or legacy provider key')
+    .option('--host <host>', 'Host key to remove (e.g. gitlab.com)')
+    .option('--repo <repo>', 'Repo key to remove (e.g. gitlab.com/myorg/api)')
+    .option('--legacy <provider>', 'Legacy provider-type key to remove ("gitlab" or "github")')
+    .option('-y, --yes', 'Skip confirmation prompt')
+    .action(withErrorHandler(async (opts: { host?: string; repo?: string; legacy?: string; yes?: boolean }) => {
+      await runRemoveToken({
+        host: opts.host,
+        repo: opts.repo,
+        legacy: opts.legacy as 'gitlab' | 'github' | undefined,
+        yes: opts.yes,
+      });
+    }));
+
+  auth
+    .command('show-token [repo]')
+    .description('Show the lookup chain for a repo (auto-detects from .releasejet.yml when omitted)')
+    .option('--show-tokens', 'Reveal the resolved token instead of masking it')
+    .action(withErrorHandler(async (repoArg: string | undefined, opts: { showTokens?: boolean }) => {
+      await runShowToken({ repoArg, showTokens: opts.showTokens });
+    }));
+
+  auth
+    .command('migrate-tokens')
+    .description('Interactive walkthrough to move legacy gitlab/github keys into host keys')
+    .action(withErrorHandler(async () => {
+      await runMigrateTokens({});
     }));
 }
