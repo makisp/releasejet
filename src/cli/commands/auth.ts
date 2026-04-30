@@ -402,4 +402,13 @@ export function registerAuthCommand(program: Command): void {
     .action(withErrorHandler(async () => {
       await runDeactivate();
     }));
+
+  auth
+    .command('set-token')
+    .description('Store a provider API token under a host or repo key in ~/.releasejet/credentials.yml')
+    .option('--host <host>', 'Host to store the token under (e.g. gitlab.com or https://gitlab.com)')
+    .option('--repo <repo>', 'Repo path to store the token under (e.g. gitlab.com/myorg/api)')
+    .action(withErrorHandler(async (opts: { host?: string; repo?: string }) => {
+      await runSetToken({ host: opts.host, repo: opts.repo });
+    }));
 }
