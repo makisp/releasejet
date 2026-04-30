@@ -108,7 +108,7 @@ export async function runGenerate(options: {
   debug('Host URL:', hostUrl);
   debug('Project path:', projectPath);
 
-  const token = await resolveToken(config.provider.type);
+  const token = await resolveToken(config.provider.type, hostUrl, projectPath);
   const client = createClient(config, token);
 
   const currentParsed = parseTag(options.tag, config.tagFormat);
