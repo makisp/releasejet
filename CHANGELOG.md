@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.16.0] - 2026-04-30
+
+### Added
+
+- **auth:** Host-scoped credentials in `~/.releasejet/credentials.yml` (F12). The file is now keyed by host (e.g. `gitlab.com:`, `company.gitlab.com:`) with optional per-repo overrides (`gitlab.com/myorg/api:`). Multiple hosts of the same provider type can coexist without overwriting each other.
+- **auth:** New `releasejet auth set-token` subcommand to store a token under a host (`--host`) or per-repo (`--repo`) without re-running the full `init` flow.
+
+### Compatibility
+
+- Legacy `gitlab:` / `github:` entries continue to work as a wildcard fallback for any host that doesn't have an explicit host entry. No file migration is required.
+
 ## [1.15.0] - 2026-04-29
 
 ### Changed
