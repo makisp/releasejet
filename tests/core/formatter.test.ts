@@ -489,3 +489,72 @@ describe('formatReleaseNotes — description rendering (F4)', () => {
     expect(result).toMatchSnapshot();
   });
 });
+
+describe('formatReleaseNotes — jira ticket linking (F3)', () => {
+  const baseConfig: ReleaseJetConfig = {
+    provider: { type: 'github', url: 'https://github.com' },
+    source: 'issues',
+    clients: [],
+    categories: { feature: 'New Features', bug: 'Bug Fixes' },
+    uncategorized: 'lenient',
+    jira: { baseUrl: 'https://acme.atlassian.net', projects: ['PROJ', 'BUG'] },
+  };
+
+  function makeData(): ReleaseNotesData {
+    return {
+      tagName: 'v1.0.0',
+      version: '1.0.0',
+      clientPrefix: null,
+      date: '2026-04-30',
+      milestone: null,
+      projectUrl: 'https://github.example.com/owner/app',
+      issues: {
+        categorized: {
+          'New Features': [
+            {
+              number: 101, title: 'Add dark mode', labels: ['feature'],
+              closedAt: '', webUrl: '', milestone: null, author: null,
+              assignee: null, closedBy: null,
+              jiraTickets: ['PROJ-1'],
+            },
+            {
+              number: 102, title: 'Export as PDF', labels: ['feature'],
+              closedAt: '', webUrl: '', milestone: null, author: null,
+              assignee: null, closedBy: null,
+              jiraTickets: ['PROJ-2', 'BUG-9'],
+            },
+            {
+              number: 103, title: 'No tickets here', labels: ['feature'],
+              closedAt: '', webUrl: '', milestone: null, author: null,
+              assignee: null, closedBy: null,
+            },
+          ],
+        },
+        uncategorized: [
+          {
+            number: 180, title: 'Bump deps', labels: [],
+            closedAt: '', webUrl: '', milestone: null, author: null,
+            assignee: null, closedBy: null,
+            jiraTickets: ['BUG-42'],
+          },
+        ],
+      },
+      totalCount: 4,
+      uncategorizedCount: 1,
+      contributors: [],
+    };
+  }
+
+  it('renders single, multiple, and absent jira links', () => {
+    const result = formatReleaseNotes(makeData(), baseConfig);
+    expect(result).toMatchSnapshot();
+  });
+
+  it('coexists with description: extract sub-bullets', () => {
+    const data = makeData();
+    data.issues.categorized['New Features'][0].description = 'Adds dark mode toggle.';
+    const cfg = { ...baseConfig, description: 'extract' as const };
+    const result = formatReleaseNotes(data, cfg);
+    expect(result).toMatchSnapshot();
+  });
+});

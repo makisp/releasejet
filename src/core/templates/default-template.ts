@@ -10,7 +10,7 @@ export const defaultTemplate = `## {{title}}
 {{#each categoryEntries}}
 #### {{this.heading}}
 {{#each this.issues}}
-- {{this.title}} (#{{this.number}})
+- {{this.title}} (#{{this.number}}){{#if this.jiraLinks}} — {{#each this.jiraLinks}}[{{this.id}}]({{this.url}}){{#unless @last}} {{/unless}}{{/each}}{{/if}}
 {{#if this.description}}  - {{this.description}}
 {{/if}}
 {{/each}}
@@ -19,7 +19,7 @@ export const defaultTemplate = `## {{title}}
 {{#if showUncategorized}}
 #### Other
 {{#each uncategorizedEntries}}
-- {{this.title}} (#{{this.number}})
+- {{this.title}} (#{{this.number}}){{#if this.jiraLinks}} — {{#each this.jiraLinks}}[{{this.id}}]({{this.url}}){{#unless @last}} {{/unless}}{{/each}}{{/if}}
 {{#if this.description}}  - {{this.description}}
 {{/if}}
 {{/each}}
