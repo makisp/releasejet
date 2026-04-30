@@ -97,6 +97,18 @@ describe('resolveToken', () => {
     expect(await resolveToken('gitlab', GL, PATH)).toBe('gl-com-new');
   });
 
+  // Step 5 — wildcard still fires for a third host when a different host has an explicit entry
+  it('legacy key fires for a third host even when another host has an explicit entry', async () => {
+    vi.mocked(readFile).mockImplementation(async (p: any) => {
+      if (String(p).endsWith('credentials.yml')) {
+        return 'gitlab: legacy-wildcard\ngitlab.com: gl-com-token\n' as any;
+      }
+      throw Object.assign(new Error('ENOENT'), { code: 'ENOENT' });
+    });
+    expect(await resolveToken('gitlab', 'https://company.gitlab.com', 'team/repo'))
+      .toBe('legacy-wildcard');
+  });
+
   // Step 6 — bare-text legacy file
   it('falls back to bare-text legacy credentials file when YAML is absent', async () => {
     vi.mocked(readFile).mockImplementation(async (p: any) => {
