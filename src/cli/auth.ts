@@ -35,6 +35,14 @@ export function deriveHost(hostUrl: string): string {
   return result.toLowerCase();
 }
 
+export function deriveRepoKey(host: string, projectPath: string): string {
+  const path = (projectPath ?? '').trim().replace(/^\/+|\/+$/g, '');
+  if (!path) {
+    throw new Error(`Cannot derive repo key from empty project path`);
+  }
+  return `${host}/${path}`.toLowerCase();
+}
+
 export async function resolveToken(providerType: 'gitlab' | 'github'): Promise<string> {
   // 1. Universal env var
   const envToken = process.env.RELEASEJET_TOKEN;

@@ -62,7 +62,7 @@ describe('resolveToken', () => {
   });
 });
 
-import { deriveHost } from '../../src/cli/auth.js';
+import { deriveHost, deriveRepoKey } from '../../src/cli/auth.js';
 
 describe('deriveHost', () => {
   it('strips protocol and trailing slash, lowercases', () => {
@@ -86,5 +86,30 @@ describe('deriveHost', () => {
   it('throws on empty or malformed input', () => {
     expect(() => deriveHost('')).toThrow(/empty|invalid/i);
     expect(() => deriveHost('   ')).toThrow(/empty|invalid/i);
+  });
+});
+
+describe('deriveRepoKey', () => {
+  it('joins host and project path', () => {
+    expect(deriveRepoKey('gitlab.com', 'myorg/api')).toBe('gitlab.com/myorg/api');
+  });
+
+  it('preserves subgroup paths verbatim', () => {
+    expect(deriveRepoKey('gitlab.com', 'group/sub/project')).toBe('gitlab.com/group/sub/project');
+  });
+
+  it('strips leading and trailing slashes from path', () => {
+    expect(deriveRepoKey('gitlab.com', '/myorg/api')).toBe('gitlab.com/myorg/api');
+    expect(deriveRepoKey('gitlab.com', 'myorg/api/')).toBe('gitlab.com/myorg/api');
+    expect(deriveRepoKey('gitlab.com', '/myorg/api/')).toBe('gitlab.com/myorg/api');
+  });
+
+  it('lowercases both host and path', () => {
+    expect(deriveRepoKey('GitLab.COM', 'MyOrg/Api')).toBe('gitlab.com/myorg/api');
+  });
+
+  it('throws on empty path', () => {
+    expect(() => deriveRepoKey('gitlab.com', '')).toThrow(/empty/i);
+    expect(() => deriveRepoKey('gitlab.com', '   ')).toThrow(/empty/i);
   });
 });
