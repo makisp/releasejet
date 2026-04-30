@@ -94,8 +94,14 @@ export async function resolveToken(
     if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
       yamlEntries = parsed as Record<string, unknown>;
     }
-  } catch {
-    // File missing — try legacy bare-text below.
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code !== 'ENOENT') {
+      throw new Error(
+        `Could not read credentials at ${credPath}: ${(err as Error).message}. ` +
+        `Fix or remove the file and try again.`,
+      );
+    }
+    // ENOENT — file does not exist, try legacy bare-text below.
   }
 
   if (yamlEntries) {

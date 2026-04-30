@@ -131,6 +131,31 @@ describe('resolveToken', () => {
     await expect(resolveToken('github', GH, PATH)).rejects.toThrow(/RELEASEJET_TOKEN/);
     await expect(resolveToken('github', GH, PATH)).rejects.toThrow(/auth set-token/);
   });
+
+  it('skips repo key when projectPath is empty', async () => {
+    vi.mocked(readFile).mockImplementation(async (p: any) => {
+      if (String(p).endsWith('credentials.yml')) {
+        return 'gitlab.com: host-token\n' as any;
+      }
+      throw Object.assign(new Error('ENOENT'), { code: 'ENOENT' });
+    });
+    expect(await resolveToken('gitlab', GL, '')).toBe('host-token');
+  });
+
+  it('error message uses placeholder when projectPath is empty', async () => {
+    vi.mocked(readFile).mockRejectedValue(Object.assign(new Error('ENOENT'), { code: 'ENOENT' }));
+    await expect(resolveToken('github', GH, '')).rejects.toThrow(/github\.com\/<projectPath>/);
+  });
+
+  it('throws a clear error when credentials.yml exists but is unreadable', async () => {
+    vi.mocked(readFile).mockImplementation(async (p: any) => {
+      if (String(p).endsWith('credentials.yml')) {
+        throw Object.assign(new Error('permission denied'), { code: 'EACCES' });
+      }
+      throw Object.assign(new Error('ENOENT'), { code: 'ENOENT' });
+    });
+    await expect(resolveToken('gitlab', GL, PATH)).rejects.toThrow(/Could not read credentials/);
+  });
 });
 
 import { deriveHost, deriveRepoKey } from '../../src/cli/auth.js';
