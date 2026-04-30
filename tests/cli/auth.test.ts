@@ -176,4 +176,15 @@ describe('writeTokenToCredentials', () => {
     expect(written).toContain('gitlab.com: glpat-new');
     expect(written).not.toContain('GitLab.COM');
   });
+
+  it('refuses to overwrite when credentials.yml exists but is unreadable (non-ENOENT)', async () => {
+    vi.mocked(readFile).mockRejectedValue(
+      Object.assign(new Error('permission denied'), { code: 'EACCES' }),
+    );
+
+    await expect(writeTokenToCredentials('gitlab.com', 'glpat-new')).rejects.toThrow(
+      /Refusing to overwrite|data loss/,
+    );
+    expect(writeFile).not.toHaveBeenCalled();
+  });
 });

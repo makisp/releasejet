@@ -55,8 +55,14 @@ export async function writeTokenToCredentials(key: string, token: string): Promi
     if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
       existing = parsed as Record<string, unknown>;
     }
-  } catch {
-    // File missing or unreadable — start fresh.
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code !== 'ENOENT') {
+      throw new Error(
+        `Could not read existing credentials at ${credPath}: ${(err as Error).message}. ` +
+          `Refusing to overwrite to avoid data loss. Fix or remove the file and try again.`,
+      );
+    }
+    // ENOENT — file does not exist, start fresh.
   }
 
   existing[key.toLowerCase()] = token;
