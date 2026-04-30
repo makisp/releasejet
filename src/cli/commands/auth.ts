@@ -19,6 +19,7 @@ import {
 } from '../../core/ci.js';
 import { loadConfig } from '../../core/config.js';
 import { deriveHost, deriveRepoKey, writeTokenToCredentials } from '../auth.js';
+import { readEntries, redactToken } from '../credentials-store.js';
 import { withErrorHandler } from '../error-handler.js';
 
 const LICENSE_API_URL =
@@ -370,6 +371,51 @@ export async function runSetToken(options: SetTokenOptions): Promise<void> {
   console.log(`✓ Token stored in ${credPath} under "${key}"`);
 }
 
+export interface ListTokensOptions {
+  showTokens?: boolean;
+}
+
+export async function runListTokens(options: ListTokensOptions): Promise<void> {
+  const { entries, malformed } = await readEntries();
+
+  if (entries.length === 0) {
+    console.log('No tokens stored.');
+    if (malformed.length > 0) {
+      console.error(`\n${malformed.length} entr${malformed.length === 1 ? 'y' : 'ies'} skipped (non-string values): ${malformed.join(', ')}`);
+    }
+    return;
+  }
+
+  const groups: Record<'host' | 'repo' | 'legacy', typeof entries> = { host: [], repo: [], legacy: [] };
+  for (const e of entries) groups[e.kind].push(e);
+
+  const render = (token: string): string => options.showTokens ? token : redactToken(token);
+  const PAD = (s: string, w: number): string => s.padEnd(w, ' ');
+
+  const sections: Array<[string, typeof entries, string?]> = [
+    ['Host', groups.host],
+    ['Repo', groups.repo],
+    ['Legacy', groups.legacy, '(deprecated — run `releasejet auth migrate-tokens`)'],
+  ];
+
+  let first = true;
+  for (const [label, list, suffix] of sections) {
+    if (list.length === 0) continue;
+    if (!first) console.log('');
+    first = false;
+    console.log(`${label} entries (${list.length}):`);
+    const width = Math.max(...list.map((e) => e.key.length));
+    for (const e of list) {
+      const line = `  ${PAD(e.key, width)}  ${render(e.token)}`;
+      console.log(suffix ? `${line}  ${suffix}` : line);
+    }
+  }
+
+  if (malformed.length > 0) {
+    console.error(`\n${malformed.length} entr${malformed.length === 1 ? 'y' : 'ies'} skipped (non-string values): ${malformed.join(', ')}`);
+  }
+}
+
 export function registerAuthCommand(program: Command): void {
   const auth = program
     .command('auth')
@@ -410,5 +456,13 @@ export function registerAuthCommand(program: Command): void {
     .option('--repo <repo>', 'Repo path to store the token under (e.g. gitlab.com/myorg/api)')
     .action(withErrorHandler(async (opts: { host?: string; repo?: string }) => {
       await runSetToken({ host: opts.host, repo: opts.repo });
+    }));
+
+  auth
+    .command('list-tokens')
+    .description('List stored provider tokens (masked by default)')
+    .option('--show-tokens', 'Reveal raw tokens instead of masks')
+    .action(withErrorHandler(async (opts: { showTokens?: boolean }) => {
+      await runListTokens({ showTokens: opts.showTokens });
     }));
 }
