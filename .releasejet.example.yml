@@ -69,14 +69,27 @@ template: default
 # Supported types: slack, discord, teams (Power Automate workflow URL; legacy
 # Office 365 connectors are deprecated).
 #
+# Each entry can optionally include a Handlebars `template` to override the
+# default Pro message body. Templates are platform-native — write Slack mrkdwn
+# for Slack, Discord markdown for Discord, basic markdown for Teams. Handlebars
+# {{...}} syntax and literal ${...} are both preserved verbatim (no env-var
+# expansion runs on `template`). See README "Custom notification templates".
+#
 # notifications:
 #   - type: slack
 #     enabled: true
 #     webhookUrl: ${SLACK_WEBHOOK_URL}
+#     template: |
+#       :rocket: *{{projectName}}* {{title}} is out
+#       {{#if hasBreaking}}<!channel> :warning: Breaking changes in this release{{/if}}
+#       • Features: {{categoryCount "New Features"}}
+#       • Fixes: {{categoryCount "Bug Fixes"}}
+#       <{{releaseUrl}}|See full release notes>
 #
 #   - type: discord
 #     enabled: false
 #     webhookUrl: ${DISCORD_WEBHOOK_URL}
+#     # template omitted — uses the default Pro M2 Discord message.
 #
 #   - type: teams
 #     enabled: false
