@@ -12,6 +12,9 @@ export interface NotificationChannelConfig {
   type: 'slack' | 'discord' | 'teams';
   enabled: boolean;
   webhookUrl: string;
+  /** Optional Handlebars template for this channel's message body.
+   *  When omitted or empty, the default Pro M2 message is used. */
+  template?: string;
 }
 
 export interface JiraConfig {

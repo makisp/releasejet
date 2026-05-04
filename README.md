@@ -21,6 +21,7 @@ Collects labeled issues (or merged pull requests) between Git tags, categorizes 
 - Configurable categories — map labels to sections
 - Issue/PR description extraction — render the first paragraph beneath each title
 - Jira ticket linking — inline links to PROJ-123 IDs detected in titles/bodies, no API calls
+- Custom notification templates (Pro) — per-channel Handlebars overrides for Slack/Discord/Teams bodies
 - CI/CD integration — GitLab CI and GitHub Actions
 - Strict/lenient modes, milestone detection, contributors section
 
@@ -94,6 +95,39 @@ Output line:
 `baseUrl` accepts `${ENV_VAR}` references for self-hosted Jira instances.
 `projects` is a required allowlist that prevents false positives like
 `HTTP-2` or `IPV-6`.
+
+### Custom notification templates (Pro, M2a)
+
+Each `notifications[*]` entry accepts an optional inline Handlebars `template`. When set, the rendered string replaces the default message body for that channel; everything else (project-name lead-line, headline, action button) is unchanged.
+
+Templates are **platform-native**: write Slack mrkdwn for Slack, Discord markdown for Discord, basic markdown for Teams. Handlebars `{{...}}` syntax is preserved verbatim, and literal `${...}` survives the config loader (env-var expansion is skipped for this field).
+
+```yaml
+notifications:
+  - type: slack
+    enabled: true
+    webhookUrl: ${SLACK_WEBHOOK_URL}
+    template: |
+      :rocket: *{{projectName}}* {{title}} is out
+      {{#if hasBreaking}}<!channel> :warning: Breaking changes in this release{{/if}}
+      • Features: {{categoryCount "New Features"}}
+      • Fixes: {{categoryCount "Bug Fixes"}}
+      <{{releaseUrl}}|See full release notes>
+```
+
+Available variables: `projectName`, `projectUrl`, `releaseUrl`, `tagName`, `title`, `version`, `clientPrefix`, `date`, `channelType`, `totalCount`, `uncategorizedCount`, `categoryCounts`, `hasBreaking`, `hasContributors`, `milestone`, `contributors`, `categories`.
+
+Helpers shipped: `categoryCount "Heading"`, `truncate value 80`, `pluralize n "issue" "issues"`. Standard Handlebars helpers (`if`, `unless`, `each`, `with`, `lookup`) are available.
+
+**Failure modes.** A template that fails to compile (syntax error) aborts `generate` with a channel-named error. A template that fails to render at publish time (helper throws or returns empty) logs a warning and falls back to the default M2 message for that channel only — other channels are unaffected.
+
+`releasejet validate` includes a syntax-only check per channel:
+
+```
+[notifications]
+  slack    enabled  webhook OK    template OK
+  teams    enabled  webhook OK    template ERROR — Parse error on line 3
+```
 
 ## CI/CD
 

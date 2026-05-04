@@ -13,6 +13,7 @@ import type { Issue } from '../../types.js';
 import { validateTag } from '../../core/tag-parser.js';
 import type { TagValidationResult } from '../../core/tag-parser.js';
 import { deriveProjectName } from '../../core/project-name.js';
+import { validateNotificationTemplateSyntax } from '../../core/notification-template-validator.js';
 import ora from 'ora';
 
 export function registerValidateCommand(program: Command): void {
@@ -222,10 +223,21 @@ export async function runValidate(options: {
     for (let i = 0; i < channels.length; i++) {
       const ch = channels[i];
       const stateLabel = ch.enabled ? 'enabled' : 'disabled';
+
+      let templateSuffix = '';
+      if (typeof ch.template === 'string' && ch.template !== '') {
+        const r = validateNotificationTemplateSyntax(ch.template);
+        templateSuffix = r.ok
+          ? '    template OK'
+          : `    template ERROR \u2014 ${r.error}`;
+      }
+
       if (ch.enabled && ch.webhookUrl === '') {
-        console.log(`  \u26a0 notifications[${i}] ${ch.type} (${stateLabel}) \u2014 webhookUrl is empty (env var unset?); this channel will be silently skipped at publish time.`);
+        console.log(
+          `  \u26a0 notifications[${i}] ${ch.type} (${stateLabel}) \u2014 webhookUrl is empty (env var unset?); this channel will be silently skipped at publish time.${templateSuffix}`,
+        );
       } else {
-        console.log(`  \u2713 notifications[${i}] ${ch.type} (${stateLabel})`);
+        console.log(`  \u2713 notifications[${i}] ${ch.type} (${stateLabel})${templateSuffix}`);
       }
     }
   }

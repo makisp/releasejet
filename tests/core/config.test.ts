@@ -400,6 +400,44 @@ notifications:
 ` as never);
       await expect(loadConfig()).rejects.toThrowError(/Legacy connectors are being deprecated/);
     });
+
+    it('preserves literal ${VAR} inside notifications[*].template (no expansion)', async () => {
+      process.env.RJTEST_TPL_VAR = 'should-not-be-substituted';
+      vi.mocked(readFile).mockResolvedValue(`
+provider:
+  type: gitlab
+  url: https://gitlab.example.com
+notifications:
+  - type: slack
+    enabled: true
+    webhookUrl: \${RJTEST_TPL_VAR}
+    template: |
+      Tag \${RJTEST_TPL_VAR} {{tagName}}
+` as never);
+      const config = await loadConfig();
+      // webhookUrl IS expanded as before:
+      expect(config.notifications?.[0]?.webhookUrl).toBe('should-not-be-substituted');
+      // template is NOT expanded — literal ${...} survives, Handlebars {{...}} survives:
+      expect(config.notifications?.[0]?.template).toContain('${RJTEST_TPL_VAR}');
+      expect(config.notifications?.[0]?.template).toContain('{{tagName}}');
+    });
+
+    it('preserves Handlebars syntax verbatim (no env-var pattern match)', async () => {
+      vi.mocked(readFile).mockResolvedValue(`
+provider:
+  type: gitlab
+  url: https://gitlab.example.com
+notifications:
+  - type: slack
+    enabled: true
+    webhookUrl: \${SLACK_URL}
+    template: |
+      {{#if hasBreaking}}<!channel>{{/if}} {{categoryCount "New Features"}}
+` as never);
+      const config = await loadConfig();
+      expect(config.notifications?.[0]?.template).toContain('{{#if hasBreaking}}');
+      expect(config.notifications?.[0]?.template).toContain('{{categoryCount "New Features"}}');
+    });
   });
 
   it('parses a valid jira block', async () => {

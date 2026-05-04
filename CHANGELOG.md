@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.18.1] - 2026-05-04
+
+### Added
+
+- **M2a — Custom notification templates (Pro pre-req).** Optional `template` field on each `notifications[*]` entry. Core changes: schema accepts the field, env-var expansion is skipped for `notifications[*].template` so Handlebars `{{...}}` and literal `${...}` round-trip cleanly, and `releasejet validate` runs a syntax-only Handlebars compile per configured template (`template OK` / `template ERROR — <message>` next to each channel row). Render is owned by `@releasejet/pro` 1.5.0 and above.
+
+### Notes
+
+- No behaviour change for configs without `notifications[*].template`.
+- Plugin API version stays `1`; no payload or hook changes.
+
 ## [1.18.0] - 2026-04-30
 
 ### Added

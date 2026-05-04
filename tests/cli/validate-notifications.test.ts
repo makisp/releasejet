@@ -165,3 +165,63 @@ describe('validate — projectName reporting', () => {
     expect(out).toMatch(/^Project:\s+\(unset\)$/m);
   });
 });
+
+describe('validate — notifications section, template column', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('appends "template OK" when a syntactically valid template is configured', async () => {
+    vi.mocked(loadConfig).mockResolvedValue({
+      ...baseConfig,
+      notifications: [
+        {
+          type: 'slack',
+          enabled: true,
+          webhookUrl: 'https://example.invalid/hook',
+          template: 'Hello {{tagName}}',
+        },
+      ],
+    });
+    const log = vi.spyOn(console, 'log').mockImplementation(() => {});
+    await runValidate({ config: '.releasejet.yml' });
+    const all = log.mock.calls.map((c) => c.join(' ')).join('\n');
+    expect(all).toMatch(/notifications\[0\] slack/);
+    expect(all).toMatch(/template OK/);
+    log.mockRestore();
+  });
+
+  it('appends "template ERROR — <message>" when the template fails to compile', async () => {
+    vi.mocked(loadConfig).mockResolvedValue({
+      ...baseConfig,
+      notifications: [
+        {
+          type: 'slack',
+          enabled: true,
+          webhookUrl: 'https://example.invalid/hook',
+          template: '{{#if foo}}never closed',
+        },
+      ],
+    });
+    const log = vi.spyOn(console, 'log').mockImplementation(() => {});
+    await runValidate({ config: '.releasejet.yml' });
+    const all = log.mock.calls.map((c) => c.join(' ')).join('\n');
+    expect(all).toMatch(/template ERROR/);
+    log.mockRestore();
+  });
+
+  it('omits the template column on rows with no template configured', async () => {
+    vi.mocked(loadConfig).mockResolvedValue({
+      ...baseConfig,
+      notifications: [
+        { type: 'slack', enabled: true, webhookUrl: 'https://example.invalid/hook' },
+      ],
+    });
+    const log = vi.spyOn(console, 'log').mockImplementation(() => {});
+    await runValidate({ config: '.releasejet.yml' });
+    const all = log.mock.calls.map((c) => c.join(' ')).join('\n');
+    expect(all).toMatch(/notifications\[0\] slack/);
+    expect(all).not.toMatch(/template OK|template ERROR/);
+    log.mockRestore();
+  });
+});
