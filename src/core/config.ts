@@ -46,10 +46,57 @@ export async function loadConfig(configPath = '.releasejet.yml'): Promise<Releas
   // `${SLACK_WEBHOOK_URL}` reference is not erroneously caught after expansion.
   assertNoLiteralWebhookUrls(raw);
 
+  // Detach `notifications[*].template` strings before env-var expansion so
+  // literal `${...}` and `{{...}}` round-trip untouched. Reattach afterwards.
+  const detachedTemplates = detachNotificationTemplates(raw);
+
   // Expand ${VAR} references across all string values. Unset vars → ''.
-  const expanded = expandEnvVars(raw);
+  const expanded = expandEnvVars(raw) as Record<string, unknown>;
+
+  reattachNotificationTemplates(expanded, detachedTemplates);
 
   return parseConfig(expanded);
+}
+
+/**
+ * Walks `raw.notifications` (when present and an array) and removes the
+ * `template` string from each entry, returning a sparse `(string | undefined)[]`
+ * keyed by index. Non-string `template` values are left in place so the
+ * downstream schema can reject them with a clear error.
+ */
+function detachNotificationTemplates(raw: unknown): Array<string | undefined> {
+  const captured: Array<string | undefined> = [];
+  if (!raw || typeof raw !== 'object') return captured;
+  const obj = raw as Record<string, unknown>;
+  const list = obj.notifications;
+  if (!Array.isArray(list)) return captured;
+  for (let i = 0; i < list.length; i++) {
+    const entry = list[i];
+    if (entry && typeof entry === 'object' && !Array.isArray(entry)) {
+      const e = entry as Record<string, unknown>;
+      if (typeof e.template === 'string') {
+        captured[i] = e.template;
+        delete e.template;
+      }
+    }
+  }
+  return captured;
+}
+
+function reattachNotificationTemplates(
+  expanded: Record<string, unknown>,
+  templates: Array<string | undefined>,
+): void {
+  if (templates.length === 0) return;
+  const list = expanded.notifications;
+  if (!Array.isArray(list)) return;
+  for (let i = 0; i < list.length; i++) {
+    if (templates[i] === undefined) continue;
+    const entry = list[i];
+    if (entry && typeof entry === 'object' && !Array.isArray(entry)) {
+      (entry as Record<string, unknown>).template = templates[i];
+    }
+  }
 }
 
 /**
