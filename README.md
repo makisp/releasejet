@@ -98,7 +98,7 @@ Output line:
 
 ### Custom notification templates (Pro, M2a)
 
-Each `notifications[*]` entry accepts an optional inline Handlebars `template`. When set, the rendered string replaces the default message body for that channel; everything else (project-name lead-line, headline, action button) is unchanged.
+Each `notifications[*]` entry accepts an optional inline Handlebars `template`. When set, the rendered string becomes the entire message body for that channel: Slack's `text` field, Discord's `content` field, or a `TextBlock` inside the Teams Adaptive Card. When omitted, the default Pro M2 message is used.
 
 Templates are **platform-native**: write Slack mrkdwn for Slack, Discord markdown for Discord, basic markdown for Teams. Handlebars `{{...}}` syntax is preserved verbatim, and literal `${...}` survives the config loader (env-var expansion is skipped for this field).
 
@@ -114,6 +114,8 @@ notifications:
       • Fixes: {{categoryCount "Bug Fixes"}}
       <{{releaseUrl}}|See full release notes>
 ```
+
+**Full guide & per-platform examples:** [releasejet.dev/docs/pro/notifications](https://releasejet.dev/docs/pro/notifications).
 
 Available variables: `projectName`, `projectUrl`, `releaseUrl`, `tagName`, `title`, `version`, `clientPrefix`, `date`, `channelType`, `totalCount`, `uncategorizedCount`, `categoryCounts`, `hasBreaking`, `hasContributors`, `milestone`, `contributors`, `categories`.
 
