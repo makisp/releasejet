@@ -54,6 +54,10 @@ const NotificationChannelSchema = z
     webhookUrl: z
       .string()
       .describe('Webhook URL. Must be an ${ENV_VAR} reference; literal URLs are rejected before this layer.'),
+    template: z
+      .string()
+      .optional()
+      .describe('Optional Handlebars template for the message body. Empty string treated as absent.'),
   })
   .describe('One notification channel entry.');
 
@@ -248,6 +252,11 @@ export function parseConfig(raw: unknown): ReleaseJetConfig {
       if (typeof n.webhookUrl !== 'string') {
         throw new Error(
           `Invalid config in .releasejet.yml\n\n  notifications[${i}].webhookUrl: expected a string.`,
+        );
+      }
+      if (n.template !== undefined && typeof n.template !== 'string') {
+        throw new Error(
+          `Invalid config in .releasejet.yml\n\n  notifications[${i}].template: expected a string.`,
         );
       }
     }

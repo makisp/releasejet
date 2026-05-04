@@ -235,3 +235,46 @@ describe('description config field', () => {
     expect(() => parseConfig({ description: 'summary' })).toThrow();
   });
 });
+
+describe('notifications.template field', () => {
+  it('accepts an optional template string on a channel entry', () => {
+    const cfg = parseConfig({
+      provider: { type: 'github', url: 'https://github.com' },
+      notifications: [
+        { type: 'slack', enabled: true, webhookUrl: '${SLACK}', template: 'Hello {{tagName}}' },
+      ],
+    });
+    expect(cfg.notifications?.[0]?.template).toBe('Hello {{tagName}}');
+  });
+
+  it('treats omitted template as undefined', () => {
+    const cfg = parseConfig({
+      provider: { type: 'github', url: 'https://github.com' },
+      notifications: [
+        { type: 'slack', enabled: true, webhookUrl: '${SLACK}' },
+      ],
+    });
+    expect(cfg.notifications?.[0]?.template).toBeUndefined();
+  });
+
+  it('accepts an empty-string template (treated as absent at render time)', () => {
+    const cfg = parseConfig({
+      provider: { type: 'github', url: 'https://github.com' },
+      notifications: [
+        { type: 'slack', enabled: true, webhookUrl: '${SLACK}', template: '' },
+      ],
+    });
+    expect(cfg.notifications?.[0]?.template).toBe('');
+  });
+
+  it('rejects a non-string template (number)', () => {
+    expect(() =>
+      parseConfig({
+        provider: { type: 'github', url: 'https://github.com' },
+        notifications: [
+          { type: 'slack', enabled: true, webhookUrl: '${SLACK}', template: 123 },
+        ],
+      }),
+    ).toThrowError(/notifications\[0\]\.template/);
+  });
+});
