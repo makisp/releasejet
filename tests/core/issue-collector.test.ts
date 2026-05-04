@@ -114,31 +114,48 @@ describe('collectIssues', () => {
   });
 
   it('filters issues by closedAt between previous and current tag', async () => {
-    vi.mocked(client.listIssues).mockResolvedValue([
-      { number:1, title: 'In range', labels: ['feature', 'MOBILE'], closedAt: '2026-03-15T00:00:00Z', webUrl: '', milestone: null, author: null, assignee: null, closedBy: null },
-      { number:2, title: 'Too old', labels: ['bug', 'MOBILE'], closedAt: '2026-02-15T00:00:00Z', webUrl: '', milestone: null, author: null, assignee: null, closedBy: null },
-      { number:3, title: 'Too new', labels: ['bug', 'MOBILE'], closedAt: '2026-05-01T00:00:00Z', webUrl: '', milestone: null, author: null, assignee: null, closedBy: null },
-    ]);
+    // Freeze "now" so the upper-bound fallback in collectIssues
+    // (next-same-prefix-tag.createdAt ?? new Date()) doesn't drift past the
+    // test's "Too new" date once real wall-clock time advances.
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-04-15T00:00:00Z'));
+    try {
+      vi.mocked(client.listIssues).mockResolvedValue([
+        { number:1, title: 'In range', labels: ['feature', 'MOBILE'], closedAt: '2026-03-15T00:00:00Z', webUrl: '', milestone: null, author: null, assignee: null, closedBy: null },
+        { number:2, title: 'Too old', labels: ['bug', 'MOBILE'], closedAt: '2026-02-15T00:00:00Z', webUrl: '', milestone: null, author: null, assignee: null, closedBy: null },
+        { number:3, title: 'Too new', labels: ['bug', 'MOBILE'], closedAt: '2026-05-01T00:00:00Z', webUrl: '', milestone: null, author: null, assignee: null, closedBy: null },
+      ]);
 
-    const result = await collectIssues(client, 'mobile/app', currentTag, previousTag, [previousTag, currentTag], config);
+      const result = await collectIssues(client, 'mobile/app', currentTag, previousTag, [previousTag, currentTag], config);
 
-    const allIssues = [...Object.values(result.categorized).flat(), ...result.uncategorized];
-    expect(allIssues).toHaveLength(1);
-    expect(allIssues[0].number).toBe(1);
+      const allIssues = [...Object.values(result.categorized).flat(), ...result.uncategorized];
+      expect(allIssues).toHaveLength(1);
+      expect(allIssues[0].number).toBe(1);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('includes issues closed before current tag when no previous tag', async () => {
-    vi.mocked(client.listIssues).mockResolvedValue([
-      { number:1, title: 'Old issue', labels: ['feature', 'MOBILE'], closedAt: '2026-01-01T00:00:00Z', webUrl: '', milestone: null, author: null, assignee: null, closedBy: null },
-      { number:2, title: 'Recent issue', labels: ['bug', 'MOBILE'], closedAt: '2026-04-07T00:00:00Z', webUrl: '', milestone: null, author: null, assignee: null, closedBy: null },
-      { number:3, title: 'Future issue', labels: ['bug', 'MOBILE'], closedAt: '2026-05-01T00:00:00Z', webUrl: '', milestone: null, author: null, assignee: null, closedBy: null },
-    ]);
+    // See note above: freeze "now" so the implicit upper-bound stays before
+    // the test's "Future issue" date.
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-04-15T00:00:00Z'));
+    try {
+      vi.mocked(client.listIssues).mockResolvedValue([
+        { number:1, title: 'Old issue', labels: ['feature', 'MOBILE'], closedAt: '2026-01-01T00:00:00Z', webUrl: '', milestone: null, author: null, assignee: null, closedBy: null },
+        { number:2, title: 'Recent issue', labels: ['bug', 'MOBILE'], closedAt: '2026-04-07T00:00:00Z', webUrl: '', milestone: null, author: null, assignee: null, closedBy: null },
+        { number:3, title: 'Future issue', labels: ['bug', 'MOBILE'], closedAt: '2026-05-01T00:00:00Z', webUrl: '', milestone: null, author: null, assignee: null, closedBy: null },
+      ]);
 
-    const result = await collectIssues(client, 'mobile/app', currentTag, null, [currentTag], config);
+      const result = await collectIssues(client, 'mobile/app', currentTag, null, [currentTag], config);
 
-    const allIssues = [...Object.values(result.categorized).flat(), ...result.uncategorized];
-    expect(allIssues).toHaveLength(2);
-    expect(allIssues.map(i => i.number)).toEqual([1, 2]);
+      const allIssues = [...Object.values(result.categorized).flat(), ...result.uncategorized];
+      expect(allIssues).toHaveLength(2);
+      expect(allIssues.map(i => i.number)).toEqual([1, 2]);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('assigns issue to first matching category when multiple match', async () => {
