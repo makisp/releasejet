@@ -18,21 +18,33 @@ export interface BeforeFormatPayload {
   config: Readonly<ReleaseJetConfig>;
 }
 
-export interface AfterPublishPayload {
+export interface AfterGeneratePayload {
   tagName: string;
-  releaseName: string;
+  /** Previous tag in the same stream, or null for the first release in that stream. */
+  previousTag: string | null;
   markdown: string;
   projectUrl: string;
+  /** Provider type — exposed so adapters can route without re-inspecting config. */
+  provider: 'gitlab' | 'github';
   /** Structured release-notes data (issues, counts, contributors, etc.). */
   data: ReleaseNotesData;
-  /** Provider-specific URL to the published release page. */
-  releaseUrl: string;
-  /** True when the user passed --no-notify; plugin should skip notifications. */
+  /** True when the user passed --no-notify; plugins should skip notification dispatch. */
   notifyDisabled: boolean;
   /** Project name to display above the release header in notifications.
    *  Populated from `ReleaseJetConfig.projectName` or `deriveProjectName(projectUrl)`;
    *  undefined when neither resolves. */
   projectName?: string;
+  /** ISO-8601 timestamp of when notes were generated (set once per logical event,
+   *  reused across retries by the webhook adapter). */
+  generatedAt: string;
+}
+
+export interface AfterPublishPayload extends AfterGeneratePayload {
+  releaseName: string;
+  /** Provider-specific URL to the published release page. */
+  releaseUrl: string;
+  /** ISO-8601 timestamp of when the release page was created on the provider. */
+  publishedAt: string;
 }
 
 export interface PluginOption {
