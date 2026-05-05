@@ -47,10 +47,56 @@ export interface AddOptions {
   force?: boolean;
 }
 
+const VALID_TYPES = ['slack', 'discord', 'teams'] as const;
+type ChannelType = typeof VALID_TYPES[number];
+
+function isChannelType(v: unknown): v is ChannelType {
+  return typeof v === 'string' && (VALID_TYPES as readonly string[]).includes(v);
+}
+
 export async function runAdd(options: AddOptions): Promise<void> {
   const source = await readConfigSource();
   parseOrThrow(source);
 
+  const flagMode = options.type !== undefined && options.env !== undefined;
+
+  if (flagMode) {
+    if (!isChannelType(options.type)) {
+      throw new Error(`--type must be one of: ${VALID_TYPES.join(', ')}`);
+    }
+    if (isLiteralWebhookUrl(options.env!)) {
+      throw new Error(
+        'Webhook URLs are secrets — store in an env var and reference it as ${YOUR_VAR_NAME}.',
+      );
+    }
+    const envVarName = parseEnvVarReference(options.env!);
+    if (envVarName === null) {
+      throw new Error('Env var name must match [A-Za-z_][A-Za-z0-9_]*');
+    }
+    const enabled = options.disabled ? false : true;
+
+    const existing = readNotificationsRaw(source);
+    const newRef = `\${${envVarName}}`;
+    if (existing.some((e) => e.webhookUrl === newRef) && !options.force) {
+      throw new Error(
+        `Env var ${newRef} is already used by another channel. Pass --force to add anyway.`,
+      );
+    }
+
+    const updated = appendNotificationEntry(source, {
+      type: options.type,
+      enabled,
+      envVarName,
+    });
+    await writeFile(CONFIG_PATH, updated, 'utf-8');
+    const newCount = readNotificationsRaw(updated).length;
+    console.log(`✓ Added ${options.type} channel to .releasejet.yml (entry #${newCount})`);
+    if (!(await hasActivePro())) console.log(SOFT_WARN);
+    return;
+  }
+
+  // Interactive mode (with optional --type / --env as defaults).
+  const typeDefault: ChannelType = isChannelType(options.type) ? options.type : 'slack';
   const type = await select({
     message: 'Channel type:',
     choices: [
@@ -58,7 +104,7 @@ export async function runAdd(options: AddOptions): Promise<void> {
       { name: 'Discord', value: 'discord' as const },
       { name: 'Teams', value: 'teams' as const },
     ],
-    default: 'slack',
+    default: typeDefault,
   });
 
   console.log(`  ${PLATFORM_HINTS[type]}`);
@@ -66,6 +112,7 @@ export async function runAdd(options: AddOptions): Promise<void> {
   while (envVarName === null) {
     const raw = (await input({
       message: 'Env var name (e.g. SLACK_WEBHOOK_URL or ${SLACK_WEBHOOK_URL}):',
+      default: typeof options.env === 'string' ? options.env : undefined,
     })).trim();
 
     if (isLiteralWebhookUrl(raw)) {
@@ -84,8 +131,7 @@ export async function runAdd(options: AddOptions): Promise<void> {
 
   const existing = readNotificationsRaw(source);
   const newRef = `\${${envVarName}}`;
-  const dup = existing.some((e) => e.webhookUrl === newRef);
-  if (dup) {
+  if (existing.some((e) => e.webhookUrl === newRef)) {
     const proceed = await confirm({
       message: `Env var ${newRef} is already used by another channel. Add anyway?`,
       default: false,
@@ -100,13 +146,10 @@ export async function runAdd(options: AddOptions): Promise<void> {
 
   const updated = appendNotificationEntry(source, { type, enabled, envVarName });
   await writeFile(CONFIG_PATH, updated, 'utf-8');
-
   const newCount = readNotificationsRaw(updated).length;
   console.log(`✓ Added ${type} channel to .releasejet.yml (entry #${newCount})`);
 
-  if (!(await hasActivePro())) {
-    console.log(SOFT_WARN);
-  }
+  if (!(await hasActivePro())) console.log(SOFT_WARN);
 }
 
 export function registerNotificationsCommand(program: Command): void {

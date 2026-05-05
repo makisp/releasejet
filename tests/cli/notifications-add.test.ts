@@ -123,3 +123,88 @@ describe('runAdd — duplicate env-var detection (interactive)', () => {
     expect(writeFile).not.toHaveBeenCalled();
   });
 });
+
+describe('runAdd — flag mode', () => {
+  it('skips all prompts when --type and --env are both supplied', async () => {
+    vi.mocked(readFile).mockResolvedValue('' as never);
+    const log = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+    await runAdd({ type: 'slack', env: 'SLACK_WEBHOOK_URL', enabled: true });
+    log.mockRestore();
+
+    expect(select).not.toHaveBeenCalled();
+    expect(input).not.toHaveBeenCalled();
+    expect(confirm).not.toHaveBeenCalled();
+    const writeCall = vi.mocked(writeFile).mock.calls.find((c) => c[0] === '.releasejet.yml');
+    const written = parseYaml(writeCall![1] as string) as { notifications: unknown[] };
+    expect(written.notifications).toEqual([
+      { type: 'slack', enabled: true, webhookUrl: '${SLACK_WEBHOOK_URL}' },
+    ]);
+  });
+
+  it('honors --disabled in flag mode', async () => {
+    vi.mocked(readFile).mockResolvedValue('' as never);
+    const log = vi.spyOn(console, 'log').mockImplementation(() => {});
+    await runAdd({ type: 'discord', env: 'DISCORD_WEBHOOK_URL', disabled: true });
+    log.mockRestore();
+    const writeCall = vi.mocked(writeFile).mock.calls.find((c) => c[0] === '.releasejet.yml');
+    const written = parseYaml(writeCall![1] as string) as { notifications: { enabled: boolean }[] };
+    expect(written.notifications[0].enabled).toBe(false);
+  });
+
+  it('rejects an invalid --type', async () => {
+    vi.mocked(readFile).mockResolvedValue('' as never);
+    await expect(runAdd({ type: 'irc', env: 'X' })).rejects.toThrow(/--type must be one of/);
+    expect(writeFile).not.toHaveBeenCalled();
+  });
+
+  it('rejects a literal URL on --env in flag mode', async () => {
+    vi.mocked(readFile).mockResolvedValue('' as never);
+    await expect(
+      runAdd({ type: 'slack', env: 'https://hooks.slack.com/services/T/B/secret' }),
+    ).rejects.toThrow(/secrets/i);
+    expect(writeFile).not.toHaveBeenCalled();
+  });
+
+  it('rejects an invalid env name in flag mode', async () => {
+    vi.mocked(readFile).mockResolvedValue('' as never);
+    await expect(runAdd({ type: 'slack', env: '1BAD' })).rejects.toThrow(/[A-Za-z_]/);
+    expect(writeFile).not.toHaveBeenCalled();
+  });
+
+  it('exits non-zero on duplicate env-var without --force', async () => {
+    vi.mocked(readFile).mockResolvedValue(
+      'notifications:\n  - type: slack\n    enabled: true\n    webhookUrl: ${SLACK_WEBHOOK_URL}\n' as never,
+    );
+    await expect(
+      runAdd({ type: 'slack', env: 'SLACK_WEBHOOK_URL' }),
+    ).rejects.toThrow(/already used/i);
+    expect(writeFile).not.toHaveBeenCalled();
+  });
+
+  it('proceeds on duplicate env-var when --force is passed', async () => {
+    vi.mocked(readFile).mockResolvedValue(
+      'notifications:\n  - type: slack\n    enabled: true\n    webhookUrl: ${SLACK_WEBHOOK_URL}\n' as never,
+    );
+    const log = vi.spyOn(console, 'log').mockImplementation(() => {});
+    await runAdd({ type: 'slack', env: 'SLACK_WEBHOOK_URL', force: true });
+    log.mockRestore();
+    const writeCall = vi.mocked(writeFile).mock.calls.find((c) => c[0] === '.releasejet.yml');
+    const written = parseYaml(writeCall![1] as string) as { notifications: unknown[] };
+    expect(written.notifications).toHaveLength(2);
+  });
+
+  it('falls through to interactive when only --type is supplied', async () => {
+    vi.mocked(readFile).mockResolvedValue('' as never);
+    vi.mocked(select).mockResolvedValueOnce('discord'); // type prompt still runs (but with --type as default)
+    vi.mocked(input).mockResolvedValueOnce('DISCORD_WEBHOOK_URL');
+    vi.mocked(confirm).mockResolvedValueOnce(true);
+
+    const log = vi.spyOn(console, 'log').mockImplementation(() => {});
+    await runAdd({ type: 'discord' });
+    log.mockRestore();
+
+    expect(select).toHaveBeenCalled();
+    expect(input).toHaveBeenCalled();
+  });
+});
