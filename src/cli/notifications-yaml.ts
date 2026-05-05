@@ -57,7 +57,7 @@ export function appendNotificationEntry(
 ): string {
   const doc = parseDocument(yamlSource);
   if (doc.contents === null || doc.contents === undefined) {
-    doc.contents = doc.createNode({}) as typeof doc.contents;
+    doc.contents = doc.createNode({}) as unknown as typeof doc.contents;
   }
 
   const existing = doc.get('notifications', true);
