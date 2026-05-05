@@ -94,6 +94,27 @@ template: default
 #   - type: teams
 #     enabled: false
 #     webhookUrl: ${TEAMS_WORKFLOW_URL}
+#
+#   # M4: Generic outbound webhook for arbitrary endpoints.
+#   # Pro feature. Use this for Zapier, n8n, status pages, internal services,
+#   # or any tool that consumes a structured JSON payload.
+#   # See: https://releasejet.dev/docs/notifications/webhooks
+#   - type: webhook
+#     enabled: false
+#     # The receiver URL. Any http(s) endpoint. Move secrets to env vars.
+#     url: ${MY_WEBHOOK_URL}
+#     # Optional HMAC-SHA256 secret. If set, the body is signed and sent as
+#     # X-ReleaseJet-Signature: sha256=<hex>. Receivers verify against the raw body.
+#     # secret: ${MY_WEBHOOK_SECRET}
+#     # Required, non-empty. Subscribe to one or both events.
+#     events:
+#       # - release.generated   # fires after every successful generate (with or without --publish)
+#       - release.published     # fires after --publish succeeds
+#     # Optional custom headers. ${VAR} expansion supported on values.
+#     # X-ReleaseJet-* and Content-Type are reserved.
+#     # headers:
+#     #   Authorization: "Bearer ${MY_API_TOKEN}"
+#     #   X-Tenant: acme
 
 # Optional — Jira ticket linking (F3). When configured, ReleaseJet scans
 # issue/PR titles and bodies for ticket IDs matching one of the listed
