@@ -8,7 +8,9 @@ export interface ContributorsConfig {
   exclude: string[];
 }
 
-export interface NotificationChannelConfig {
+export type WebhookEventName = 'release.generated' | 'release.published';
+
+export interface SlackDiscordTeamsChannelConfig {
   type: 'slack' | 'discord' | 'teams';
   enabled: boolean;
   webhookUrl: string;
@@ -16,6 +18,24 @@ export interface NotificationChannelConfig {
    *  When omitted or empty, the default Pro M2 message is used. */
   template?: string;
 }
+
+export interface WebhookChannelConfig {
+  type: 'webhook';
+  enabled: boolean;
+  /** Arbitrary URL — any http(s) endpoint. */
+  url: string;
+  /** Optional HMAC-SHA256 secret. If present, X-ReleaseJet-Signature header is sent. */
+  secret?: string;
+  /** Required, non-empty list of events this channel subscribes to. */
+  events: WebhookEventName[];
+  /** Optional custom HTTP headers to send. ${VAR} expansion supported on values.
+   *  X-ReleaseJet-* and Content-Type are reserved and rejected by validation. */
+  headers?: Record<string, string>;
+}
+
+export type NotificationChannelConfig =
+  | SlackDiscordTeamsChannelConfig
+  | WebhookChannelConfig;
 
 export interface JiraConfig {
   baseUrl: string;

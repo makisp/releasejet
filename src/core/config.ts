@@ -111,9 +111,18 @@ export function redactConfigForLogging(config: ReleaseJetConfig): ReleaseJetConf
   }
   return {
     ...config,
-    notifications: config.notifications.map((ch) => ({
-      ...ch,
-      webhookUrl: ch.webhookUrl === '' ? '' : '***',
-    })),
+    notifications: config.notifications.map((ch) => {
+      if (ch.type === 'webhook') {
+        return {
+          ...ch,
+          url: ch.url === '' ? '' : '***',
+          ...(ch.secret !== undefined ? { secret: '***' } : {}),
+        };
+      }
+      return {
+        ...ch,
+        webhookUrl: ch.webhookUrl === '' ? '' : '***',
+      };
+    }),
   };
 }

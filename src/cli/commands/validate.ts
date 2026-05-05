@@ -224,6 +224,12 @@ export async function runValidate(options: {
       const ch = channels[i];
       const stateLabel = ch.enabled ? 'enabled' : 'disabled';
 
+      if (ch.type === 'webhook') {
+        // Task 10 expands the webhook channel render. Minimal narrowing for now.
+        console.log(`  \u2713 notifications[${i}] ${ch.type} (${stateLabel})`);
+        continue;
+      }
+
       let templateSuffix = '';
       if (typeof ch.template === 'string' && ch.template !== '') {
         const r = validateNotificationTemplateSyntax(ch.template);
