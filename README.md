@@ -34,6 +34,18 @@ releasejet generate --tag v1.0.0       # preview
 releasejet generate --tag v1.0.0 --publish
 ```
 
+### Notification channels
+
+Manage notification channels in `.releasejet.yml` without hand-editing:
+
+```bash
+releasejet notifications add                              # interactive wizard
+releasejet notifications add --type slack --env SLACK_WEBHOOK_URL --enabled
+releasejet notifications list                             # table of configured channels
+```
+
+`add` only ever writes the env-var reference (e.g. `${SLACK_WEBHOOK_URL}`) — never a literal webhook URL. `list` resolves each referenced var at runtime and shows `set` / `unset` / `n/a` in the `ENV` column. Both commands work in core; channels actually fire when [`@releasejet/pro`](https://releasejet.dev/docs/pro/notifications) is installed and licensed.
+
 ## Configuration
 
 See the [configuration reference](https://releasejet.dev/docs/reference/configuration) for every field. Minimal `.releasejet.yml`:
