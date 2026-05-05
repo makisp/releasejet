@@ -208,3 +208,25 @@ describe('runAdd — flag mode', () => {
     expect(input).toHaveBeenCalled();
   });
 });
+
+describe('runAdd — Pro soft-warn', () => {
+  it('prints the soft-warn line when no Pro is active', async () => {
+    vi.mocked(hasActivePro).mockResolvedValue(false);
+    vi.mocked(readFile).mockResolvedValue('' as never);
+    const log = vi.spyOn(console, 'log').mockImplementation(() => {});
+    await runAdd({ type: 'slack', env: 'SLACK_WEBHOOK_URL', enabled: true });
+    const out = log.mock.calls.map((c) => String(c[0])).join('\n');
+    log.mockRestore();
+    expect(out).toMatch(/notifications require @releasejet\/pro/);
+  });
+
+  it('omits the soft-warn line when Pro is active', async () => {
+    vi.mocked(hasActivePro).mockResolvedValue(true);
+    vi.mocked(readFile).mockResolvedValue('' as never);
+    const log = vi.spyOn(console, 'log').mockImplementation(() => {});
+    await runAdd({ type: 'slack', env: 'SLACK_WEBHOOK_URL', enabled: true });
+    const out = log.mock.calls.map((c) => String(c[0])).join('\n');
+    log.mockRestore();
+    expect(out).not.toMatch(/notifications require @releasejet\/pro/);
+  });
+});
