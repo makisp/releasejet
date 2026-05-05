@@ -4,6 +4,7 @@ import { registerValidateCommand } from './commands/validate.js';
 import { registerInitCommand } from './commands/init.js';
 import { registerCiCommand } from './commands/ci.js';
 import { registerAuthCommand } from './commands/auth.js';
+import { registerNotificationsCommand } from './commands/notifications.js';
 
 export function buildProgram(version: string): Command {
   const program = new Command();
@@ -17,6 +18,7 @@ export function buildProgram(version: string): Command {
   registerInitCommand(program);
   registerCiCommand(program);
   registerAuthCommand(program);
+  registerNotificationsCommand(program);
 
   return program;
 }
