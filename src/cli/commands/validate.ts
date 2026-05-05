@@ -225,8 +225,20 @@ export async function runValidate(options: {
       const stateLabel = ch.enabled ? 'enabled' : 'disabled';
 
       if (ch.type === 'webhook') {
-        // Task 10 expands the webhook channel render. Minimal narrowing for now.
-        console.log(`  \u2713 notifications[${i}] ${ch.type} (${stateLabel})`);
+        const urlForDisplay = redactWebhookUrlForReport(ch.url);
+        console.log(`  \u2713 notifications[${i}] webhook (${stateLabel}) \u2014 ${urlForDisplay}`);
+        console.log(`      events: ${ch.events.join(', ')}`);
+        console.log(
+          `      secret: ${ch.secret ? 'configured (sha256 signing enabled)' : 'not configured (URL-only auth)'}`,
+        );
+        const headerCount = ch.headers ? Object.keys(ch.headers).length : 0;
+        if (headerCount === 0) {
+          console.log('      headers: none');
+        } else {
+          console.log(
+            `      headers: ${headerCount} custom (${Object.keys(ch.headers!).join(', ')})`,
+          );
+        }
         continue;
       }
 
@@ -259,4 +271,12 @@ export async function runValidate(options: {
   if (problems.length > 0) {
     process.exitCode = 1;
   }
+}
+
+function redactWebhookUrlForReport(url: string): string {
+  // Hide trailing per-account secret in known patterns. Best-effort.
+  // Currently: Zapier hook IDs (`/hooks/catch/<acct>/<id>`).
+  const zapier = url.match(/^(https:\/\/hooks\.zapier\.com\/hooks\/catch\/)/i);
+  if (zapier) return zapier[1] + '***';
+  return url;
 }
