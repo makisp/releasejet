@@ -13,6 +13,25 @@ import { parseDocument } from 'yaml';
 
 const CONFIG_PATH = '.releasejet.yml';
 
+const ENV_REF_EXACT = /^\$\{([A-Za-z_][A-Za-z0-9_]*)\}$/;
+const WEBHOOK_TRUNCATE = 40;
+
+function pad(s: string, w: number): string {
+  return s.length >= w ? s : s + ' '.repeat(w - s.length);
+}
+
+function truncate(s: string, max: number): string {
+  if (s.length <= max) return s;
+  return s.slice(0, max - 1) + '…';
+}
+
+function envColumn(webhookUrl: string): 'set' | 'unset' | 'n/a' {
+  const m = webhookUrl.match(ENV_REF_EXACT);
+  if (!m) return 'n/a';
+  const value = process.env[m[1]];
+  return typeof value === 'string' && value !== '' ? 'set' : 'unset';
+}
+
 const SOFT_WARN =
   'Note: notifications require @releasejet/pro to actually fire. Run `releasejet auth status` to check.';
 
@@ -161,13 +180,37 @@ export async function runList(): Promise<void> {
     return;
   }
 
-  // Table rendering — placeholder until Task 9.
-  for (let i = 0; i < channels.length; i++) {
-    const ch = channels[i];
-    console.log(`${i + 1}  ${ch.type}  ${ch.enabled}  ${ch.webhookUrl}`);
+  const rows = channels.map((ch, i) => ({
+    n: String(i + 1),
+    type: ch.type || '?',
+    enabled: typeof ch.enabled === 'boolean' ? (ch.enabled ? 'yes' : 'no') : '?',
+    webhook: truncate(ch.webhookUrl, WEBHOOK_TRUNCATE),
+    template: ch.template ? 'custom' : '—',
+    env: envColumn(ch.webhookUrl),
+  }));
+
+  const widths = {
+    n: Math.max(1, ...rows.map((r) => r.n.length)),
+    type: Math.max(4, ...rows.map((r) => r.type.length)),
+    enabled: Math.max(7, ...rows.map((r) => r.enabled.length)),
+    webhook: Math.max(7, ...rows.map((r) => r.webhook.length)),
+    template: Math.max(8, ...rows.map((r) => r.template.length)),
+    env: Math.max(3, ...rows.map((r) => r.env.length)),
+  };
+
+  console.log(
+    `  ${pad('#', widths.n)}  ${pad('TYPE', widths.type)}  ${pad('ENABLED', widths.enabled)}  ${pad('WEBHOOK', widths.webhook)}  ${pad('TEMPLATE', widths.template)}  ${pad('ENV', widths.env)}`,
+  );
+  for (const r of rows) {
+    console.log(
+      `  ${pad(r.n, widths.n)}  ${pad(r.type, widths.type)}  ${pad(r.enabled, widths.enabled)}  ${pad(r.webhook, widths.webhook)}  ${pad(r.template, widths.template)}  ${pad(r.env, widths.env)}`,
+    );
   }
 
-  if (!(await hasActivePro())) console.log(SOFT_WARN);
+  if (!(await hasActivePro())) {
+    console.log('');
+    console.log(SOFT_WARN);
+  }
 }
 
 export function registerNotificationsCommand(program: Command): void {
