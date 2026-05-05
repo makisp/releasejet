@@ -5,6 +5,37 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.20.0] - 2026-05-05
+
+### Added
+
+- **M4 — Generic outbound webhook channel.** New `type: webhook` notification
+  channel posts a versioned, signed JSON envelope to arbitrary URLs on
+  `release.generated` (always on success) and `release.published` (additionally
+  after `--publish`). Targets programmatic integrations (Zapier, n8n, status
+  pages, internal services). Distinct from M2 channels (Slack/Discord/Teams),
+  which post human-readable messages.
+- New plugin hook `afterGenerate` (additive — `PLUGIN_API_VERSION` stays at 1).
+- Config schema gains `type: webhook` variant with `events`, `secret`, `headers`
+  fields.
+- `${VAR}` expansion now applies to header values; reserved headers
+  (`X-ReleaseJet-*`, `Content-Type`) and literal credentials in header values
+  are rejected at config load.
+- Cross-type-leakage guard rail: rejects Slack/Discord/Teams URLs on
+  `type: webhook` with a "use `type: <platform>`" hint.
+- `validate` command reports webhook channels alongside Slack/Discord/Teams.
+
+### Changed
+
+- `NotificationChannelConfig` is now a discriminated union over `type`. Existing
+  M2 entries (`slack`/`discord`/`teams`) are unchanged.
+
+### Pro
+
+- Requires `@releasejet/pro` 1.6.0+ for webhook delivery. Earlier Pro versions
+  still load and handle M2 channels; webhook channels validate but don't
+  dispatch (loud warning).
+
 ## [1.19.0] - 2026-05-05
 
 ### Added
