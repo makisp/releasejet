@@ -152,6 +152,24 @@ export async function runAdd(options: AddOptions): Promise<void> {
   if (!(await hasActivePro())) console.log(SOFT_WARN);
 }
 
+export async function runList(): Promise<void> {
+  const source = await readConfigSource();
+  const channels = readNotificationsRaw(source);
+
+  if (channels.length === 0) {
+    console.log('No notification channels configured. Run `releasejet notifications add` to add one.');
+    return;
+  }
+
+  // Table rendering — placeholder until Task 9.
+  for (let i = 0; i < channels.length; i++) {
+    const ch = channels[i];
+    console.log(`${i + 1}  ${ch.type}  ${ch.enabled}  ${ch.webhookUrl}`);
+  }
+
+  if (!(await hasActivePro())) console.log(SOFT_WARN);
+}
+
 export function registerNotificationsCommand(program: Command): void {
   const cmd = program
     .command('notifications')
@@ -167,5 +185,12 @@ export function registerNotificationsCommand(program: Command): void {
     .option('--force', 'Skip duplicate-env confirm in flag-mode')
     .action(withErrorHandler(async (opts: AddOptions) => {
       await runAdd(opts);
+    }));
+
+  cmd
+    .command('list')
+    .description('List configured notification channels')
+    .action(withErrorHandler(async () => {
+      await runList();
     }));
 }
