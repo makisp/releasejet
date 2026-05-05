@@ -5,6 +5,32 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.19.0] - 2026-05-05
+
+### Added
+
+- **M2b — `releasejet notifications add` and `list` (core).** Two new subcommands
+  for managing notification channels in `.releasejet.yml` from the CLI.
+  - `notifications add` is an interactive wizard that prompts for `type`
+    (`slack` / `discord` / `teams`), an env-var name (literal webhook URLs are
+    rejected), and `enabled`. Flag-mode bypass for CI:
+    `--type <t> --env <NAME> [--enabled|--disabled] [--force]`.
+    Duplicate env-var references against existing entries are warned
+    (interactive: confirm prompt; flag mode: error unless `--force`).
+  - `notifications list` prints a compact table — `# | TYPE | ENABLED |
+    WEBHOOK | TEMPLATE | ENV` — with the `ENV` column resolving the referenced
+    var at runtime (`set` / `unset` / `n/a`).
+  - Both commands print a soft warning when no `@releasejet/pro` license is
+    active. They do **not** block.
+- New module `src/cli/notifications-yaml.ts` — pure YAML mutation/read
+  helpers (`appendNotificationEntry`, `readNotificationsRaw`) using the
+  `yaml` library's Document API. Comments and surrounding sections are
+  preserved on round-trip.
+
+### Notes
+
+- No schema changes. No `loadConfig` changes. No `@releasejet/pro` changes.
+
 ## [1.18.1] - 2026-05-04
 
 ### Added
