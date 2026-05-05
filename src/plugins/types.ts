@@ -66,6 +66,7 @@ export interface PluginContext {
   extendCommand(commandName: string, options: PluginOption[]): void;
   hooks: {
     beforeFormat: Hook<BeforeFormatPayload>;
+    afterGenerate: Hook<AfterGeneratePayload>;
     afterPublish: Hook<AfterPublishPayload>;
   };
   config: Readonly<ReleaseJetConfig>;
@@ -84,6 +85,7 @@ export interface PluginRuntime {
   runFormatter(name: string, data: ReleaseNotesData, config: ReleaseJetConfig): string;
   hooks: {
     beforeFormat: { run(payload: BeforeFormatPayload): Promise<void> };
+    afterGenerate: { run(payload: AfterGeneratePayload): Promise<void> };
     afterPublish: { run(payload: AfterPublishPayload): Promise<void> };
   };
 }
