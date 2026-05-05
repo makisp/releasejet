@@ -82,6 +82,20 @@ export async function runAdd(options: AddOptions): Promise<void> {
     envVarName = parsed;
   }
 
+  const existing = readNotificationsRaw(source);
+  const newRef = `\${${envVarName}}`;
+  const dup = existing.some((e) => e.webhookUrl === newRef);
+  if (dup) {
+    const proceed = await confirm({
+      message: `Env var ${newRef} is already used by another channel. Add anyway?`,
+      default: false,
+    });
+    if (!proceed) {
+      console.log('Aborted. No changes were made.');
+      return;
+    }
+  }
+
   const enabled = await confirm({ message: 'Enabled?', default: true });
 
   const updated = appendNotificationEntry(source, { type, enabled, envVarName });

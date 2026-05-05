@@ -87,3 +87,39 @@ describe('runAdd — interactive validation', () => {
     expect(input).toHaveBeenCalledTimes(2);
   });
 });
+
+describe('runAdd — duplicate env-var detection (interactive)', () => {
+  it('warns and proceeds when the user confirms', async () => {
+    vi.mocked(readFile).mockResolvedValue(
+      'notifications:\n  - type: slack\n    enabled: true\n    webhookUrl: ${SLACK_WEBHOOK_URL}\n' as never,
+    );
+    vi.mocked(select).mockResolvedValueOnce('slack');
+    vi.mocked(input).mockResolvedValueOnce('SLACK_WEBHOOK_URL');
+    vi.mocked(confirm)
+      .mockResolvedValueOnce(true)  // duplicate confirm
+      .mockResolvedValueOnce(true); // enabled
+
+    const log = vi.spyOn(console, 'log').mockImplementation(() => {});
+    await runAdd({});
+    log.mockRestore();
+
+    const writeCall = vi.mocked(writeFile).mock.calls.find((c) => c[0] === '.releasejet.yml');
+    const written = parseYaml(writeCall![1] as string) as { notifications: unknown[] };
+    expect(written.notifications).toHaveLength(2);
+  });
+
+  it('aborts cleanly when the user declines the duplicate confirm', async () => {
+    vi.mocked(readFile).mockResolvedValue(
+      'notifications:\n  - type: slack\n    enabled: true\n    webhookUrl: ${SLACK_WEBHOOK_URL}\n' as never,
+    );
+    vi.mocked(select).mockResolvedValueOnce('slack');
+    vi.mocked(input).mockResolvedValueOnce('SLACK_WEBHOOK_URL');
+    vi.mocked(confirm).mockResolvedValueOnce(false); // duplicate confirm — no
+
+    const log = vi.spyOn(console, 'log').mockImplementation(() => {});
+    await runAdd({});
+    log.mockRestore();
+
+    expect(writeFile).not.toHaveBeenCalled();
+  });
+});
