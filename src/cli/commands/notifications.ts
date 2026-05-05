@@ -7,6 +7,7 @@ import {
   appendNotificationEntry,
   readNotificationsRaw,
   parseEnvVarReference,
+  isLiteralWebhookUrl,
 } from '../notifications-yaml.js';
 import { parseDocument } from 'yaml';
 
@@ -61,13 +62,24 @@ export async function runAdd(options: AddOptions): Promise<void> {
   });
 
   console.log(`  ${PLATFORM_HINTS[type]}`);
-  const envInput = await input({
-    message: 'Env var name (e.g. SLACK_WEBHOOK_URL or ${SLACK_WEBHOOK_URL}):',
-  });
+  let envVarName: string | null = null;
+  while (envVarName === null) {
+    const raw = (await input({
+      message: 'Env var name (e.g. SLACK_WEBHOOK_URL or ${SLACK_WEBHOOK_URL}):',
+    })).trim();
 
-  const envVarName = parseEnvVarReference(envInput);
-  if (envVarName === null) {
-    throw new Error('Env var name must match [A-Za-z_][A-Za-z0-9_]*');
+    if (isLiteralWebhookUrl(raw)) {
+      console.error(
+        '  ⚠ Webhook URLs are secrets — store in an env var and reference it as ${YOUR_VAR_NAME}.',
+      );
+      continue;
+    }
+    const parsed = parseEnvVarReference(raw);
+    if (parsed === null) {
+      console.error('  ⚠ Env var name must match [A-Za-z_][A-Za-z0-9_]*');
+      continue;
+    }
+    envVarName = parsed;
   }
 
   const enabled = await confirm({ message: 'Enabled?', default: true });

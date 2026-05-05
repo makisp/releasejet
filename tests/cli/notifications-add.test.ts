@@ -49,3 +49,41 @@ describe('runAdd — interactive happy path', () => {
     expect(writeFile).not.toHaveBeenCalled();
   });
 });
+
+describe('runAdd — interactive validation', () => {
+  it('re-prompts when the user pastes a literal Slack webhook URL', async () => {
+    vi.mocked(readFile).mockResolvedValue('' as never);
+    vi.mocked(select).mockResolvedValueOnce('slack');
+    vi.mocked(input)
+      .mockResolvedValueOnce('https://hooks.slack.com/services/T/B/secret') // bad
+      .mockResolvedValueOnce('SLACK_WEBHOOK_URL');                          // good
+    vi.mocked(confirm).mockResolvedValueOnce(true);
+    const log = vi.spyOn(console, 'log').mockImplementation(() => {});
+    const err = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    await runAdd({});
+
+    log.mockRestore();
+    err.mockRestore();
+    expect(input).toHaveBeenCalledTimes(2);
+    const writeCall = vi.mocked(writeFile).mock.calls.find((c) => c[0] === '.releasejet.yml');
+    expect((writeCall![1] as string)).toContain('${SLACK_WEBHOOK_URL}');
+  });
+
+  it('re-prompts when the user types an invalid env var name', async () => {
+    vi.mocked(readFile).mockResolvedValue('' as never);
+    vi.mocked(select).mockResolvedValueOnce('discord');
+    vi.mocked(input)
+      .mockResolvedValueOnce('1BAD-name')              // fails regex
+      .mockResolvedValueOnce('DISCORD_WEBHOOK_URL');   // good
+    vi.mocked(confirm).mockResolvedValueOnce(true);
+    const log = vi.spyOn(console, 'log').mockImplementation(() => {});
+    const err = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    await runAdd({});
+
+    log.mockRestore();
+    err.mockRestore();
+    expect(input).toHaveBeenCalledTimes(2);
+  });
+});
