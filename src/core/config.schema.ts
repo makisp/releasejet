@@ -1,5 +1,9 @@
 import { z } from 'zod';
 import type { ReleaseJetConfig } from '../types.js';
+import {
+  findReservedHeaderKeys as findReservedHeaderKeysImported,
+  findLiteralTokenInHeaderValue as findLiteralTokenInHeaderValueImported,
+} from './notification-header-validator.js';
 
 const DEFAULT_CATEGORIES = {
   feature: 'New Features',
@@ -47,7 +51,7 @@ const ContributorsSchema = z
   })
   .describe('Contributors section configuration.');
 
-const NotificationChannelSchema = z
+const SlackDiscordTeamsChannelSchema = z
   .object({
     type: z.enum(['slack', 'discord', 'teams']).describe('Channel type.'),
     enabled: z.boolean().describe('Whether this channel should fire.'),
@@ -59,7 +63,66 @@ const NotificationChannelSchema = z
       .optional()
       .describe('Optional Handlebars template for the message body. Empty string treated as absent.'),
   })
+  .describe('Slack / Discord / Teams notification channel.');
+
+const WebhookEventEnum = z.enum(['release.generated', 'release.published']);
+
+const WebhookChannelSchema = z
+  .object({
+    type: z.literal('webhook').describe('Channel type.'),
+    enabled: z.boolean().describe('Whether this channel should fire.'),
+    url: z
+      .string()
+      .describe('Arbitrary http(s) endpoint URL. ${VAR} expansion supported.'),
+    secret: z
+      .string()
+      .min(1, { message: 'secret must be a non-empty string when present (post-expansion).' })
+      .optional()
+      .describe('Optional HMAC-SHA256 secret. If present, signs the body and sends X-ReleaseJet-Signature.'),
+    events: z
+      .array(WebhookEventEnum)
+      .min(1, { message: 'events: must be a non-empty array; subscribe to at least one event.' })
+      .describe('Required, non-empty list of events this channel subscribes to.'),
+    headers: z
+      .record(z.string(), z.string())
+      .optional()
+      .describe('Optional custom HTTP headers. ${VAR} expansion supported on values.'),
+  })
+  .strict()
+  .describe('Generic outbound webhook channel (M4).');
+
+const NotificationChannelSchema = z
+  .discriminatedUnion('type', [SlackDiscordTeamsChannelSchema, WebhookChannelSchema])
   .describe('One notification channel entry.');
+
+function suggestClosest(input: string, candidates: string[]): string | null {
+  if (!input) return null;
+  let best: string | null = null;
+  let bestDist = Infinity;
+  for (const c of candidates) {
+    const d = levenshtein(input, c);
+    if (d < bestDist) {
+      bestDist = d;
+      best = c;
+    }
+  }
+  return bestDist <= 3 ? best : null;
+}
+
+function levenshtein(a: string, b: string): number {
+  const m = a.length;
+  const n = b.length;
+  const dp: number[][] = Array.from({ length: m + 1 }, () => Array(n + 1).fill(0));
+  for (let i = 0; i <= m; i++) dp[i][0] = i;
+  for (let j = 0; j <= n; j++) dp[0][j] = j;
+  for (let i = 1; i <= m; i++) {
+    for (let j = 1; j <= n; j++) {
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+      dp[i][j] = Math.min(dp[i - 1][j] + 1, dp[i][j - 1] + 1, dp[i - 1][j - 1] + cost);
+    }
+  }
+  return dp[m][n];
+}
 
 const JiraSchema = z
   .object({
@@ -226,12 +289,12 @@ export function parseConfig(raw: unknown): ReleaseJetConfig {
       }
       if (n.type === undefined) {
         throw new Error(
-          `Invalid config in .releasejet.yml\n\n  notifications[${i}].type: required. Valid: slack, discord, teams.`,
+          `Invalid config in .releasejet.yml\n\n  notifications[${i}].type: required. Valid: slack, discord, teams, webhook.`,
         );
       }
-      if (n.type !== 'slack' && n.type !== 'discord' && n.type !== 'teams') {
+      if (n.type !== 'slack' && n.type !== 'discord' && n.type !== 'teams' && n.type !== 'webhook') {
         throw new Error(
-          `Invalid config in .releasejet.yml\n\n  notifications[${i}].type: "${String(n.type)}" is not supported. Valid: slack, discord, teams.`,
+          `Invalid config in .releasejet.yml\n\n  notifications[${i}].type: "${String(n.type)}" is not supported. Valid: slack, discord, teams, webhook.`,
         );
       }
       if (n.enabled === undefined) {
@@ -244,20 +307,103 @@ export function parseConfig(raw: unknown): ReleaseJetConfig {
           `Invalid config in .releasejet.yml\n\n  notifications[${i}].enabled: expected a boolean (true or false).`,
         );
       }
-      if (n.webhookUrl === undefined) {
-        throw new Error(
-          `Invalid config in .releasejet.yml\n\n  notifications[${i}].webhookUrl: required.`,
-        );
-      }
-      if (typeof n.webhookUrl !== 'string') {
-        throw new Error(
-          `Invalid config in .releasejet.yml\n\n  notifications[${i}].webhookUrl: expected a string.`,
-        );
-      }
-      if (n.template !== undefined && typeof n.template !== 'string') {
-        throw new Error(
-          `Invalid config in .releasejet.yml\n\n  notifications[${i}].template: expected a string.`,
-        );
+
+      if (n.type === 'webhook') {
+        // Webhook-specific pre-validation
+        if (n.url === undefined) {
+          throw new Error(
+            `Invalid config in .releasejet.yml\n\n  notifications[${i}].url: required.`,
+          );
+        }
+        if (typeof n.url !== 'string') {
+          throw new Error(
+            `Invalid config in .releasejet.yml\n\n  notifications[${i}].url: expected a string.`,
+          );
+        }
+        if (!n.url.includes('${')) {
+          if (!/^https?:\/\//i.test(n.url)) {
+            throw new Error(
+              `Invalid config in .releasejet.yml\n\n  notifications[${i}].url: "${n.url}" must be an http:// or https:// URL.`,
+            );
+          }
+        }
+        if (n.events === undefined) {
+          throw new Error(
+            `Invalid config in .releasejet.yml\n\n  notifications[${i}].events: required. Subscribe to at least one of: release.generated, release.published.`,
+          );
+        }
+        if (!Array.isArray(n.events) || n.events.length === 0) {
+          throw new Error(
+            `Invalid config in .releasejet.yml\n\n  notifications[${i}].events: expected a non-empty array.`,
+          );
+        }
+        for (let j = 0; j < n.events.length; j++) {
+          const ev = n.events[j];
+          if (ev !== 'release.generated' && ev !== 'release.published') {
+            const closest = suggestClosest(String(ev), ['release.generated', 'release.published']);
+            const hint = closest ? ` Did you mean "${closest}"?` : '';
+            throw new Error(
+              `Invalid config in .releasejet.yml\n\n  notifications[${i}].events[${j}]: "${String(ev)}" is not a valid event name. Valid: release.generated, release.published.${hint}`,
+            );
+          }
+        }
+        if ('template' in n) {
+          throw new Error(
+            `Invalid config in .releasejet.yml\n\n  notifications[${i}].template: not supported on type: webhook. ` +
+              `Templates apply to human-readable messages (slack/discord/teams). Webhooks send the structured JSON envelope; receivers render their own output.`,
+          );
+        }
+        if (n.headers !== undefined) {
+          if (typeof n.headers !== 'object' || n.headers === null || Array.isArray(n.headers)) {
+            throw new Error(
+              `Invalid config in .releasejet.yml\n\n  notifications[${i}].headers: expected an object mapping header name to value.`,
+            );
+          }
+          const headersRec = n.headers as Record<string, unknown>;
+          const reserved = findReservedHeaderKeysImported(headersRec as Record<string, string>);
+          if (reserved.length > 0) {
+            throw new Error(
+              `Invalid config in .releasejet.yml\n\n  notifications[${i}].headers: cannot set reserved header(s): ${reserved.join(', ')}. ` +
+                `X-ReleaseJet-* and Content-Type are managed by ReleaseJet.`,
+            );
+          }
+          for (const [hk, hv] of Object.entries(headersRec)) {
+            if (typeof hv !== 'string') {
+              throw new Error(
+                `Invalid config in .releasejet.yml\n\n  notifications[${i}].headers["${hk}"]: expected a string.`,
+              );
+            }
+            const tokenMatch = findLiteralTokenInHeaderValueImported(hv);
+            if (tokenMatch.matched) {
+              throw new Error(
+                `Invalid config in .releasejet.yml\n\n  notifications[${i}].headers["${hk}"] contains a literal credential ` +
+                  `(${tokenMatch.kind}). Move it to an environment variable and reference it as \${YOUR_VAR_NAME}.`,
+              );
+            }
+          }
+        }
+        if (n.secret !== undefined && typeof n.secret !== 'string') {
+          throw new Error(
+            `Invalid config in .releasejet.yml\n\n  notifications[${i}].secret: expected a string.`,
+          );
+        }
+      } else {
+        // Existing M2 (slack/discord/teams) pre-validation
+        if (n.webhookUrl === undefined) {
+          throw new Error(
+            `Invalid config in .releasejet.yml\n\n  notifications[${i}].webhookUrl: required.`,
+          );
+        }
+        if (typeof n.webhookUrl !== 'string') {
+          throw new Error(
+            `Invalid config in .releasejet.yml\n\n  notifications[${i}].webhookUrl: expected a string.`,
+          );
+        }
+        if (n.template !== undefined && typeof n.template !== 'string') {
+          throw new Error(
+            `Invalid config in .releasejet.yml\n\n  notifications[${i}].template: expected a string.`,
+          );
+        }
       }
     }
   }

@@ -3,7 +3,10 @@ import { parse as parseYaml } from 'yaml';
 import type { ReleaseJetConfig } from '../types.js';
 import { parseConfig } from './config.schema.js';
 import { expandEnvVars } from './env-expand.js';
-import { assertNoLiteralWebhookUrls } from './notification-url-validator.js';
+import {
+  assertNoLiteralWebhookUrls,
+  assertNoCrossTypeLeakageInWebhookUrl,
+} from './notification-url-validator.js';
 
 const DEFAULT_CATEGORIES: Record<string, string> = {
   feature: 'New Features',
@@ -45,6 +48,7 @@ export async function loadConfig(configPath = '.releasejet.yml'): Promise<Releas
   // Reject literal webhook URLs BEFORE env-var expansion, so that a legit
   // `${SLACK_WEBHOOK_URL}` reference is not erroneously caught after expansion.
   assertNoLiteralWebhookUrls(raw);
+  assertNoCrossTypeLeakageInWebhookUrl(raw);
 
   // Detach `notifications[*].template` strings before env-var expansion so
   // literal `${...}` and `{{...}}` round-trip untouched. Reattach afterwards.
@@ -111,9 +115,18 @@ export function redactConfigForLogging(config: ReleaseJetConfig): ReleaseJetConf
   }
   return {
     ...config,
-    notifications: config.notifications.map((ch) => ({
-      ...ch,
-      webhookUrl: ch.webhookUrl === '' ? '' : '***',
-    })),
+    notifications: config.notifications.map((ch) => {
+      if (ch.type === 'webhook') {
+        return {
+          ...ch,
+          url: ch.url === '' ? '' : '***',
+          ...(ch.secret !== undefined ? { secret: '***' } : {}),
+        };
+      }
+      return {
+        ...ch,
+        webhookUrl: ch.webhookUrl === '' ? '' : '***',
+      };
+    }),
   };
 }

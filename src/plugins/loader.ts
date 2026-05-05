@@ -4,6 +4,7 @@ import type {
   PluginRuntime,
   PluginContext,
   BeforeFormatPayload,
+  AfterGeneratePayload,
   AfterPublishPayload,
 } from './types.js';
 import { PLUGIN_API_VERSION } from './types.js';
@@ -135,6 +136,7 @@ export async function discoverPlugin(
   }
 
   const beforeFormat = new HookRegistry<BeforeFormatPayload>();
+  const afterGenerate = new HookRegistry<AfterGeneratePayload>();
   const afterPublish = new HookRegistry<AfterPublishPayload>();
   const formatterRegistry = new FormatterRegistry();
 
@@ -155,7 +157,7 @@ export async function discoverPlugin(
         }
       }
     },
-    hooks: { beforeFormat, afterPublish },
+    hooks: { beforeFormat, afterGenerate, afterPublish },
     config,
     logger: { debug },
   };
@@ -165,7 +167,7 @@ export async function discoverPlugin(
   _pluginRuntime = {
     hasFormatter: (name) => formatterRegistry.has(name),
     runFormatter: (name, data, cfg) => formatterRegistry.run(name, data, cfg),
-    hooks: { beforeFormat, afterPublish },
+    hooks: { beforeFormat, afterGenerate, afterPublish },
   };
 
   debug(`Plugin loaded: ${plugin.name}@${plugin.version}`);

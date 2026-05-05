@@ -143,6 +143,28 @@ Helpers shipped: `categoryCount "Heading"`, `truncate value 80`, `pluralize n "i
   teams    enabled  webhook OK    template ERROR — Parse error on line 3
 ```
 
+#### Generic webhooks (M4 — Pro)
+
+For arbitrary endpoints — Zapier, n8n, status pages, internal services — use `type: webhook`. ReleaseJet POSTs a structured, signed JSON envelope (`version: 1`) to your URL on `release.generated` (after every successful `generate`) and/or `release.published` (after `--publish`).
+
+```yaml
+notifications:
+  - type: webhook
+    enabled: true
+    url: ${MY_HOOK_URL}
+    secret: ${MY_HMAC_SECRET}
+    events: [release.published]
+    headers:
+      Authorization: "Bearer ${MY_API_TOKEN}"
+```
+
+- HMAC-SHA256 body signing in `X-ReleaseJet-Signature: sha256=<hex>` (when `secret:` is set).
+- At-least-once delivery with idempotency key `X-ReleaseJet-Delivery`.
+- 3-attempt retry on transient failures (network, 408, 425, 429, 5xx) with `Retry-After` honored up to 5 s.
+- `events: [release.generated, release.published]` to subscribe to both events.
+
+Full reference: [releasejet.dev/docs/notifications/webhooks](https://releasejet.dev/docs/notifications/webhooks)
+
 ## CI/CD
 
 **GitHub Action on the Marketplace** — [marketplace/actions/releasejet](https://github.com/marketplace/actions/releasejet). Five-line setup:

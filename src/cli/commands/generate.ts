@@ -283,6 +283,24 @@ export async function runGenerate(options: {
   }
 
   if (options.format !== 'json') {
+    // Fire afterGenerate hook (M4). Always fires on successful generate (with or without --publish),
+    // unless --dry-run was passed.
+    const generatedAt = new Date().toISOString();
+    const projectName = config.projectName ?? deriveProjectName(data.projectUrl);
+    if (!options.dryRun) {
+      await pluginRuntime?.hooks.afterGenerate.run({
+        tagName: options.tag,
+        previousTag: previousTag?.raw ?? null,
+        markdown: output,
+        projectUrl: data.projectUrl,
+        provider: config.provider.type,
+        data,
+        notifyDisabled: options.notify === false,
+        projectName,
+        generatedAt,
+      });
+    }
+
     if (options.publish && !options.dryRun) {
       const releaseName = currentParsed.prefix
         ? `${currentParsed.prefix.toUpperCase()} v${currentParsed.version}`
@@ -305,16 +323,20 @@ export async function runGenerate(options: {
         data.projectUrl,
         options.tag,
       );
-      const projectName = config.projectName ?? deriveProjectName(data.projectUrl);
+      const publishedAt = new Date().toISOString();
       await pluginRuntime?.hooks.afterPublish.run({
         tagName: options.tag,
+        previousTag: previousTag?.raw ?? null,
         releaseName,
         markdown: output,
         projectUrl: data.projectUrl,
+        provider: config.provider.type,
         data,
         releaseUrl,
         notifyDisabled: options.notify === false,
         projectName,
+        generatedAt,
+        publishedAt,
       });
     }
   }

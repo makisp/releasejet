@@ -28,6 +28,7 @@ vi.mock('../../src/plugins/loader.js', () => ({
     runFormatter: vi.fn(),
     hooks: {
       beforeFormat: { run: vi.fn() },
+      afterGenerate: { run: vi.fn() },
       afterPublish: { run: afterPublishRun },
     },
   }),
