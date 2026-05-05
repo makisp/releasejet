@@ -247,6 +247,7 @@ describe('runGenerate', () => {
       runFormatter: () => '## Custom compact output',
       hooks: {
         beforeFormat: { run: vi.fn() },
+        afterGenerate: { run: vi.fn() },
         afterPublish: { run: vi.fn() },
       },
     });
@@ -343,6 +344,7 @@ describe('runGenerate', () => {
       runFormatter: () => '',
       hooks: {
         beforeFormat: { run: beforeFormatRun },
+        afterGenerate: { run: vi.fn() },
         afterPublish: { run: vi.fn() },
       },
     });
@@ -375,6 +377,7 @@ describe('runGenerate', () => {
       runFormatter: () => '',
       hooks: {
         beforeFormat: { run: vi.fn() },
+        afterGenerate: { run: vi.fn() },
         afterPublish: { run: afterPublishRun },
       },
     });
@@ -408,6 +411,7 @@ describe('runGenerate', () => {
         runFormatter: vi.fn(),
         hooks: {
           beforeFormat: { run: vi.fn() },
+          afterGenerate: { run: vi.fn() },
           afterPublish: { run: vi.fn() },
         },
       });
@@ -488,6 +492,7 @@ describe('runGenerate', () => {
         runFormatter: mockRunFormatter,
         hooks: {
           beforeFormat: { run: vi.fn() },
+          afterGenerate: { run: vi.fn() },
           afterPublish: { run: vi.fn() },
         },
       });
