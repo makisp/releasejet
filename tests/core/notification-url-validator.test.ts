@@ -1,5 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { assertNoLiteralWebhookUrls } from '../../src/core/notification-url-validator.js';
+import {
+  assertNoLiteralWebhookUrls,
+  assertNoCrossTypeLeakageInWebhookUrl,
+} from '../../src/core/notification-url-validator.js';
 
 describe('assertNoLiteralWebhookUrls', () => {
   it('passes when notifications is absent', () => {
@@ -125,5 +128,75 @@ describe('assertNoLiteralWebhookUrls', () => {
         notifications: [{ type: 'slack', enabled: true, webhookUrl: 123 }],
       }),
     ).not.toThrow();
+  });
+});
+
+describe('assertNoCrossTypeLeakageInWebhookUrl', () => {
+  it('rejects a Slack incoming-webhook URL on type: webhook', () => {
+    const raw = {
+      notifications: [
+        {
+          type: 'webhook',
+          enabled: true,
+          url: 'https://hooks.slack.com/services/T01/B02/abc',
+        },
+      ],
+    };
+    expect(() => assertNoCrossTypeLeakageInWebhookUrl(raw)).toThrow(/type: slack/);
+  });
+
+  it('rejects a Discord webhook URL on type: webhook', () => {
+    const raw = {
+      notifications: [
+        { type: 'webhook', enabled: true, url: 'https://discord.com/api/webhooks/123/abc' },
+      ],
+    };
+    expect(() => assertNoCrossTypeLeakageInWebhookUrl(raw)).toThrow(/type: discord/);
+  });
+
+  it('rejects a Teams Power Automate URL on type: webhook', () => {
+    const raw = {
+      notifications: [
+        {
+          type: 'webhook',
+          enabled: true,
+          url: 'https://prod-12.westus.logic.azure.com/workflows/abc/triggers/manual',
+        },
+      ],
+    };
+    expect(() => assertNoCrossTypeLeakageInWebhookUrl(raw)).toThrow(/type: teams/);
+  });
+
+  it('passes ${VAR}-indirected url (best-effort: only literals are inspected)', () => {
+    const raw = {
+      notifications: [
+        { type: 'webhook', enabled: true, url: '${MY_HOOK_URL}' },
+      ],
+    };
+    expect(() => assertNoCrossTypeLeakageInWebhookUrl(raw)).not.toThrow();
+  });
+
+  it('passes legitimate arbitrary URLs', () => {
+    const raw = {
+      notifications: [
+        { type: 'webhook', enabled: true, url: 'https://hooks.zapier.com/hooks/catch/123/abc' },
+        { type: 'webhook', enabled: true, url: 'https://statuspage.acme.io/ingest' },
+        { type: 'webhook', enabled: true, url: '${HOOK_URL}' },
+      ],
+    };
+    expect(() => assertNoCrossTypeLeakageInWebhookUrl(raw)).not.toThrow();
+  });
+
+  it('does not check type: slack/discord/teams entries', () => {
+    const raw = {
+      notifications: [
+        {
+          type: 'slack',
+          enabled: true,
+          webhookUrl: 'https://hooks.slack.com/services/T01/B02/abc',
+        },
+      ],
+    };
+    expect(() => assertNoCrossTypeLeakageInWebhookUrl(raw)).not.toThrow();
   });
 });

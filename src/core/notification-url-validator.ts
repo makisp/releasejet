@@ -38,3 +38,34 @@ export function assertNoLiteralWebhookUrls(raw: unknown): void {
     }
   }
 }
+
+export function assertNoCrossTypeLeakageInWebhookUrl(raw: unknown): void {
+  if (!raw || typeof raw !== 'object') return;
+  const notifications = (raw as Record<string, unknown>).notifications;
+  if (!Array.isArray(notifications)) return;
+
+  for (let i = 0; i < notifications.length; i++) {
+    const entry = notifications[i];
+    if (!entry || typeof entry !== 'object' || Array.isArray(entry)) continue;
+    const rec = entry as Record<string, unknown>;
+    if (rec.type !== 'webhook') continue;
+    const url = rec.url;
+    if (typeof url !== 'string') continue;
+    // Best-effort: only inspect literal URLs. ${VAR}-indirected values are
+    // user's responsibility — we cannot resolve env vars at this layer.
+    if (url.includes('${')) continue;
+
+    for (const pat of PATTERNS) {
+      if (pat.regex.test(url)) {
+        const platform = pat.platform;
+        const platformLabel =
+          platform === 'teams' ? 'Teams workflow URL' : `${platform.charAt(0).toUpperCase() + platform.slice(1)} incoming webhook`;
+        throw new Error(
+          `Invalid config in .releasejet.yml\n\n` +
+            `  notifications[${i}].url looks like a ${platformLabel}. ` +
+            `Use \`type: ${platform}\` (with \`webhookUrl:\`) for that channel — \`type: webhook\` is for arbitrary endpoints (programmatic integrations).`,
+        );
+      }
+    }
+  }
+}
