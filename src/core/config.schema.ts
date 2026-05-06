@@ -133,6 +133,18 @@ const JiraSchema = z
   })
   .describe('Jira ticket linking configuration (F3).');
 
+const AiSummarySchema = z
+  .object({
+    enabled: z.boolean().optional().default(false),
+  })
+  .describe('AI release-overview configuration (Pro M3b).');
+
+const AiSchema = z
+  .object({
+    allowDataEgress: z.boolean().optional().default(false),
+  })
+  .describe('AI consent. allowDataEgress must be true for AI features to run.');
+
 export const ReleaseJetConfigSchema = z
   .object({
     provider: ProviderSchema.optional(),
@@ -181,6 +193,8 @@ export const ReleaseJetConfigSchema = z
       .optional()
       .describe('Human-readable project name shown in notification cards.'),
     jira: JiraSchema.optional().describe('Jira ticket linking (F3).'),
+    aiSummary: AiSummarySchema.optional(),
+    ai: AiSchema.optional(),
   })
   .describe('ReleaseJet configuration (.releasejet.yml).');
 
@@ -485,5 +499,7 @@ export function parseConfig(raw: unknown): ReleaseJetConfig {
     projectName: parsed.projectName,
     description: parsed.description,
     jira,
+    aiSummary: parsed.aiSummary,
+    ai: parsed.ai,
   };
 }

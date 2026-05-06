@@ -277,4 +277,42 @@ describe('notifications.template field', () => {
       }),
     ).toThrowError(/notifications\[0\]\.template/);
   });
+
+  it('parses aiSummary.enabled: true', () => {
+    const cfg = parseConfig({
+      provider: { type: 'github', url: 'https://github.com/o/r' },
+      aiSummary: { enabled: true },
+    });
+    expect(cfg.aiSummary).toEqual({ enabled: true });
+  });
+
+  it('parses aiSummary.enabled: false (default)', () => {
+    const cfg = parseConfig({
+      provider: { type: 'github', url: 'https://github.com/o/r' },
+      aiSummary: {},
+    });
+    expect(cfg.aiSummary).toEqual({ enabled: false });
+  });
+
+  it('aiSummary defaults to undefined when omitted', () => {
+    const cfg = parseConfig({
+      provider: { type: 'github', url: 'https://github.com/o/r' },
+    });
+    expect(cfg.aiSummary).toBeUndefined();
+  });
+
+  it('parses ai.allowDataEgress: true', () => {
+    const cfg = parseConfig({
+      provider: { type: 'github', url: 'https://github.com/o/r' },
+      ai: { allowDataEgress: true },
+    });
+    expect(cfg.ai).toEqual({ allowDataEgress: true });
+  });
+
+  it('ai defaults to undefined when omitted', () => {
+    const cfg = parseConfig({
+      provider: { type: 'github', url: 'https://github.com/o/r' },
+    });
+    expect(cfg.ai).toBeUndefined();
+  });
 });

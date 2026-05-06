@@ -7,6 +7,10 @@ export const defaultTemplate = `## {{title}}
 
 ---
 
+{{#if data.aiSummary}}
+{{data.aiSummary}}
+
+{{/if}}
 {{#each categoryEntries}}
 #### {{this.heading}}
 {{#each this.issues}}

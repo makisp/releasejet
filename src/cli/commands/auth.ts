@@ -19,7 +19,7 @@ import {
 } from '../../core/ci.js';
 import { loadConfig } from '../../core/config.js';
 import { deriveHost, deriveRepoKey, writeTokenToCredentials } from '../auth.js';
-import { readEntries, redactToken, removeEntry, resolveTokenChain, writeEntry, type ChainStep } from '../credentials-store.js';
+import { readEntries, redactToken, removeEntry, resolveTokenChain, writeEntry, getAiConsent, setAiConsent, clearAiConsent, type ChainStep } from '../credentials-store.js';
 import { withErrorHandler } from '../error-handler.js';
 import { getRemoteUrl, resolveProjectPath } from '../../core/git.js';
 
@@ -679,6 +679,32 @@ export async function runMigrateTokens(options: MigrateTokensOptions): Promise<v
   console.log('Migration complete.');
 }
 
+export const AI_CONSENT_VERSION = 1;
+
+export async function runAiConsentShow(): Promise<void> {
+  const r = await getAiConsent();
+  if (!r) {
+    console.log('AI consent: not granted on this machine.');
+    console.log('Run `releasejet auth ai-consent grant` to enable.');
+    return;
+  }
+  console.log(`AI consent: granted at ${r.acknowledgedAt} (version ${r.version}).`);
+}
+
+export async function runAiConsentGrant(): Promise<void> {
+  await setAiConsent(AI_CONSENT_VERSION);
+  console.log('AI consent granted on this machine.');
+}
+
+export async function runAiConsentRevoke(): Promise<void> {
+  const removed = await clearAiConsent();
+  if (removed) {
+    console.log('AI consent revoked on this machine.');
+  } else {
+    console.log('No AI consent record to revoke.');
+  }
+}
+
 export function registerAuthCommand(program: Command): void {
   const auth = program
     .command('auth')
@@ -758,5 +784,16 @@ export function registerAuthCommand(program: Command): void {
     .description('Interactive walkthrough to move legacy gitlab/github keys into host keys')
     .action(withErrorHandler(async () => {
       await runMigrateTokens({});
+    }));
+
+  auth
+    .command('ai-consent [action]')
+    .description('Show, grant, or revoke AI processing consent on this machine')
+    .action(withErrorHandler(async (action?: string) => {
+      if (!action || action === 'show') return runAiConsentShow();
+      if (action === 'grant') return runAiConsentGrant();
+      if (action === 'revoke') return runAiConsentRevoke();
+      console.error(`Unknown action: ${action}. Valid: show, grant, revoke.`);
+      process.exit(1);
     }));
 }

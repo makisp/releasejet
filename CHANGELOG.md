@@ -5,6 +5,31 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.21.0] - 2026-05-XX
+
+### Added
+
+- **Schema-only release; no behavior change without the paid AI plugin.**
+- **types:** `aiSummary` and `ai.allowDataEgress` fields on `ReleaseJetConfig`;
+  `aiSummary?: string` on `ReleaseNotesData`.
+- **config:** warn and downgrade AI features at load time when
+  `ai.allowDataEgress` is unset (`description: ai` → `none`,
+  `aiSummary.enabled: true` → ignored).
+- **formatter:** default template renders `data.aiSummary` above categories
+  when present.
+- **credentials:** `aiConsent` record CRUD in `credentials-store`. Reserves
+  the `aiConsent` key from token classification.
+- **cli:** `releasejet auth ai-consent show|grant|revoke` subcommand.
+- **plugin:** re-export `extractDescription` via
+  `@makispps/releasejet/plugin/extract`.
+- **init:** commented AI section appended to default `.releasejet.yml`.
+- **validate:** surface AI configuration warnings and consent expectations.
+
+### Changed
+
+- **docs(readme):** removed paid-tier feature mentions (notification templates,
+  webhooks). Core README now points to releasejet.dev for paid features.
+
 ## [1.20.0] - 2026-05-05
 
 ### Added

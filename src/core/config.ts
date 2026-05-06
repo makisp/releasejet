@@ -59,7 +59,27 @@ export async function loadConfig(configPath = '.releasejet.yml'): Promise<Releas
 
   reattachNotificationTemplates(expanded, detachedTemplates);
 
-  return parseConfig(expanded);
+  const parsed = parseConfig(expanded);
+  return applyAiEgressGate(parsed);
+}
+
+function applyAiEgressGate(cfg: ReleaseJetConfig): ReleaseJetConfig {
+  const wantsAiDescription = cfg.description === 'ai';
+  const wantsAiSummary = cfg.aiSummary?.enabled === true;
+  if (!wantsAiDescription && !wantsAiSummary) return cfg;
+  if (cfg.ai?.allowDataEgress === true) return cfg;
+
+  console.warn(
+    'Warning: AI features are configured (description: ai or aiSummary.enabled: true) ' +
+      'but ai.allowDataEgress is not set to true. AI features are disabled for this run. ' +
+      'See https://releasejet.dev/docs/pro/ai for details on data handling.',
+  );
+
+  return {
+    ...cfg,
+    description: wantsAiDescription ? 'none' : cfg.description,
+    aiSummary: wantsAiSummary ? undefined : cfg.aiSummary,
+  };
 }
 
 /**

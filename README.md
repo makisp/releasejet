@@ -21,9 +21,10 @@ Collects labeled issues (or merged pull requests) between Git tags, categorizes 
 - Configurable categories — map labels to sections
 - Issue/PR description extraction — render the first paragraph beneath each title
 - Jira ticket linking — inline links to PROJ-123 IDs detected in titles/bodies, no API calls
-- Custom notification templates (Pro) — per-channel Handlebars overrides for Slack/Discord/Teams bodies
 - CI/CD integration — GitLab CI and GitHub Actions
 - Strict/lenient modes, milestone detection, contributors section
+
+ReleaseJet has a paid tier with additional features (notifications, AI-powered summaries, custom templates). See [releasejet.dev](https://releasejet.dev) for details.
 
 ## Quick Start
 
@@ -44,7 +45,7 @@ releasejet notifications add --type slack --env SLACK_WEBHOOK_URL --enabled
 releasejet notifications list                             # table of configured channels
 ```
 
-`add` only ever writes the env-var reference (e.g. `${SLACK_WEBHOOK_URL}`) — never a literal webhook URL. `list` resolves each referenced var at runtime and shows `set` / `unset` / `n/a` in the `ENV` column. Both commands work in core; channels actually fire when [`@releasejet/pro`](https://releasejet.dev/docs/pro/notifications) is installed and licensed.
+`add` only ever writes the env-var reference (e.g. `${SLACK_WEBHOOK_URL}`) — never a literal webhook URL. `list` resolves each referenced var at runtime and shows `set` / `unset` / `n/a` in the `ENV` column. Both commands work in core; channel delivery requires the paid tier — see [releasejet.dev](https://releasejet.dev) for details.
 
 ## Configuration
 
@@ -83,7 +84,7 @@ in `.releasejet.yml`. The cleaner strips leading HTML comments and `## Descripti
   - Users were redirected to /login instead of their target after SSO callback…
 ```
 
-The `description: ai` value is reserved for AI-summarised descriptions in the Pro plugin (M3a) and is treated as `none` in core.
+The `description: ai` value is reserved for AI-summarised descriptions on the paid tier and is treated as `none` in core. See [releasejet.dev](https://releasejet.dev) for details.
 
 ### Jira ticket linking
 
@@ -107,63 +108,6 @@ Output line:
 `baseUrl` accepts `${ENV_VAR}` references for self-hosted Jira instances.
 `projects` is a required allowlist that prevents false positives like
 `HTTP-2` or `IPV-6`.
-
-### Custom notification templates (Pro, M2a)
-
-Each `notifications[*]` entry accepts an optional inline Handlebars `template`. When set, the rendered string becomes the entire message body for that channel: Slack's `text` field, Discord's `content` field, or a `TextBlock` inside the Teams Adaptive Card. When omitted, the default Pro M2 message is used.
-
-Templates are **platform-native**: write Slack mrkdwn for Slack, Discord markdown for Discord, basic markdown for Teams. Handlebars `{{...}}` syntax is preserved verbatim, and literal `${...}` survives the config loader (env-var expansion is skipped for this field).
-
-```yaml
-notifications:
-  - type: slack
-    enabled: true
-    webhookUrl: ${SLACK_WEBHOOK_URL}
-    template: |
-      :rocket: *{{projectName}}* {{title}} is out
-      {{#if hasBreaking}}<!channel> :warning: Breaking changes in this release{{/if}}
-      • Features: {{categoryCount "New Features"}}
-      • Fixes: {{categoryCount "Bug Fixes"}}
-      <{{releaseUrl}}|See full release notes>
-```
-
-**Full guide & per-platform examples:** [releasejet.dev/docs/pro/notifications](https://releasejet.dev/docs/pro/notifications).
-
-Available variables: `projectName`, `projectUrl`, `releaseUrl`, `tagName`, `title`, `version`, `clientPrefix`, `date`, `channelType`, `totalCount`, `uncategorizedCount`, `categoryCounts`, `hasBreaking`, `hasContributors`, `milestone`, `contributors`, `categories`.
-
-Helpers shipped: `categoryCount "Heading"`, `truncate value 80`, `pluralize n "issue" "issues"`. Standard Handlebars helpers (`if`, `unless`, `each`, `with`, `lookup`) are available.
-
-**Failure modes.** A template that fails to compile (syntax error) aborts `generate` with a channel-named error. A template that fails to render at publish time (helper throws or returns empty) logs a warning and falls back to the default M2 message for that channel only — other channels are unaffected.
-
-`releasejet validate` includes a syntax-only check per channel:
-
-```
-[notifications]
-  slack    enabled  webhook OK    template OK
-  teams    enabled  webhook OK    template ERROR — Parse error on line 3
-```
-
-#### Generic webhooks (M4 — Pro)
-
-For arbitrary endpoints — Zapier, n8n, status pages, internal services — use `type: webhook`. ReleaseJet POSTs a structured, signed JSON envelope (`version: 1`) to your URL on `release.generated` (after every successful `generate`) and/or `release.published` (after `--publish`).
-
-```yaml
-notifications:
-  - type: webhook
-    enabled: true
-    url: ${MY_HOOK_URL}
-    secret: ${MY_HMAC_SECRET}
-    events: [release.published]
-    headers:
-      Authorization: "Bearer ${MY_API_TOKEN}"
-```
-
-- HMAC-SHA256 body signing in `X-ReleaseJet-Signature: sha256=<hex>` (when `secret:` is set).
-- At-least-once delivery with idempotency key `X-ReleaseJet-Delivery`.
-- 3-attempt retry on transient failures (network, 408, 425, 429, 5xx) with `Retry-After` honored up to 5 s.
-- `events: [release.generated, release.published]` to subscribe to both events.
-
-Full reference: [releasejet.dev/docs/notifications/webhooks](https://releasejet.dev/docs/notifications/webhooks)
 
 ## CI/CD
 

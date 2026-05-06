@@ -63,8 +63,16 @@ export interface ReleaseJetConfig {
   /** Human-readable project name shown in notification cards.
    *  When unset, derived from projectUrl's last path segment. */
   projectName?: string;
-  /** Description handling: 'none' (off, default), 'extract' (F4: take cleaned first paragraph), 'ai' (Pro M3a; treated as 'none' in core). */
+  /** Description handling: 'none' (off, default), 'extract' (F4: take cleaned first paragraph), 'ai' (Pro M3a; treated as 'none' in core when egress not allowed). */
   description?: 'none' | 'extract' | 'ai';
+  /** AI release-overview paragraph (Pro M3b). Treated as off in core when egress not allowed. */
+  aiSummary?: {
+    enabled: boolean;
+  };
+  /** AI consent. `allowDataEgress: true` is required for any AI feature to run. */
+  ai?: {
+    allowDataEgress: boolean;
+  };
   /** Jira ticket linking (F3). When present, detected ticket IDs in issue/PR
    *  text are rendered as inline links beside each issue line. */
   jira?: JiraConfig;
@@ -127,4 +135,6 @@ export interface ReleaseNotesData {
   totalCount: number;
   uncategorizedCount: number;
   contributors: Contributor[];
+  /** AI-generated release overview (Pro M3b). Undefined when AI is off, declined, or failed. */
+  aiSummary?: string;
 }

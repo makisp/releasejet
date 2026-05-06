@@ -73,6 +73,15 @@ contributors:
 # jira:
 #   baseUrl: https://acme.atlassian.net
 #   projects: [PROJ, BUG]
+
+# AI-powered descriptions and release overview (Pro M3).
+# Sends issue titles, bodies, and labels to releasejet.dev for summarisation.
+# See https://releasejet.dev/docs/pro/ai
+# ai:
+#   allowDataEgress: true
+# description: ai
+# aiSummary:
+#   enabled: true
 `);
   });
 
@@ -389,5 +398,24 @@ describe('buildConfigYaml — jira', () => {
     expect(out).toMatch(/^jira:$/m);
     expect(out).toContain('  baseUrl: https://acme.atlassian.net');
     expect(out).toContain('  projects: [PROJ]');
+  });
+
+  it('emits aiSection with all three commented fields', () => {
+    const yaml = buildConfigYaml({
+      providerType: 'github',
+      providerUrl: 'https://github.com/o/r',
+      source: 'issues',
+      clients: [],
+      tagFormat: 'v{version}',
+      categories: { feature: 'New Features' },
+      uncategorized: 'lenient',
+      contributors: { enabled: true, exclude: [] },
+    });
+    expect(yaml).toMatch(/# AI-powered descriptions/);
+    expect(yaml).toMatch(/# ai:/);
+    expect(yaml).toMatch(/#   allowDataEgress: true/);
+    expect(yaml).toMatch(/# description: ai/);
+    expect(yaml).toMatch(/# aiSummary:/);
+    expect(yaml).toMatch(/#   enabled: true/);
   });
 });

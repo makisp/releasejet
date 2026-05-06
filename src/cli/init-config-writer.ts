@@ -128,6 +128,19 @@ export function contributorsSection(
   ].join('\n');
 }
 
+export function aiSection(): string {
+  return [
+    '# AI-powered descriptions and release overview (Pro M3).',
+    '# Sends issue titles, bodies, and labels to releasejet.dev for summarisation.',
+    '# See https://releasejet.dev/docs/pro/ai',
+    '# ai:',
+    '#   allowDataEgress: true',
+    '# description: ai',
+    '# aiSummary:',
+    '#   enabled: true',
+  ].join('\n');
+}
+
 export function jiraSection(jira: JiraConfig | undefined): string {
   const header = [
     '# Jira ticket linking — append [PROJ-123] links next to each issue/PR',
@@ -169,6 +182,7 @@ export function buildConfigYaml(answers: InitAnswers): string {
   parts.push(templateSection());
   parts.push(contributorsSection(answers.contributors));
   parts.push(jiraSection(answers.jira));
+  parts.push(aiSection());
 
   return parts.join('\n\n') + '\n';
 }
