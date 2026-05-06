@@ -1,6 +1,6 @@
 {
   "name": "@makispps/releasejet",
-  "version": "1.20.0",
+  "version": "1.21.0",
   "description": "Automated release notes generator for GitLab and GitHub",
   "license": "MIT",
   "author": "Mavroudis Papas",
@@ -25,6 +25,7 @@
   "exports": {
     ".": "./dist/cli.js",
     "./plugin": "./dist/plugins/types.js",
+    "./plugin/extract": "./dist/plugins/extract.js",
     "./plugin/templates": "./dist/plugins/template-api.js",
     "./docs/config-schema.json": "./dist/docs/config-schema.json",
     "./docs/commands.json": "./dist/docs/commands.json"

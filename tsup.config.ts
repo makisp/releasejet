@@ -20,6 +20,12 @@ export default defineConfig([
     dts: true,
   },
   {
+    entry: { 'plugins/extract': 'src/plugins/extract.ts' },
+    format: ['esm'],
+    target: 'node20',
+    dts: true,
+  },
+  {
     entry: { 'plugins/template-api': 'src/plugins/template-api.ts' },
     format: ['esm'],
     target: 'node20',

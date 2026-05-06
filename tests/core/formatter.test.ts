@@ -558,3 +558,48 @@ describe('formatReleaseNotes — jira ticket linking (F3)', () => {
     expect(result).toMatchSnapshot();
   });
 });
+
+describe('formatReleaseNotes — aiSummary rendering (M3b)', () => {
+  function makeData(extra: Partial<ReleaseNotesData> = {}): ReleaseNotesData {
+    return {
+      tagName: 'v1.0.0',
+      version: '1.0.0',
+      clientPrefix: null,
+      date: '2026-05-06',
+      milestone: null,
+      projectUrl: 'https://github.com/o/r',
+      issues: {
+        categorized: {
+          'New Features': [
+            {
+              number: 142, title: 'Dark mode support', labels: ['feature'],
+              closedAt: '', webUrl: '', milestone: null, author: null,
+              assignee: null, closedBy: null,
+            },
+          ],
+        },
+        uncategorized: [],
+      },
+      totalCount: 1,
+      uncategorizedCount: 0,
+      contributors: [],
+      ...extra,
+    };
+  }
+
+  it('renders aiSummary above categories when present', () => {
+    const data = makeData({ aiSummary: 'This release ships SSO and fixes a session bug.' });
+    const out = formatReleaseNotes(data, defaultConfig);
+    expect(out).toMatch(/This release ships SSO and fixes a session bug\./);
+    const summaryIdx = out.indexOf('This release ships SSO');
+    const firstCategoryIdx = out.indexOf('####');
+    expect(summaryIdx).toBeGreaterThan(0);
+    expect(summaryIdx).toBeLessThan(firstCategoryIdx);
+  });
+
+  it('omits aiSummary block entirely when undefined', () => {
+    const data = makeData();
+    const out = formatReleaseNotes(data, defaultConfig);
+    expect(out).not.toMatch(/This release/);
+  });
+});

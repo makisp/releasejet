@@ -260,6 +260,32 @@ export async function runValidate(options: {
     }
   }
 
+  // --- AI Configuration section ---
+  const wantsAiDescription = config.description === 'ai';
+  const wantsAiSummary = config.aiSummary?.enabled === true;
+  const egressAllowed = config.ai?.allowDataEgress === true;
+  const anyAi = wantsAiDescription || wantsAiSummary;
+
+  if (anyAi || egressAllowed) {
+    console.log('');
+    console.log('AI Configuration');
+    if (anyAi && !egressAllowed) {
+      console.log(
+        '  ⚠ AI features (description: ai or aiSummary.enabled: true) are configured but ai.allowDataEgress is not set to true. AI features will be disabled at runtime. See https://releasejet.dev/docs/pro/ai.',
+      );
+    }
+    if (egressAllowed && !anyAi) {
+      console.log(
+        '  ℹ ai.allowDataEgress is set, but no AI features are enabled. The flag has no effect until description: ai or aiSummary.enabled: true is configured.',
+      );
+    }
+    if (anyAi && egressAllowed) {
+      console.log(
+        '  ℹ AI features configured. First `releasejet generate` run on this machine will prompt for consent. In CI, set RELEASEJET_AI_CONSENT=1 to bypass.',
+      );
+    }
+  }
+
   // Summary
   console.log('');
   console.log(

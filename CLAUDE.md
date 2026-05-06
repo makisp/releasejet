@@ -49,6 +49,9 @@ npm run dev -- generate --tag v1.0.0  # Run a specific command in dev
 - **Webhook envelope** — the M4 channel POSTs a versioned JSON envelope (`version: 1`, additive-only). Schema lives in `docs/superpowers/specs/2026-05-05-m4-generic-webhook-design.md`. Signing is optional HMAC-SHA256 of the raw body.
 - **Reserved header namespace** — `X-ReleaseJet-*` and `Content-Type` are reserved on `notifications[*].headers`. Validation rejects user attempts to override.
 - **M2 retry policy is named, not inline** — `releasejet-pro` has `src/notifications/retry/m2-policy.ts` and `webhook-policy.ts`. Slack/Discord/Teams use `m2Policy`; webhooks use `webhookPolicy`. Behavior of M2 channels is preserved exactly; `tests/notifications/regression-m2.test.ts` is the gate.
+- **`description: 'ai'`, `aiSummary.enabled`, and `ai.allowDataEgress`** — schema fields landed in core v1.21.0 for upcoming Pro M3. Core treats `'ai'` as `'none'` and ignores `aiSummary` when `ai.allowDataEgress` is unset, emitting a single warning on `loadConfig`. Runtime (HTTP to `releasejet.dev`, consent prompt, KV cache, model fallback) lives entirely in `@releasejet/pro` v1.7.0+. Spec: `docs/superpowers/specs/2026-05-06-m3-ai-summaries-design.md`.
+- **`aiConsent` in credentials.yml** — `~/.releasejet/credentials.yml` may contain a top-level `aiConsent: { acknowledgedAt, version }` object. `credentials-store.ts` exposes `getAiConsent` / `setAiConsent` / `clearAiConsent`. `readEntries` skips this reserved key (via `RESERVED_NON_TOKEN_KEYS`) so it doesn't get classified as a malformed token. Core's `auth ai-consent show|grant|revoke` subcommand is a thin wrapper over these.
+- **`extractDescription` re-export** — published from core via the `@makispps/releasejet/plugin/extract` subpath so the Pro AI plugin can use the same F4 cleaner without forking. tsup config has a dedicated entry for this.
 
 ## Config
 

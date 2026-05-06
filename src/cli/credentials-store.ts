@@ -83,6 +83,8 @@ export const PATHS = { credDir, credYamlPath, credLegacyPath };
 
 const LEGACY_KEYS = new Set(['gitlab', 'github']);
 
+const RESERVED_NON_TOKEN_KEYS = new Set(['aiconsent']);
+
 function classifyKey(key: string): EntryKind {
   if (LEGACY_KEYS.has(key)) return 'legacy';
   if (key.includes('/')) return 'repo';
@@ -261,6 +263,7 @@ export async function readEntries(): Promise<ReadResult> {
   const malformed: string[] = [];
 
   for (const [rawKey, rawValue] of Object.entries(raw)) {
+    if (RESERVED_NON_TOKEN_KEYS.has(rawKey.toLowerCase())) continue;
     if (typeof rawValue !== 'string') {
       malformed.push(rawKey);
       continue;
@@ -273,4 +276,41 @@ export async function readEntries(): Promise<ReadResult> {
   }
 
   return { entries, malformed };
+}
+
+export interface AiConsent {
+  acknowledgedAt: string;
+  version: number;
+}
+
+const AI_CONSENT_KEY = 'aiConsent';
+
+export async function getAiConsent(): Promise<AiConsent | null> {
+  const raw = await loadRawYaml();
+  if (!raw) return null;
+  const v = raw[AI_CONSENT_KEY];
+  if (!v || typeof v !== 'object' || Array.isArray(v)) return null;
+  const rec = v as Record<string, unknown>;
+  if (typeof rec.acknowledgedAt !== 'string' || typeof rec.version !== 'number') {
+    return null;
+  }
+  return { acknowledgedAt: rec.acknowledgedAt, version: rec.version };
+}
+
+export async function setAiConsent(version: number): Promise<void> {
+  await mkdir(credDir(), { recursive: true });
+  const existing = await loadRawYamlForWrite();
+  existing[AI_CONSENT_KEY] = {
+    acknowledgedAt: new Date().toISOString(),
+    version,
+  };
+  await writeFile(credYamlPath(), stringifyYaml(existing), { mode: 0o600 });
+}
+
+export async function clearAiConsent(): Promise<boolean> {
+  const raw = await loadRawYamlForWrite();
+  if (!(AI_CONSENT_KEY in raw)) return false;
+  delete raw[AI_CONSENT_KEY];
+  await writeFile(credYamlPath(), stringifyYaml(raw), { mode: 0o600 });
+  return true;
 }

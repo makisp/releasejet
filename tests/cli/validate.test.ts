@@ -418,4 +418,60 @@ describe('runValidate — tag timestamps', () => {
 
     consoleSpy.mockRestore();
   });
+
+  it('warns when description: ai is set without ai.allowDataEgress', async () => {
+    vi.mocked(loadConfig).mockResolvedValue({
+      ...mockConfig,
+      description: 'ai',
+    });
+    vi.mocked(mockClient.listTags).mockResolvedValue([]);
+    vi.mocked(mockClient.listIssues).mockResolvedValue([]);
+    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+    await runValidate({ config: '.releasejet.yml', debug: false });
+
+    const output = consoleSpy.mock.calls.map((c) => c[0]).join('\n');
+    expect(output).toContain('AI Configuration');
+    expect(output).toMatch(/ai\.allowDataEgress is not set to true/);
+
+    consoleSpy.mockRestore();
+  });
+
+  it('info-notes when ai.allowDataEgress is set without AI features', async () => {
+    vi.mocked(loadConfig).mockResolvedValue({
+      ...mockConfig,
+      ai: { allowDataEgress: true },
+    });
+    vi.mocked(mockClient.listTags).mockResolvedValue([]);
+    vi.mocked(mockClient.listIssues).mockResolvedValue([]);
+    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+    await runValidate({ config: '.releasejet.yml', debug: false });
+
+    const output = consoleSpy.mock.calls.map((c) => c[0]).join('\n');
+    expect(output).toContain('AI Configuration');
+    expect(output).toMatch(/no AI features are enabled/);
+
+    consoleSpy.mockRestore();
+  });
+
+  it('notes consent prompt expectation when AI features are configured with egress', async () => {
+    vi.mocked(loadConfig).mockResolvedValue({
+      ...mockConfig,
+      description: 'ai',
+      ai: { allowDataEgress: true },
+    });
+    vi.mocked(mockClient.listTags).mockResolvedValue([]);
+    vi.mocked(mockClient.listIssues).mockResolvedValue([]);
+    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+    await runValidate({ config: '.releasejet.yml', debug: false });
+
+    const output = consoleSpy.mock.calls.map((c) => c[0]).join('\n');
+    expect(output).toContain('AI Configuration');
+    expect(output).toMatch(/First `releasejet generate` run/);
+    expect(output).toMatch(/RELEASEJET_AI_CONSENT=1/);
+
+    consoleSpy.mockRestore();
+  });
 });
