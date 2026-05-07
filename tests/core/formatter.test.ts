@@ -587,14 +587,23 @@ describe('formatReleaseNotes — aiSummary rendering (M3b)', () => {
     };
   }
 
-  it('renders aiSummary above categories when present', () => {
+  it('renders aiSummary under an Overview heading above categories when present', () => {
     const data = makeData({ aiSummary: 'This release ships SSO and fixes a session bug.' });
     const out = formatReleaseNotes(data, defaultConfig);
+    expect(out).toMatch(/#### Overview/);
     expect(out).toMatch(/This release ships SSO and fixes a session bug\./);
+    const overviewIdx = out.indexOf('#### Overview');
     const summaryIdx = out.indexOf('This release ships SSO');
-    const firstCategoryIdx = out.indexOf('####');
-    expect(summaryIdx).toBeGreaterThan(0);
+    const firstCategoryIdx = out.indexOf('#### New Features');
+    expect(overviewIdx).toBeGreaterThan(0);
+    expect(overviewIdx).toBeLessThan(summaryIdx);
     expect(summaryIdx).toBeLessThan(firstCategoryIdx);
+  });
+
+  it('omits the Overview heading when aiSummary is undefined', () => {
+    const data = makeData();
+    const out = formatReleaseNotes(data, defaultConfig);
+    expect(out).not.toMatch(/#### Overview/);
   });
 
   it('omits aiSummary block entirely when undefined', () => {

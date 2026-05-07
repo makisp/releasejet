@@ -5,6 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.21.2] - 2026-05-07
+
+### Changed
+
+- **formatter:** render the AI summary under a `#### Overview` heading in the
+  default template so it is visually delimited from the meta line above and the
+  category sections below. The block is still omitted entirely when no
+  `aiSummary` is present on the data.
+
+## [1.21.1] - 2026-05-07
+
+### Fixed
+
+- **cli:** pipe `--debug` from `main.ts` into `discoverPlugin` so the plugin
+  loader's internal debug lines (`Plugin loaded: …`) and any plugin's
+  `context.logger.debug(...)` output actually print when `--debug` is set.
+  Previously the loader received a no-op debug fn regardless of the flag,
+  silencing useful diagnostics.
+
 ## [1.21.0] - 2026-05-XX
 
 ### Added
