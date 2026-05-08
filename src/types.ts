@@ -17,6 +17,10 @@ export interface SlackDiscordTeamsChannelConfig {
   /** Optional Handlebars template for this channel's message body.
    *  When omitted or empty, the default Pro M2 message is used. */
   template?: string;
+  /** Suppress the AI release-overview block in this channel's card.
+   *  Defaults to true (rendered when data.aiSummary is populated).
+   *  Has no effect when data.aiSummary is undefined or empty. (Pro M3.1+) */
+  includeAiSummary?: boolean;
 }
 
 export interface WebhookChannelConfig {
