@@ -85,6 +85,7 @@ template: default
 #   - type: slack
 #     enabled: true
 #     webhookUrl: ${SLACK_WEBHOOK_URL}
+#     # includeAiSummary: false   # uncomment to suppress the AI release overview block on this channel (Pro M3.1+)
 #     template: |
 #       :rocket: *{{projectName}}* {{title}} is out
 #       {{#if hasBreaking}}<!channel> :warning: Breaking changes in this release{{/if}}

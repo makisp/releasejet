@@ -336,3 +336,129 @@ describe('notifications.template field', () => {
     expect(cfg.ai).toBeUndefined();
   });
 });
+
+describe('notifications.includeAiSummary field', () => {
+  function baseNotif(extra: Record<string, unknown> = {}): Record<string, unknown> {
+    return {
+      provider: { type: 'github', url: 'https://github.com' },
+      ...extra,
+    };
+  }
+
+  it('parses a slack channel with includeAiSummary: true and preserves the field', () => {
+    const cfg = parseConfig(
+      baseNotif({
+        notifications: [
+          { type: 'slack', enabled: true, webhookUrl: '${SLACK_URL}', includeAiSummary: true },
+        ],
+      }),
+    );
+    expect(cfg.notifications).toHaveLength(1);
+    const n = cfg.notifications?.[0];
+    expect(n?.type).toBe('slack');
+    if (n?.type === 'slack' || n?.type === 'discord' || n?.type === 'teams') {
+      expect(n.includeAiSummary).toBe(true);
+    }
+  });
+
+  it('parses a slack channel with includeAiSummary: false and preserves the field', () => {
+    const cfg = parseConfig(
+      baseNotif({
+        notifications: [
+          { type: 'slack', enabled: true, webhookUrl: '${SLACK_URL}', includeAiSummary: false },
+        ],
+      }),
+    );
+    expect(cfg.notifications).toHaveLength(1);
+    const n = cfg.notifications?.[0];
+    if (n?.type === 'slack' || n?.type === 'discord' || n?.type === 'teams') {
+      expect(n.includeAiSummary).toBe(false);
+    }
+  });
+
+  it('rejects a slack channel with includeAiSummary as a string', () => {
+    expect(() =>
+      parseConfig(
+        baseNotif({
+          notifications: [
+            { type: 'slack', enabled: true, webhookUrl: '${SLACK_URL}', includeAiSummary: 'false' },
+          ],
+        }),
+      ),
+    ).toThrowError(/expected a boolean \(true or false\).*use includeAiSummary: false, not includeAiSummary: "false"/s);
+  });
+
+  it('rejects a slack channel with includeAiSummary as a number', () => {
+    expect(() =>
+      parseConfig(
+        baseNotif({
+          notifications: [
+            { type: 'slack', enabled: true, webhookUrl: '${SLACK_URL}', includeAiSummary: 0 },
+          ],
+        }),
+      ),
+    ).toThrowError(/expected a boolean \(true or false\)/);
+  });
+
+  it('parses a discord channel with includeAiSummary: true', () => {
+    const cfg = parseConfig(
+      baseNotif({
+        notifications: [
+          { type: 'discord', enabled: true, webhookUrl: '${DISCORD_URL}', includeAiSummary: true },
+        ],
+      }),
+    );
+    expect(cfg.notifications).toHaveLength(1);
+    const n = cfg.notifications?.[0];
+    if (n?.type === 'slack' || n?.type === 'discord' || n?.type === 'teams') {
+      expect(n.includeAiSummary).toBe(true);
+    }
+  });
+
+  it('parses a teams channel with includeAiSummary: true', () => {
+    const cfg = parseConfig(
+      baseNotif({
+        notifications: [
+          { type: 'teams', enabled: true, webhookUrl: '${TEAMS_URL}', includeAiSummary: true },
+        ],
+      }),
+    );
+    expect(cfg.notifications).toHaveLength(1);
+    const n = cfg.notifications?.[0];
+    if (n?.type === 'slack' || n?.type === 'discord' || n?.type === 'teams') {
+      expect(n.includeAiSummary).toBe(true);
+    }
+  });
+
+  it('rejects a webhook channel with includeAiSummary: true', () => {
+    expect(() =>
+      parseConfig(
+        baseNotif({
+          notifications: [
+            {
+              type: 'webhook',
+              enabled: true,
+              url: 'https://example.com/hook',
+              events: ['release.published'],
+              includeAiSummary: true,
+            },
+          ],
+        }),
+      ),
+    ).toThrowError(/includeAiSummary.*not supported on type: webhook/);
+  });
+
+  it('leaves includeAiSummary undefined when omitted from a slack channel', () => {
+    const cfg = parseConfig(
+      baseNotif({
+        notifications: [
+          { type: 'slack', enabled: true, webhookUrl: '${SLACK_URL}' },
+        ],
+      }),
+    );
+    const n = cfg.notifications?.[0];
+    if (n?.type === 'slack' || n?.type === 'discord' || n?.type === 'teams') {
+      expect(n.includeAiSummary).toBeUndefined();
+    }
+  });
+});

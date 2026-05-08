@@ -62,6 +62,10 @@ const SlackDiscordTeamsChannelSchema = z
       .string()
       .optional()
       .describe('Optional Handlebars template for the message body. Empty string treated as absent.'),
+    includeAiSummary: z
+      .boolean()
+      .optional()
+      .describe('Whether to include the AI release overview block in this channel card. Default true. Set false to suppress. (Pro M3.1+)'),
   })
   .describe('Slack / Discord / Teams notification channel.');
 
@@ -387,6 +391,11 @@ export function parseConfig(raw: unknown): ReleaseJetConfig {
               `Templates apply to human-readable messages (slack/discord/teams). Webhooks send the structured JSON envelope; receivers render their own output.`,
           );
         }
+        if ('includeAiSummary' in n) {
+          throw new Error(
+            `Invalid config in .releasejet.yml\n\n  notifications[${i}].includeAiSummary: not supported on type: webhook. The flag controls the AI summary block on Slack/Discord/Teams cards; webhooks send the structured envelope unconditionally.`,
+          );
+        }
         if (n.headers !== undefined) {
           if (typeof n.headers !== 'object' || n.headers === null || Array.isArray(n.headers)) {
             throw new Error(
@@ -436,6 +445,11 @@ export function parseConfig(raw: unknown): ReleaseJetConfig {
         if (n.template !== undefined && typeof n.template !== 'string') {
           throw new Error(
             `Invalid config in .releasejet.yml\n\n  notifications[${i}].template: expected a string.`,
+          );
+        }
+        if ('includeAiSummary' in n && typeof n.includeAiSummary !== 'boolean') {
+          throw new Error(
+            `Invalid config in .releasejet.yml\n\n  notifications[${i}].includeAiSummary: expected a boolean (true or false). (use includeAiSummary: false, not includeAiSummary: "false")`,
           );
         }
       }
