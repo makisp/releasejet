@@ -558,4 +558,38 @@ describe('runGenerate', () => {
     expect(allLogs).toContain('Excluded 2 issues by excludeLabels filter (internal, chore)');
     logSpy.mockRestore();
   });
+
+  it('does not fail strict mode when the only uncategorized issues were excluded', async () => {
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const originalExitCode = process.exitCode;
+    process.exitCode = 0;
+
+    vi.mocked(loadConfig).mockResolvedValue({
+      ...mockConfig,
+      uncategorized: 'strict',
+      excludeLabels: ['internal'],
+    });
+    vi.mocked(mockClient.listIssues).mockResolvedValue([
+      { number: 99, title: 'Refactor only', labels: ['internal', 'MOBILE'], closedAt: '2026-04-07', webUrl: '', milestone: null, author: null, assignee: null, closedBy: null },
+    ]);
+
+    try {
+      await runGenerate({
+        tag: 'mobile-v0.1.17',
+        publish: false,
+        dryRun: false,
+        format: 'markdown',
+        config: '.releasejet.yml',
+      });
+
+      expect(process.exitCode).not.toBe(1);
+      const errors = errorSpy.mock.calls.map((c) => String(c[0])).join('\n');
+      expect(errors).not.toMatch(/Uncategorized issues found/);
+    } finally {
+      process.exitCode = originalExitCode;
+      logSpy.mockRestore();
+      errorSpy.mockRestore();
+    }
+  });
 });
