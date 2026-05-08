@@ -60,6 +60,11 @@ template: default
 #     - dependabot
 #     - renovate
 
+# Internal-only labels — issues with any of these are dropped from release notes.
+# Useful for refactors, cleanups, internal-only chores that should not appear
+# in client-facing notes.
+# excludeLabels: [internal, chore]
+
 # Pro feature — webhook notifications on successful `generate --publish`.
 # Requires @releasejet/pro to be installed and a valid license.
 #
