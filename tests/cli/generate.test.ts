@@ -533,4 +533,29 @@ describe('runGenerate', () => {
       }),
     ).rejects.toThrow(/--since mobile-v1\.0\.0-beta\.1/);
   });
+
+  it('prints a summary line listing matched labels when issues were excluded', async () => {
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    vi.mocked(loadConfig).mockResolvedValue({
+      ...mockConfig,
+      excludeLabels: ['internal', 'chore'],
+    });
+    vi.mocked(mockClient.listIssues).mockResolvedValue([
+      { number: 1, title: 'Feature', labels: ['feature', 'MOBILE'], closedAt: '2026-04-07', webUrl: '', milestone: null, author: null, assignee: null, closedBy: null },
+      { number: 2, title: 'Refactor', labels: ['internal', 'MOBILE'], closedAt: '2026-04-07', webUrl: '', milestone: null, author: null, assignee: null, closedBy: null },
+      { number: 3, title: 'Cleanup',  labels: ['chore', 'MOBILE'],    closedAt: '2026-04-07', webUrl: '', milestone: null, author: null, assignee: null, closedBy: null },
+    ]);
+
+    await runGenerate({
+      tag: 'mobile-v0.1.17',
+      publish: false,
+      dryRun: false,
+      format: 'markdown',
+      config: '.releasejet.yml',
+    });
+
+    const allLogs = logSpy.mock.calls.map((c) => String(c[0])).join('\n');
+    expect(allLogs).toContain('Excluded 2 issues by excludeLabels filter (internal, chore)');
+    logSpy.mockRestore();
+  });
 });
