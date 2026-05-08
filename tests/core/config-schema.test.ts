@@ -353,6 +353,7 @@ describe('notifications.includeAiSummary field', () => {
         ],
       }),
     );
+    expect(cfg.notifications).toHaveLength(1);
     const n = cfg.notifications?.[0];
     expect(n?.type).toBe('slack');
     if (n?.type === 'slack' || n?.type === 'discord' || n?.type === 'teams') {
@@ -368,6 +369,7 @@ describe('notifications.includeAiSummary field', () => {
         ],
       }),
     );
+    expect(cfg.notifications).toHaveLength(1);
     const n = cfg.notifications?.[0];
     if (n?.type === 'slack' || n?.type === 'discord' || n?.type === 'teams') {
       expect(n.includeAiSummary).toBe(false);
@@ -395,7 +397,7 @@ describe('notifications.includeAiSummary field', () => {
           ],
         }),
       ),
-    ).toThrowError(/expected a boolean/);
+    ).toThrowError(/expected a boolean \(true or false\)/);
   });
 
   it('parses a discord channel with includeAiSummary: true', () => {
@@ -406,6 +408,7 @@ describe('notifications.includeAiSummary field', () => {
         ],
       }),
     );
+    expect(cfg.notifications).toHaveLength(1);
     const n = cfg.notifications?.[0];
     if (n?.type === 'slack' || n?.type === 'discord' || n?.type === 'teams') {
       expect(n.includeAiSummary).toBe(true);
@@ -420,6 +423,7 @@ describe('notifications.includeAiSummary field', () => {
         ],
       }),
     );
+    expect(cfg.notifications).toHaveLength(1);
     const n = cfg.notifications?.[0];
     if (n?.type === 'slack' || n?.type === 'discord' || n?.type === 'teams') {
       expect(n.includeAiSummary).toBe(true);
