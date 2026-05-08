@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { parse as parseYaml } from 'yaml';
-import { buildConfigYaml, categoriesSection, clientsSection, contributorsSection, descriptionSection, jiraSection, projectNameSection, providerSection, sourceSection, tagFormatSection, templateSection, uncategorizedSection, type InitAnswers } from '../../src/cli/init-config-writer.js';
+import { buildConfigYaml, categoriesSection, clientsSection, contributorsSection, descriptionSection, excludeLabelsSection, jiraSection, projectNameSection, providerSection, sourceSection, tagFormatSection, templateSection, uncategorizedSection, type InitAnswers } from '../../src/cli/init-config-writer.js';
 
 const DEFAULT_CATEGORIES = {
   feature: 'New Features',
@@ -19,6 +19,7 @@ function defaultsGithub(): InitAnswers {
     categories: { ...DEFAULT_CATEGORIES },
     uncategorized: 'lenient',
     contributors: { enabled: false, exclude: [] },
+    excludeLabels: [],
   };
 }
 
@@ -66,6 +67,9 @@ template: default
 contributors:
   enabled: false          # true | false
   exclude: []             # usernames to skip (e.g. dependabot, renovate)
+
+# Internal-only labels — issues with any of these are dropped from release notes.
+# excludeLabels: [internal, chore]
 
 # Jira ticket linking — append [PROJ-123] links next to each issue/PR
 # when a configured project key is detected in the title or body.
@@ -275,6 +279,29 @@ contributors:
   });
 });
 
+describe('excludeLabelsSection', () => {
+  it('renders the off-state commented placeholder when empty', () => {
+    expect(excludeLabelsSection([])).toBe(
+`# Internal-only labels — issues with any of these are dropped from release notes.
+# excludeLabels: [internal, chore]`,
+    );
+  });
+
+  it('renders the active directive when labels are provided', () => {
+    expect(excludeLabelsSection(['internal', 'chore'])).toBe(
+`# Internal-only labels — issues with any of these are dropped from release notes.
+excludeLabels: [internal, chore]`,
+    );
+  });
+
+  it('renders a single label cleanly', () => {
+    expect(excludeLabelsSection(['internal'])).toBe(
+`# Internal-only labels — issues with any of these are dropped from release notes.
+excludeLabels: [internal]`,
+    );
+  });
+});
+
 describe('buildConfigYaml — variants', () => {
   it('omits the source section for GitLab', () => {
     const out = buildConfigYaml({
@@ -285,6 +312,7 @@ describe('buildConfigYaml — variants', () => {
       categories: { ...DEFAULT_CATEGORIES },
       uncategorized: 'lenient',
       contributors: { enabled: false, exclude: [] },
+      excludeLabels: [],
     });
     expect(out).not.toContain('source:');
     expect(out).toContain('type: gitlab');
@@ -377,6 +405,7 @@ describe('buildConfigYaml — jira', () => {
       categories: { feature: 'New Features' },
       uncategorized: 'lenient',
       contributors: { enabled: false, exclude: [] },
+      excludeLabels: [],
     });
     expect(out).toContain('# Jira ticket linking — append [PROJ-123] links');
     expect(out).toContain('# jira:');
@@ -393,6 +422,7 @@ describe('buildConfigYaml — jira', () => {
       categories: { feature: 'New Features' },
       uncategorized: 'lenient',
       contributors: { enabled: false, exclude: [] },
+      excludeLabels: [],
       jira: { baseUrl: 'https://acme.atlassian.net', projects: ['PROJ'] },
     });
     expect(out).toMatch(/^jira:$/m);
@@ -410,6 +440,7 @@ describe('buildConfigYaml — jira', () => {
       categories: { feature: 'New Features' },
       uncategorized: 'lenient',
       contributors: { enabled: true, exclude: [] },
+      excludeLabels: [],
     });
     expect(yaml).toMatch(/# AI-powered descriptions/);
     expect(yaml).toMatch(/# ai:/);
