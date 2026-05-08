@@ -102,6 +102,26 @@ describe('parseConfig', () => {
     expect(result.clients).toEqual([]);
   });
 
+  it('defaults excludeLabels to an empty array when omitted', () => {
+    const result = parseConfig({});
+    expect(result.excludeLabels).toEqual([]);
+  });
+
+  it('parses excludeLabels from config', () => {
+    const result = parseConfig({ excludeLabels: ['internal', 'chore'] });
+    expect(result.excludeLabels).toEqual(['internal', 'chore']);
+  });
+
+  it('rejects excludeLabels when it is not an array', () => {
+    expect(() => parseConfig({ excludeLabels: 'internal' })).toThrow(
+      /excludeLabels: expected an array of label names/,
+    );
+  });
+
+  it('rejects excludeLabels when entries are not strings', () => {
+    expect(() => parseConfig({ excludeLabels: ['ok', 5] })).toThrow();
+  });
+
   describe('notifications schema', () => {
     it('parses a valid notifications list', () => {
       const parsed = parseConfig({

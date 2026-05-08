@@ -80,7 +80,7 @@ export async function collectIssues(
   // Inverted window guard.
   if (lowerBoundMs !== null && upperBoundMs <= lowerBoundMs) {
     debug('Inverted window — returning empty set');
-    return { categorized: {}, uncategorized: [] };
+    return { categorized: {}, uncategorized: [], excluded: [] };
   }
 
   const filtered = issues.filter((issue) => {
@@ -130,7 +130,7 @@ export async function collectIssues(
     }
   }
 
-  return { categorized, uncategorized };
+  return { categorized, uncategorized, excluded: [] };
 }
 
 export function detectMilestone(
