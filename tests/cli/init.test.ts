@@ -58,8 +58,8 @@ describe('runInit — category step', () => {
     vi.mocked(input)
       .mockResolvedValueOnce('https://gitlab.example.com')
       .mockResolvedValueOnce('test-token');
-    // confirm calls: (1) multi-client? -> false, (2) contributors -> false, (3) CI setup -> false
-    vi.mocked(confirm).mockResolvedValueOnce(false).mockResolvedValueOnce(false).mockResolvedValueOnce(false);
+    // confirm calls: (1) multi-client? -> false, (2) contributors -> false, (3) excludeLabels -> false, (4) CI setup -> false
+    vi.mocked(confirm).mockResolvedValueOnce(false).mockResolvedValueOnce(false).mockResolvedValueOnce(false).mockResolvedValueOnce(false);
 
     await runInit();
 
@@ -80,6 +80,7 @@ describe('runInit — category step', () => {
     vi.mocked(confirm)
       .mockResolvedValueOnce(false) // multi-client
       .mockResolvedValueOnce(false) // contributors
+      .mockResolvedValueOnce(false) // excludeLabels (NEW)
       .mockResolvedValueOnce(false); // CI setup
 
     await runInit();
@@ -100,7 +101,7 @@ describe('runInit — category step', () => {
       .mockResolvedValueOnce('Security Fixes')          // 1st custom heading
       .mockResolvedValueOnce('')                         // done adding
       .mockResolvedValueOnce('test-token');              // token
-    vi.mocked(confirm).mockResolvedValueOnce(false).mockResolvedValueOnce(false).mockResolvedValueOnce(false);
+    vi.mocked(confirm).mockResolvedValueOnce(false).mockResolvedValueOnce(false).mockResolvedValueOnce(false).mockResolvedValueOnce(false);
 
     await runInit();
 
@@ -125,7 +126,7 @@ describe('runInit — category step', () => {
       .mockResolvedValueOnce('Bug Fixes')
       .mockResolvedValueOnce('')                         // done
       .mockResolvedValueOnce('test-token');
-    vi.mocked(confirm).mockResolvedValueOnce(false).mockResolvedValueOnce(false).mockResolvedValueOnce(false);
+    vi.mocked(confirm).mockResolvedValueOnce(false).mockResolvedValueOnce(false).mockResolvedValueOnce(false).mockResolvedValueOnce(false);
 
     await runInit();
 
@@ -149,7 +150,7 @@ describe('runInit — category step', () => {
       .mockResolvedValueOnce('security')                 // duplicate — skipped
       .mockResolvedValueOnce('')                         // done
       .mockResolvedValueOnce('test-token');
-    vi.mocked(confirm).mockResolvedValueOnce(false).mockResolvedValueOnce(false).mockResolvedValueOnce(false);
+    vi.mocked(confirm).mockResolvedValueOnce(false).mockResolvedValueOnce(false).mockResolvedValueOnce(false).mockResolvedValueOnce(false);
 
     await runInit();
 
@@ -173,7 +174,7 @@ describe('runInit — category step', () => {
       .mockResolvedValueOnce('Bug Fixes')
       .mockResolvedValueOnce('')                         // done
       .mockResolvedValueOnce('test-token');
-    vi.mocked(confirm).mockResolvedValueOnce(false).mockResolvedValueOnce(false).mockResolvedValueOnce(false);
+    vi.mocked(confirm).mockResolvedValueOnce(false).mockResolvedValueOnce(false).mockResolvedValueOnce(false).mockResolvedValueOnce(false);
 
     await runInit();
 
@@ -193,7 +194,7 @@ describe('runInit — category step', () => {
       .mockResolvedValueOnce('')                         // empty heading
       .mockResolvedValueOnce('')                         // done
       .mockResolvedValueOnce('test-token');
-    vi.mocked(confirm).mockResolvedValueOnce(false).mockResolvedValueOnce(false).mockResolvedValueOnce(false);
+    vi.mocked(confirm).mockResolvedValueOnce(false).mockResolvedValueOnce(false).mockResolvedValueOnce(false).mockResolvedValueOnce(false);
 
     await runInit();
 
@@ -234,9 +235,10 @@ describe('runInit — CI setup step', () => {
       vi.mocked(input).mockResolvedValueOnce(val);
     }
 
-    // confirm calls: (1) multi-client -> false, (2) contributors -> false, (3) jira -> false, (4) CI setup
+    // confirm calls: (1) multi-client -> false, (2) contributors -> false, (3) excludeLabels -> false, (4) jira -> false, (5) CI setup
     vi.mocked(confirm).mockResolvedValueOnce(false);   // multi-client
     vi.mocked(confirm).mockResolvedValueOnce(false);   // contributors
+    vi.mocked(confirm).mockResolvedValueOnce(false);   // excludeLabels (NEW)
     vi.mocked(confirm).mockResolvedValueOnce(false);   // jira
     vi.mocked(confirm).mockResolvedValueOnce(ciSetup); // CI
   }
@@ -298,6 +300,7 @@ describe('runInit — provider selection', () => {
     vi.mocked(confirm)
       .mockResolvedValueOnce(false)  // multi-client
       .mockResolvedValueOnce(false)  // contributors
+      .mockResolvedValueOnce(false)  // excludeLabels (NEW)
       .mockResolvedValueOnce(false); // CI
 
     await runInit();
@@ -318,6 +321,7 @@ describe('runInit — provider selection', () => {
     vi.mocked(confirm)
       .mockResolvedValueOnce(false)  // multi-client
       .mockResolvedValueOnce(false)  // contributors
+      .mockResolvedValueOnce(false)  // excludeLabels (NEW)
       .mockResolvedValueOnce(false); // CI
 
     await runInit();
@@ -339,6 +343,7 @@ describe('runInit — provider selection', () => {
     vi.mocked(confirm)
       .mockResolvedValueOnce(false)  // multi-client
       .mockResolvedValueOnce(false)  // contributors
+      .mockResolvedValueOnce(false)  // excludeLabels (NEW)
       .mockResolvedValueOnce(false)  // jira
       .mockResolvedValueOnce(true);  // CI setup
 
@@ -371,6 +376,7 @@ describe('runInit — contributors step', () => {
     vi.mocked(confirm)
       .mockResolvedValueOnce(false)   // multi-client
       .mockResolvedValueOnce(true)    // contributors
+      .mockResolvedValueOnce(false)   // excludeLabels (NEW)
       .mockResolvedValueOnce(false);  // CI setup
 
     await runInit();
@@ -391,6 +397,7 @@ describe('runInit — contributors step', () => {
     vi.mocked(confirm)
       .mockResolvedValueOnce(false)   // multi-client
       .mockResolvedValueOnce(false)   // contributors
+      .mockResolvedValueOnce(false)   // excludeLabels (NEW)
       .mockResolvedValueOnce(false);  // CI setup
 
     await runInit();
@@ -418,6 +425,7 @@ describe('runInit — tag timestamp tip', () => {
     vi.mocked(confirm)
       .mockResolvedValueOnce(false)  // multi-client?
       .mockResolvedValueOnce(false)  // contributors?
+      .mockResolvedValueOnce(false)  // excludeLabels? (NEW)
       .mockResolvedValueOnce(false); // setup CI?
 
     const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
@@ -457,7 +465,8 @@ function stubInitForGitlabCom(token: string) {
   vi.mocked(confirm)
     .mockResolvedValueOnce(false)             // 1. multi-client
     .mockResolvedValueOnce(false)             // 2. contributors
-    .mockResolvedValueOnce(false);            // 3. CI setup
+    .mockResolvedValueOnce(false)             // 3. excludeLabels (NEW)
+    .mockResolvedValueOnce(false);            // 4. CI setup
 }
 
 describe('runInit — host-keyed credentials (F12)', () => {

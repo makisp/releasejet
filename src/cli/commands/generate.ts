@@ -197,6 +197,19 @@ export async function runGenerate(options: {
     );
     const issueCount = Object.values(issues.categorized).reduce((sum, arr) => sum + arr.length, 0) + issues.uncategorized.length;
     spinner?.succeed(`Collected ${issueCount} ${sourceLabel}`);
+    if (issues.excluded.length > 0) {
+      const excludeLabels = config.excludeLabels ?? [];
+      const matchedLabels = Array.from(
+        new Set(
+          issues.excluded.flatMap((i) =>
+            i.labels.filter((l) => excludeLabels.includes(l)),
+          ),
+        ),
+      );
+      console.log(
+        `  Excluded ${issues.excluded.length} ${sourceLabel} by excludeLabels filter (${matchedLabels.join(', ')})`,
+      );
+    }
   } catch (err) {
     spinner?.fail(`Failed to collect ${sourceLabel}`);
     throw err;

@@ -86,6 +86,21 @@ in `.releasejet.yml`. The cleaner strips leading HTML comments and `## Descripti
 
 The `description: ai` value is reserved for AI-summarised descriptions on the paid tier and is treated as `none` in core. See [releasejet.dev](https://releasejet.dev) for details.
 
+### Excluding internal issues
+
+Some issues — refactors, cleanup, internal-only chores — shouldn't appear in client-facing release notes. Add `excludeLabels` to your `.releasejet.yml`:
+
+````yaml
+excludeLabels: [internal, chore]
+````
+
+Any issue carrying one of these labels is dropped before categorization, regardless of its other labels. Excluded issues do not trigger strict-mode failures, and the CLI prints a summary line so you can see what was filtered:
+
+````
+✓ Collected 12 issues
+  Excluded 3 issues by excludeLabels filter (internal, chore)
+````
+
 ### Jira ticket linking
 
 When your team puts Jira ticket IDs in PR/issue titles or descriptions

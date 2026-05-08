@@ -76,6 +76,10 @@ export interface ReleaseJetConfig {
   /** Jira ticket linking (F3). When present, detected ticket IDs in issue/PR
    *  text are rendered as inline links beside each issue line. */
   jira?: JiraConfig;
+  /** Labels that mark an issue as internal-only. Issues carrying any of these
+   *  labels are filtered out before categorization, regardless of other labels.
+   *  Always populated (defaults to []) after parseConfig. */
+  excludeLabels?: string[];
 }
 
 export interface ParsedTag {
@@ -122,6 +126,10 @@ export interface Milestone {
 export interface CategorizedIssues {
   categorized: Record<string, Issue[]>;
   uncategorized: Issue[];
+  /** Issues filtered out by config.excludeLabels before categorization.
+   *  Internal to the collector — consumers (formatter, contributors,
+   *  milestone, webhook envelope) do not read this bucket. */
+  excluded: Issue[];
 }
 
 export interface ReleaseNotesData {

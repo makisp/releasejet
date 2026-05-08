@@ -80,7 +80,7 @@ export async function collectIssues(
   // Inverted window guard.
   if (lowerBoundMs !== null && upperBoundMs <= lowerBoundMs) {
     debug('Inverted window — returning empty set');
-    return { categorized: {}, uncategorized: [] };
+    return { categorized: {}, uncategorized: [], excluded: [] };
   }
 
   const filtered = issues.filter((issue) => {
@@ -115,11 +115,31 @@ export async function collectIssues(
     }
   }
 
+  const excludeLabels = config.excludeLabels ?? [];
+  const excludeSet = new Set(excludeLabels);
+
+  const kept: Issue[] = [];
+  const excluded: Issue[] = [];
+  for (const issue of filtered) {
+    if (issue.labels.some((l) => excludeSet.has(l))) {
+      excluded.push(issue);
+    } else {
+      kept.push(issue);
+    }
+  }
+
+  if (excluded.length > 0) {
+    debug(`Excluded ${excluded.length} issue(s) by excludeLabels filter:`);
+    for (const issue of excluded) {
+      debug(`  #${issue.number} "${issue.title}" labels=[${issue.labels.join(', ')}]`);
+    }
+  }
+
   const categoryLabels = Object.keys(config.categories);
   const categorized: Record<string, Issue[]> = {};
   const uncategorized: Issue[] = [];
 
-  for (const issue of filtered) {
+  for (const issue of kept) {
     const matchedLabel = issue.labels.find((l) => categoryLabels.includes(l));
     if (matchedLabel) {
       const heading = config.categories[matchedLabel];
@@ -130,7 +150,7 @@ export async function collectIssues(
     }
   }
 
-  return { categorized, uncategorized };
+  return { categorized, uncategorized, excluded };
 }
 
 export function detectMilestone(

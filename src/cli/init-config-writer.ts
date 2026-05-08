@@ -12,6 +12,9 @@ export interface InitAnswers {
   categories: Record<string, string>;
   uncategorized: 'lenient' | 'strict';
   contributors: { enabled: boolean; exclude: string[] };
+  /** Issue labels marking internal work to drop from release notes. Empty
+   *  array → emit a commented-out placeholder for discoverability. */
+  excludeLabels: string[];
   /** Optional Jira ticket-linking config (F3). When undefined, the writer
    *  emits a commented-out placeholder for discoverability. */
   jira?: JiraConfig;
@@ -128,16 +131,16 @@ export function contributorsSection(
   ].join('\n');
 }
 
-export function aiSection(): string {
+export function excludeLabelsSection(labels: string[]): string {
+  if (labels.length === 0) {
+    return [
+      '# Internal-only labels — issues with any of these are dropped from release notes.',
+      '# excludeLabels: [internal, chore]',
+    ].join('\n');
+  }
   return [
-    '# AI-powered descriptions and release overview (Pro M3).',
-    '# Sends issue titles, bodies, and labels to releasejet.dev for summarisation.',
-    '# See https://releasejet.dev/docs/pro/ai',
-    '# ai:',
-    '#   allowDataEgress: true',
-    '# description: ai',
-    '# aiSummary:',
-    '#   enabled: true',
+    '# Internal-only labels — issues with any of these are dropped from release notes.',
+    `excludeLabels: [${labels.join(', ')}]`,
   ].join('\n');
 }
 
@@ -181,8 +184,8 @@ export function buildConfigYaml(answers: InitAnswers): string {
   parts.push(descriptionSection());
   parts.push(templateSection());
   parts.push(contributorsSection(answers.contributors));
+  parts.push(excludeLabelsSection(answers.excludeLabels));
   parts.push(jiraSection(answers.jira));
-  parts.push(aiSection());
 
   return parts.join('\n\n') + '\n';
 }

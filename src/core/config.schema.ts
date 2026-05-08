@@ -162,6 +162,11 @@ export const ReleaseJetConfigSchema = z
       .record(z.string(), z.string())
       .default({ ...DEFAULT_CATEGORIES })
       .describe('Map of issue label → section heading.'),
+    excludeLabels: z
+      .array(z.string())
+      .optional()
+      .default([])
+      .describe('Labels that mark issues as internal — issues with any of these labels are dropped before categorization.'),
     uncategorized: z
       .enum(['lenient', 'strict'])
       .optional()
@@ -265,6 +270,21 @@ export function parseConfig(raw: unknown): ReleaseJetConfig {
       throw new Error(
         'Invalid config in .releasejet.yml\n\n  categories: expected an object mapping labels to headings.',
       );
+    }
+  }
+
+  if (data.excludeLabels !== undefined) {
+    if (!Array.isArray(data.excludeLabels)) {
+      throw new Error(
+        'Invalid config in .releasejet.yml\n\n  excludeLabels: expected an array of label names (e.g. [internal, chore]).',
+      );
+    }
+    for (let i = 0; i < data.excludeLabels.length; i++) {
+      if (typeof data.excludeLabels[i] !== 'string') {
+        throw new Error(
+          `Invalid config in .releasejet.yml\n\n  excludeLabels[${i}]: expected a string label name.`,
+        );
+      }
     }
   }
 
@@ -491,6 +511,7 @@ export function parseConfig(raw: unknown): ReleaseJetConfig {
     source: parsed.source,
     clients: parsed.clients,
     categories: parsed.categories,
+    excludeLabels: parsed.excludeLabels,
     uncategorized: parsed.uncategorized,
     contributors,
     template: parsed.template,
