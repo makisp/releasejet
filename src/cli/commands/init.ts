@@ -259,6 +259,28 @@ export async function runInit(): Promise<void> {
     default: false,
   });
 
+  // 9a. excludeLabels (F14)
+  const enableExclude = await confirm({
+    message: 'Mark some issues as internal-only (skipped from release notes)?',
+    default: false,
+  });
+
+  let excludeLabels: string[] = [];
+  if (enableExclude) {
+    const raw = await input({
+      message: 'Internal label(s) (comma-separated):',
+      default: 'internal,chore',
+    });
+    excludeLabels = Array.from(
+      new Set(
+        raw
+          .split(',')
+          .map((s) => s.trim())
+          .filter((s) => s.length > 0),
+      ),
+    );
+  }
+
   // 9b. Jira ticket linking (F3)
   const enableJira = await confirm({
     message: 'Set up Jira ticket linking?',
@@ -305,6 +327,7 @@ export async function runInit(): Promise<void> {
     categories,
     uncategorized,
     contributors: { enabled: enableContributors, exclude: [] },
+    excludeLabels,
     jira,
   });
   await writeFile('.releasejet.yml', yamlContent);
