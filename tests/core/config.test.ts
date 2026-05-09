@@ -338,6 +338,29 @@ categories:
     expect(config.template).toBeUndefined();
   });
 
+  it('round-trips a valid projectId from YAML', async () => {
+    vi.mocked(readFile).mockResolvedValue(`
+provider:
+  type: gitlab
+  url: https://gitlab.example.com
+projectId: 550e8400-e29b-41d4-a716-446655440000
+` as never);
+    const config = await loadConfig();
+    expect(config.projectId).toBe('550e8400-e29b-41d4-a716-446655440000');
+  });
+
+  it('rejects a malformed projectId from YAML with the legacy error format', async () => {
+    vi.mocked(readFile).mockResolvedValue(`
+provider:
+  type: gitlab
+  url: https://gitlab.example.com
+projectId: not-a-uuid
+` as never);
+    await expect(loadConfig()).rejects.toThrow(
+      /projectId: "not-a-uuid" is not a valid UUID v4\./,
+    );
+  });
+
   describe('notifications integration', () => {
     const ORIGINAL = { ...process.env };
     afterEach(() => {
