@@ -84,6 +84,10 @@ export interface ReleaseJetConfig {
    *  labels are filtered out before categorization, regardless of other labels.
    *  Always populated (defaults to []) after parseConfig. */
   excludeLabels?: string[];
+  /** Project identifier (UUID v4). Optional. Consumed by external integrations
+   *  to route per-project payloads. Core treats it as an opaque passthrough
+   *  and performs no runtime behavior based on it. */
+  projectId?: string;
 }
 
 export interface ParsedTag {

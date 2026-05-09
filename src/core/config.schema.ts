@@ -171,6 +171,13 @@ export const ReleaseJetConfigSchema = z
       .optional()
       .default([])
       .describe('Labels that mark issues as internal — issues with any of these labels are dropped before categorization.'),
+    projectId: z
+      .string()
+      .regex(
+        /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
+      )
+      .optional()
+      .describe('Project identifier (UUID v4). Optional passthrough; core does not interpret it.'),
     uncategorized: z
       .enum(['lenient', 'strict'])
       .optional()
@@ -289,6 +296,23 @@ export function parseConfig(raw: unknown): ReleaseJetConfig {
           `Invalid config in .releasejet.yml\n\n  excludeLabels[${i}]: expected a string label name.`,
         );
       }
+    }
+  }
+
+  if (data.projectId !== undefined) {
+    if (typeof data.projectId !== 'string') {
+      throw new Error(
+        'Invalid config in .releasejet.yml\n\n  projectId: expected a string (UUID v4).',
+      );
+    }
+    if (
+      !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+        data.projectId,
+      )
+    ) {
+      throw new Error(
+        `Invalid config in .releasejet.yml\n\n  projectId: "${data.projectId}" is not a valid UUID v4.`,
+      );
     }
   }
 
@@ -532,6 +556,7 @@ export function parseConfig(raw: unknown): ReleaseJetConfig {
     tagFormat: parsed.tagFormat,
     notifications: parsed.notifications,
     projectName: parsed.projectName,
+    projectId: parsed.projectId,
     description: parsed.description,
     jira,
     aiSummary: parsed.aiSummary,

@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.24.0] - 2026-05-09
+
+### Added
+
+- **config:** new optional `projectId` field on `ReleaseJetConfig` (UUID v4, validated). Schema-only passthrough — core performs no runtime behavior based on it. Reserved for use by external integrations that consume the loaded config via the plugin API.
+
 ## [1.23.0] - 2026-05-08
 
 ### Added

@@ -461,4 +461,34 @@ describe('notifications.includeAiSummary field', () => {
       expect(n.includeAiSummary).toBeUndefined();
     }
   });
+
+  it('accepts a valid UUID v4 projectId', () => {
+    const result = parseConfig({
+      projectId: '550e8400-e29b-41d4-a716-446655440000',
+    });
+    expect(result.projectId).toBe('550e8400-e29b-41d4-a716-446655440000');
+  });
+
+  it('accepts absence of projectId (default undefined)', () => {
+    const result = parseConfig({});
+    expect(result.projectId).toBeUndefined();
+  });
+
+  it('rejects a malformed projectId', () => {
+    expect(() => parseConfig({ projectId: 'not-a-uuid' })).toThrow(
+      /projectId: "not-a-uuid" is not a valid UUID v4\./,
+    );
+  });
+
+  it('rejects a non-v4 UUID (e.g., v1)', () => {
+    expect(() =>
+      parseConfig({ projectId: '550e8400-e29b-11d4-a716-446655440000' }),
+    ).toThrow(/projectId:.*is not a valid UUID v4\./);
+  });
+
+  it('rejects a non-string projectId', () => {
+    expect(() => parseConfig({ projectId: 12345 as unknown as string })).toThrow(
+      /projectId: expected a string \(UUID v4\)\./,
+    );
+  });
 });
