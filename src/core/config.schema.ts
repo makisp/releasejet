@@ -192,6 +192,10 @@ export const ReleaseJetConfigSchema = z
       .string()
       .optional()
       .describe('Tag format pattern (e.g., "v{version}" or "{prefix}-v{version}").'),
+    legacyTagFormats: z
+      .array(z.string())
+      .optional()
+      .describe('Older tag-format patterns to recognise alongside tagFormat when migrating (e.g., ["{prefix}-v{version}-version"]). Each must contain {version}.'),
     notifications: z
       .array(NotificationChannelSchema)
       .optional()
@@ -262,6 +266,27 @@ export function parseConfig(raw: unknown): ReleaseJetConfig {
       throw new Error(
         'Invalid config in .releasejet.yml\n\n  tagFormat: must contain the {version} placeholder.',
       );
+    }
+  }
+
+  if (data.legacyTagFormats !== undefined) {
+    if (!Array.isArray(data.legacyTagFormats)) {
+      throw new Error(
+        'Invalid config in .releasejet.yml\n\n  legacyTagFormats: expected an array of tag-format strings (e.g. ["{prefix}-v{version}-version"]).',
+      );
+    }
+    for (let i = 0; i < data.legacyTagFormats.length; i++) {
+      const f = data.legacyTagFormats[i];
+      if (typeof f !== 'string') {
+        throw new Error(
+          `Invalid config in .releasejet.yml\n\n  legacyTagFormats[${i}]: expected a string (e.g. "{prefix}-v{version}-version").`,
+        );
+      }
+      if (!f.includes('{version}')) {
+        throw new Error(
+          `Invalid config in .releasejet.yml\n\n  legacyTagFormats[${i}]: must contain the {version} placeholder.`,
+        );
+      }
     }
   }
 
@@ -554,6 +579,7 @@ export function parseConfig(raw: unknown): ReleaseJetConfig {
     contributors,
     template: parsed.template,
     tagFormat: parsed.tagFormat,
+    legacyTagFormats: parsed.legacyTagFormats,
     notifications: parsed.notifications,
     projectName: parsed.projectName,
     projectId: parsed.projectId,

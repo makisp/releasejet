@@ -70,6 +70,40 @@ describe('parseConfig', () => {
     );
   });
 
+  it('accepts legacyTagFormats as an array of format strings', () => {
+    const result = parseConfig({
+      tagFormat: '{prefix}-v{version}',
+      legacyTagFormats: ['{prefix}-v{version}-version', '{prefix}-v{version}-rc'],
+    });
+    expect(result.legacyTagFormats).toEqual([
+      '{prefix}-v{version}-version',
+      '{prefix}-v{version}-rc',
+    ]);
+  });
+
+  it('defaults legacyTagFormats to undefined when omitted', () => {
+    const result = parseConfig({ tagFormat: 'v{version}' });
+    expect(result.legacyTagFormats).toBeUndefined();
+  });
+
+  it('rejects legacyTagFormats that is not an array', () => {
+    expect(() =>
+      parseConfig({ tagFormat: 'v{version}', legacyTagFormats: 'v{version}-old' }),
+    ).toThrow(/legacyTagFormats: expected an array/);
+  });
+
+  it('rejects a legacyTagFormats entry that is not a string', () => {
+    expect(() =>
+      parseConfig({ tagFormat: 'v{version}', legacyTagFormats: [123] }),
+    ).toThrow(/legacyTagFormats\[0\]: expected a string/);
+  });
+
+  it('rejects a legacyTagFormats entry without {version} placeholder', () => {
+    expect(() =>
+      parseConfig({ tagFormat: 'v{version}', legacyTagFormats: ['v-old'] }),
+    ).toThrow(/legacyTagFormats\[0\]: must contain the \{version\} placeholder/);
+  });
+
   it('rejects client missing prefix or label', () => {
     expect(() => parseConfig({ clients: [{ prefix: 'mobile' }] })).toThrow(
       /clients\[0\]: "prefix" and "label" are required/,

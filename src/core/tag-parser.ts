@@ -40,19 +40,46 @@ export function tagFormatToRegex(format: string): TagFormatRegex {
   };
 }
 
-export function parseTag(tag: string, tagFormat?: string): ParsedTag {
+/**
+ * Attempts to parse `tag` against a single `tagFormat` pattern.
+ * Returns the ParsedTag on success, or null when the tag does not match the
+ * pattern or the captured version part is not coercible to semver.
+ */
+function matchTagFormat(tag: string, format: string): ParsedTag | null {
+  const { regex, prefixGroup, versionGroup } = tagFormatToRegex(format);
+  const match = tag.match(regex);
+  if (!match) return null;
+  const prefix = prefixGroup ? match[prefixGroup] : null;
+  const versionPart = match[versionGroup];
+  const coerced = semver.coerce(versionPart);
+  if (!coerced) return null;
+  const suffix = versionPart.slice(coerced.version.length) || null;
+  return { raw: tag, prefix, version: coerced.version, suffix };
+}
+
+export function parseTag(
+  tag: string,
+  tagFormat?: string,
+  legacyTagFormats?: string[],
+): ParsedTag {
   if (tagFormat) {
-    const { regex, prefixGroup, versionGroup } = tagFormatToRegex(tagFormat);
-    const match = tag.match(regex);
-    if (match) {
-      const prefix = prefixGroup ? match[prefixGroup] : null;
-      const versionPart = match[versionGroup];
-      const coerced = semver.coerce(versionPart);
-      if (coerced) {
-        const suffix = versionPart.slice(coerced.version.length) || null;
-        return { raw: tag, prefix, version: coerced.version, suffix };
+    // Try the current format first, then any legacy formats. A "clean" parse
+    // (no leftover suffix) under any configured format wins immediately: this
+    // is how tags written under an old tagFormat — e.g. "{prefix}-v{version}-version"
+    // — are recognised as full releases after the format changes, instead of
+    // being mistaken for pre-releases (suffix "-version") and filtered out of
+    // previous-tag detection. If only suffixed matches exist, the current
+    // format's interpretation is kept (a genuine pre-release like "-beta").
+    const formats = [tagFormat, ...(legacyTagFormats ?? [])];
+    let firstMatch: ParsedTag | null = null;
+    for (const format of formats) {
+      const parsed = matchTagFormat(tag, format);
+      if (parsed) {
+        if (parsed.suffix === null) return parsed;
+        if (!firstMatch) firstMatch = parsed;
       }
     }
+    if (firstMatch) return firstMatch;
     throw new Error(
       `Invalid tag format: "${tag}". Expected format: ${tagFormat}`,
     );
@@ -237,7 +264,7 @@ export interface TagValidationResult {
 
 export function validateTag(tagName: string, config: ReleaseJetConfig): TagValidationResult {
   try {
-    const parsed = parseTag(tagName, config.tagFormat);
+    const parsed = parseTag(tagName, config.tagFormat, config.legacyTagFormats);
 
     // In multi-client mode, check that the prefix matches a configured client
     if (config.clients.length > 0 && parsed.prefix !== null) {

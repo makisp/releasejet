@@ -38,6 +38,7 @@ npm run dev -- generate --tag v1.0.0  # Run a specific command in dev
 - **ESM-only** (`"type": "module"`) — all internal imports use `.js` extensions
 - **Client-side date filtering** — APIs only support `updatedAfter`, so issues are fetched broadly then filtered by `closedAt` for accuracy
 - **Non-greedy prefix parsing** — `(.+?)-v` handles hyphenated prefixes like `my-app-v1.0.0`
+- **`legacyTagFormats` for format migration** — `parseTag(tag, tagFormat, legacyTagFormats?)` tries the current format first, then each legacy pattern; a *clean* parse (no leftover suffix) under any configured format wins, so tags written under an old format (e.g. `{prefix}-v{version}-version`) are recognised as full releases (`suffix: null`) instead of being treated as pre-releases and filtered out by `findPreviousTag`. If only suffixed matches exist, the current format's interpretation is kept — genuine pre-releases (`-beta`, `-rc`) are still skipped. Config field validated in `config.schema.ts` (array of strings, each containing `{version}`); only honoured when `tagFormat` is set. Both `parseTag` call sites in `generate.ts` and `validateTag` thread it through.
 - **Semver coercion** — tags like `v1.2.3-beta` are coerced to core semver for comparison
 - **Category order preserved** — output sections follow the order defined in the YAML config, not alphabetical
 - **`__VERSION__`** — tsup injects this global from package.json at build time

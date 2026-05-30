@@ -5,6 +5,27 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.25.0] - 2026-05-30
+
+### Added
+
+- **config:** new optional `legacyTagFormats: string[]` field. Lists older
+  `tagFormat` patterns to recognise alongside the current `tagFormat`. Tags
+  written under a previous format (e.g. `{prefix}-v{version}-version`) now parse
+  as full releases (`suffix: null`) instead of being mistaken for pre-releases
+  and silently skipped during previous-tag detection. Each entry must contain
+  `{version}`; only honoured when `tagFormat` is set.
+
+### Fixed
+
+- **tag-parser:** changing `tagFormat` after releases were already tagged no
+  longer permanently breaks automatic previous-tag detection. Previously, the
+  literal trailing text of the old format (e.g. `-version`) was treated as a
+  semver pre-release suffix and such tags were filtered out of
+  `findPreviousTag`, forcing a manual `--since` on every run. Declare the old
+  pattern via `legacyTagFormats` to migrate cleanly. Genuine pre-releases
+  (`-beta`, `-rc.1`) are still skipped as before.
+
 ## [1.24.0] - 2026-05-09
 
 ### Added

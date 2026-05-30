@@ -111,7 +111,7 @@ export async function runGenerate(options: {
   const token = await resolveToken(config.provider.type, hostUrl, projectPath);
   const client = createClient(config, token);
 
-  const currentParsed = parseTag(options.tag, config.tagFormat);
+  const currentParsed = parseTag(options.tag, config.tagFormat, config.legacyTagFormats);
   debug('Parsed tag:', JSON.stringify(currentParsed));
 
   let apiTags: Awaited<ReturnType<typeof client.listTags>>;
@@ -129,7 +129,7 @@ export async function runGenerate(options: {
   const unparseableTags: { name: string; createdAt: string }[] = [];
   for (const t of apiTags) {
     try {
-      const parsed = parseTag(t.name, config.tagFormat);
+      const parsed = parseTag(t.name, config.tagFormat, config.legacyTagFormats);
       allTags.push({
         ...parsed,
         createdAt: t.createdAt,
