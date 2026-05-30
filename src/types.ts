@@ -63,6 +63,13 @@ export interface ReleaseJetConfig {
   contributors?: ContributorsConfig;
   template?: string;
   tagFormat?: string;
+  /** Additional, older tag-format patterns to recognise alongside `tagFormat`.
+   *  Used when migrating to a new `tagFormat`: tags written under a previous
+   *  format (e.g. "{prefix}-v{version}-version") are still parsed as full
+   *  releases — with `suffix: null` — instead of being mistaken for
+   *  pre-releases and skipped during previous-tag detection. Each entry must
+   *  contain the {version} placeholder. Only honoured when `tagFormat` is set. */
+  legacyTagFormats?: string[];
   notifications?: NotificationChannelConfig[];
   /** Human-readable project name shown in notification cards.
    *  When unset, derived from projectUrl's last path segment. */

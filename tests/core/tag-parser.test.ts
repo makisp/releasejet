@@ -247,6 +247,94 @@ describe('parseTag with tagFormat', () => {
   });
 });
 
+describe('parseTag with legacyTagFormats', () => {
+  const NEW = '{prefix}-v{version}';
+  const LEGACY = ['{prefix}-v{version}-version'];
+
+  it('parses a tag cleanly under a legacy format (suffix becomes null)', () => {
+    expect(parseTag('ert-v1.13.5-version', NEW, LEGACY)).toEqual({
+      raw: 'ert-v1.13.5-version',
+      prefix: 'ert',
+      version: '1.13.5',
+      suffix: null,
+    });
+  });
+
+  it('still parses a clean current-format tag with suffix null', () => {
+    expect(parseTag('ert-v1.14.1', NEW, LEGACY)).toEqual({
+      raw: 'ert-v1.14.1',
+      prefix: 'ert',
+      version: '1.14.1',
+      suffix: null,
+    });
+  });
+
+  it('keeps a genuine prerelease suffixed even when legacy formats are present', () => {
+    expect(parseTag('ert-v1.15.0-beta', NEW, LEGACY)).toEqual({
+      raw: 'ert-v1.15.0-beta',
+      prefix: 'ert',
+      version: '1.15.0',
+      suffix: '-beta',
+    });
+  });
+
+  it('without legacy formats, the legacy tag is still seen as suffixed', () => {
+    expect(parseTag('ert-v1.13.5-version', NEW)).toEqual({
+      raw: 'ert-v1.13.5-version',
+      prefix: 'ert',
+      version: '1.13.5',
+      suffix: '-version',
+    });
+  });
+
+  it('tries multiple legacy formats and returns the first clean match', () => {
+    const legacies = ['{prefix}-v{version}-rc', '{prefix}-v{version}-version'];
+    expect(parseTag('ert-v2.0.0-version', NEW, legacies)).toEqual({
+      raw: 'ert-v2.0.0-version',
+      prefix: 'ert',
+      version: '2.0.0',
+      suffix: null,
+    });
+  });
+
+  it('throws when the tag matches neither current nor any legacy format', () => {
+    expect(() => parseTag('totally-different', NEW, LEGACY)).toThrow(
+      'Expected format: {prefix}-v{version}',
+    );
+  });
+
+  it('prefers a clean current-format parse over a legacy interpretation', () => {
+    // 'release/v{version}' has no leftover; legacy is irrelevant here
+    expect(parseTag('release/v1.0.0', 'release/v{version}', ['{prefix}-v{version}'])).toEqual({
+      raw: 'release/v1.0.0',
+      prefix: null,
+      version: '1.0.0',
+      suffix: null,
+    });
+  });
+});
+
+describe('findPreviousTag with migrated legacy tags', () => {
+  it('includes a previously-suffixed tag once it parses cleanly via a legacy format', () => {
+    const NEW = '{prefix}-v{version}';
+    const LEGACY = ['{prefix}-v{version}-version'];
+    const names = [
+      { raw: 'ert-v1.13.4-version', createdAt: '2026-05-10T00:00:00Z' },
+      { raw: 'ert-v1.13.5-version', createdAt: '2026-05-20T00:00:00Z' },
+      { raw: 'ert-v1.14.1', createdAt: '2026-05-30T00:00:00Z' },
+    ];
+    const allTags: TagInfo[] = names.map((n) => ({
+      ...parseTag(n.raw, NEW, LEGACY),
+      createdAt: n.createdAt,
+      commitDate: n.createdAt,
+      dateSource: 'annotated',
+    }));
+    const current = allTags.find((t) => t.raw === 'ert-v1.14.1')!;
+    const prev = findPreviousTag(allTags, current);
+    expect(prev?.raw).toBe('ert-v1.13.5-version');
+  });
+});
+
 describe('findPreviousTag', () => {
   const tags: TagInfo[] = [
     { raw: 'mobile-v0.1.15', prefix: 'mobile', version: '0.1.15', suffix: null, createdAt: '2026-01-01T00:00:00Z', commitDate: '2026-01-01T00:00:00Z', dateSource: 'commit' },

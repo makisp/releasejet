@@ -124,6 +124,27 @@ Output line:
 `projects` is a required allowlist that prevents false positives like
 `HTTP-2` or `IPV-6`.
 
+### Changing your tag format
+
+If you change `tagFormat` after some releases are already tagged, the older
+tags may no longer match the new pattern. A tag like `ert-v1.2.3-version`
+parsed under the new `{prefix}-v{version}` looks like a pre-release (the
+trailing `-version` becomes a semver suffix), so it gets skipped when ReleaseJet
+auto-detects the previous release — and `generate` aborts asking for `--since`.
+
+List the old pattern(s) under `legacyTagFormats` so those tags are recognised as
+full releases and previous-tag detection keeps working with no per-run flags:
+
+```yaml
+tagFormat: "{prefix}-v{version}"
+legacyTagFormats:
+  - "{prefix}-v{version}-version"
+```
+
+Each entry must contain `{version}`. Genuine pre-releases (`-beta`, `-rc.1`)
+are still skipped — only tags that match a listed legacy pattern *exactly*
+(with no leftover suffix) are promoted to full releases.
+
 ## CI/CD
 
 **GitHub Action on the Marketplace** — [marketplace/actions/releasejet](https://github.com/marketplace/actions/releasejet). Five-line setup:

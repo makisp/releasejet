@@ -17,6 +17,14 @@
 # Examples: "{version}", "release/v{version}", "{prefix}/{version}", "{prefix}@{version}"
 tagFormat: "v{version}"
 
+# Migrating from an old tag format? List the previous pattern(s) here so tags
+# created under them are still recognised as full releases. Without this, a tag
+# like "ert-v1.2.3-version" parsed under "{prefix}-v{version}" looks like a
+# pre-release (suffix "-version") and is skipped during previous-tag detection.
+# Each entry must contain {version}. Only used when tagFormat is also set.
+# legacyTagFormats:
+#   - "{prefix}-v{version}-version"
+
 # Client definitions (omit for single-client repos)
 # clients:
 #   - prefix: mobile
